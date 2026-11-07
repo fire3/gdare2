@@ -9,7 +9,7 @@
 | P0 预研 | 完成 | PyGhidra 导入/分析/反编译/持久化已验证 |
 | M0 骨架 | 完成 | 两进程链路、注册表、自动拉起、首批命令与测试 |
 | M1 只读核心 | 基本完成 | 只读命令、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
-| M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu` 已可用；剩 `a8/ad` 与黄金文件 |
+| M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；剩黄金文件与架构矩阵 |
 | M3 反编译/类型 | 待开始 | `pdc`、`afv`、类型与注释 |
 | M4 写入 | 待开始 | `wx/wf/u/U/wc+` 与事务回滚 |
 | M5 兼容/体验 | 待开始 | parity、补全、rc、架构矩阵 |
@@ -65,7 +65,14 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - 修正 `.g/.gstatus/.gsave/.gclose` 的 dot 命令分发与 save 事务锁冲突；
 - 统一适配 PyGhidra 返回的 Java 数组/iterator，覆盖 `BasicBlockModel` 路径。
 
-当前测试：离线 `49 passed`；真实 Ghidra `6 passed`。
+第四轮（M2 收尾）新增：
+
+- `a8 <hexpairs>` 写入并重新反汇编当前地址；
+- `ad [n]` 按目标架构字宽创建数据；
+- `a8/ad` 的只读门控、事务回滚、`.gsave` 持久化与重启后验证；
+- `af` 增加 `aF` 别名。
+
+当前测试：离线 `50 passed`；真实 Ghidra `7 passed`。
 
 验收命令：
 
@@ -77,6 +84,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -j -qc 'iI' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pd 1 @@f:^entry$' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'agf @ entry; ab @ entry; ao @ entry; ai @ entry' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; afn demo_func; .gsave' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's 0x400000; a8 9090c3; ad 1; .gsave' /tmp/blob.bin
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -L
 .venv/bin/python -m pytest -q
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra
@@ -84,7 +92,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 
 ## 已知缺口
 
-- `a8/ad` 手工分析写入、`afB` 尚未实现；
+- `afB` 当前 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
 - `/bin/ls` 与 ARM32 样本的结构化黄金文件、架构矩阵尚未补齐；
 - batch 还没有返回统一 `meta`（总数/截断）信息；
 - 反编译、类型、注释、搜索与通用写入命令尚未实现；
@@ -94,8 +102,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 
 ## 下一轮
 
-1. 完成 `a8/ad/afB`，收尾 M2；
-2. 建立 `/bin/ls` 与 ARM32 样本的结构化黄金文件；
-3. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
-4. 完善 batch 分页 `meta` 与错误码一致性；
-5. 进入 M3：`pdc`、`afv`、函数签名、类型与注释。
+1. 建立 `/bin/ls` 与 ARM32 样本的结构化黄金文件；
+2. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
+3. 完善 batch 分页 `meta` 与错误码一致性；
+4. 进入 M3：`pdc`、`afv`、函数签名、类型与注释。

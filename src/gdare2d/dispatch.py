@@ -48,6 +48,7 @@ def load_all() -> None:
         info,
         memory,
         session,
+        write,
         xrefs,
     )
 

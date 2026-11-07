@@ -110,6 +110,21 @@ class FakeClient:
             return [self._batch_item(spec) for spec in args["ops"]]
         if op == "save":
             return {"saved": True}
+        if op == "analyze_bytes":
+            return {
+                "addr": args["ea"],
+                "size": 3,
+                "bytes": b"\x90\x90\xc3",
+                "instruction": {"text": "NOP"},
+            }
+        if op == "analyze_data":
+            return {
+                "addr": args["ea"],
+                "count": args["count"],
+                "word_size": 8,
+                "size": args["count"] * 8,
+                "type": "qword",
+            }
         raise AssertionError(op)
 
     def _batch_item(self, spec):
@@ -282,3 +297,10 @@ def test_dot_commands_reach_registry():
     session.readonly = False
     assert session.run(".gsave") == []
     assert ("save", {"allow_writes": True}) in client.calls
+
+
+def test_manual_analysis_commands():
+    session, client = make_session()
+    assert "9090c3 NOP" in session.run("a8 90 90 c3")[0]
+    assert "2x8 qword" in session.run("ad 2")[0]
+    assert [op for op, _ in client.calls] == ["analyze_bytes", "analyze_data"]

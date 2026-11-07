@@ -72,7 +72,7 @@ def _function_info(session, statement):
     ]
 
 
-@command("af", "create a function at seek")
+@command("af", "create a function at seek", aliases=("aF",))
 def _create_function(session, statement):
     if session.readonly:
         raise UsageError("writing requires -w")
@@ -98,6 +98,28 @@ def _resize_function(session, statement):
     return [
         f"{session.format_addr(int(payload['addr']))} "
         f"{session.format_addr(int(payload['end']))} {payload['name']}"
+    ]
+
+
+@command("a8", "analyze a hex byte array at seek")
+def _analyze_bytes(session, statement):
+    payload = session.call("analyze_bytes", ea=session.seek, hexpairs=statement.args)
+    instruction = payload.get("instruction")
+    text = instruction.get("text", "") if instruction else "no instruction"
+    return [
+        f"{session.format_addr(int(payload['addr']))} {payload['size']} "
+        f"{bytes(payload.get('bytes', b'')).hex()} {text}"
+    ]
+
+
+@command("ad", "analyze data words at seek")
+def _analyze_data(session, statement):
+    args = statement.args.strip()
+    count = int(args, 0) if args else 1
+    payload = session.call("analyze_data", ea=session.seek, count=count)
+    return [
+        f"{session.format_addr(int(payload['addr']))} {payload['count']}x"
+        f"{payload['word_size']} {payload['type']}"
     ]
 
 

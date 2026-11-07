@@ -147,3 +147,30 @@ def test_function_writes_are_gated_and_persist(env):
     resized = run(env, "-j", "-qc", f"afij @ 0x{entry:x}", target)
     assert resized.returncode == 0, resized.stderr
     assert int(json.loads(resized.stdout)["end"]) == end
+
+
+def test_manual_analysis_writes_persist(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(b"\xcc" * 16)
+    base_args = ("-a", "x86", "-b", "64", "-B", "0x400000")
+
+    denied = run(env, *base_args, "-qc", "a8 9090c3", str(target))
+    assert denied.returncode == 1
+    assert "read-only" in denied.stderr.lower()
+
+    written = run(
+        env,
+        *base_args,
+        "-w",
+        "-qc",
+        "s 0x400000; a8 9090c3; pd 2; ad 1; .gsave; .gclose",
+        str(target),
+    )
+    assert written.returncode == 0, written.stderr
+    assert "NOP" in written.stdout
+    assert "1x8 qword" in written.stdout
+    time.sleep(0.5)
+
+    verify = run(env, *base_args, "-qc", "px 5", str(target))
+    assert verify.returncode == 0, verify.stderr
+    assert "90 90 c3" in verify.stdout
