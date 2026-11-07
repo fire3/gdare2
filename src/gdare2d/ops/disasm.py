@@ -5,7 +5,12 @@ from __future__ import annotations
 from gdare2.errors import GdarError, NotFuncError, NotFoundError, UsageError
 from gdare2d.context import to_addr
 from gdare2d.dispatch import op
-from gdare2d.ops._helpers import function_dict, instruction_dict, require_program
+from gdare2d.ops._helpers import (
+    function_dict,
+    instruction_dict,
+    iter_items,
+    require_program,
+)
 
 MAX_INSTRUCTIONS = 4096
 
@@ -97,6 +102,34 @@ def instruction_before(ctx, ea: int) -> dict:
     return instruction_dict(instruction)
 
 
+@op("instruction_info")
+def instruction_info(ctx, ea: int) -> dict:
+    program = require_program(ctx)
+    address = to_addr(program, int(ea))
+    instruction = _at_or_containing(program, int(ea))
+    if instruction is None:
+        raise NotFoundError(f"no instruction at or containing 0x{int(ea):x}")
+
+    payload = instruction_dict(instruction)
+    payload["flow"] = str(instruction.getFlowType())
+    references = []
+    manager = program.getReferenceManager()
+    reference_items = iter_items(manager.getReferencesFrom(instruction.getAddress()))
+    for reference in reference_items[:256]:
+        references.append(
+            {
+                "from": int(reference.getFromAddress().getOffset()),
+                "to": int(reference.getToAddress().getOffset()),
+                "type": str(reference.getReferenceType()),
+                "primary": bool(reference.isPrimary()),
+            }
+        )
+    payload["references"] = references
+    payload["query"] = int(ea)
+    payload["address"] = int(address.getOffset())
+    return payload
+
+
 @op("pdf")
 def pdf(ctx, ea: int) -> dict:
     program = require_program(ctx)
@@ -104,10 +137,12 @@ def pdf(ctx, ea: int) -> dict:
     if function is None:
         raise NotFuncError(f"address 0x{int(ea):x} is not inside a function")
     listing = program.getListing()
-    instructions = []
-    iterator = listing.getInstructions(function.getBody(), True)
-    while iterator.hasNext() and len(instructions) < MAX_INSTRUCTIONS:
-        instructions.append(instruction_dict(iterator.next()))
+    instructions = [
+        instruction_dict(instruction)
+        for instruction in iter_items(listing.getInstructions(function.getBody(), True))[
+            :MAX_INSTRUCTIONS
+        ]
+    ]
     payload = function_dict(function)
     payload["instructions"] = instructions
     return payload
@@ -148,10 +183,10 @@ def basic_block(ctx, ea: int) -> dict:
     from ghidra.program.model.block import BasicBlockModel
 
     model = BasicBlockModel(program)
-    iterator = model.getCodeBlocksContaining(to_addr(program, int(ea)), ctx.monitor())
-    if not iterator.hasNext():
+    blocks = iter_items(model.getCodeBlocksContaining(to_addr(program, int(ea)), ctx.monitor()))
+    if not blocks:
         raise NotFoundError(f"no basic block containing 0x{int(ea):x}")
-    block = iterator.next()
+    block = blocks[0]
     return _block_dict(block, ctx.monitor())
 
 
@@ -164,10 +199,9 @@ def basic_blocks(ctx, ea: int) -> list[dict]:
     from ghidra.program.model.block import BasicBlockModel
 
     model = BasicBlockModel(program)
-    iterator = model.getCodeBlocksContaining(function.getBody(), ctx.monitor())
     result: list[dict] = []
-    while iterator.hasNext():
-        result.append(_block_dict(iterator.next(), ctx.monitor()))
+    for block in iter_items(model.getCodeBlocksContaining(function.getBody(), ctx.monitor())):
+        result.append(_block_dict(block, ctx.monitor()))
     result.sort(key=lambda item: item["start"])
     return result
 

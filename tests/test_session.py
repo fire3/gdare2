@@ -42,6 +42,56 @@ class FakeClient:
             return {"md5": "abc", "sha256": "def", "path": "/demo", "format": "ELF"}
         if op == "block_at":
             return {"name": ".text", "addr": 0x1000, "end": 0x1FFF, "size": 0x1000, "perms": "r-x"}
+        if op == "basic_block":
+            return {"start": 0x1000, "end": 0x1005, "successors": [0x1010]}
+        if op == "instruction_info":
+            return {
+                "addr": args["ea"],
+                "size": 2,
+                "bytes": b"\x90\x90",
+                "text": "NOP",
+                "flow": "FALL_THROUGH",
+                "references": [],
+            }
+        if op == "address_info":
+            return {
+                "addr": args["ea"],
+                "mapped": True,
+                "block": {"name": ".text", "addr": 0x1000, "end": 0x1FFF},
+                "function": {"name": "main", "addr": 0x1000},
+                "instruction": {"text": "NOP"},
+            }
+        if op == "graph":
+            return {
+                "addr": 0x1000,
+                "name": "main",
+                "blocks": [
+                    {
+                        "addr": 0x1000,
+                        "start": 0x1000,
+                        "end": 0x1005,
+                        "ninstr": 1,
+                        "successors": [0x1010],
+                        "ops": [
+                            {
+                                "addr": 0x1000,
+                                "size": 2,
+                                "bytes": b"\x90\x90",
+                                "text": "NOP",
+                            }
+                        ],
+                    },
+                    {
+                        "addr": 0x1010,
+                        "start": 0x1010,
+                        "end": 0x1011,
+                        "ninstr": 0,
+                        "successors": [],
+                        "ops": [],
+                    },
+                ],
+                "edges": [{"src": 0x1000, "dst": 0x1010, "type": "jump"}],
+            }
         if op == "iter_targets":
             return [
                 {"addr": 0x1000, "size": 10, "name": "main"},
@@ -181,3 +231,24 @@ def test_sized_iterator_sets_per_target_blocksize():
     assert [op for op, _ in client.calls] == ["iter_targets", "batch"]
     operations = client.calls[-1][1]["ops"]
     assert [item["args"]["size"] for item in operations] == [10, 20]
+
+
+def test_graph_and_address_commands():
+    session, _ = make_session()
+    assert "main" in session.run("agf")[0]
+    assert "0x0000000000001010" in "\n".join(session.run("agf"))
+    dot = "\n".join(session.run("agfd"))
+    assert dot.startswith('digraph "main"')
+    assert '"0x1000" -> "0x1010"' in dot
+    assert json.loads("\n".join(session.run("agfj")))["blocks"]
+    assert "0x0000000000001000" in session.run("ab @ main")[0]
+    assert "FALL_THROUGH" in "\n".join(session.run("ao @ main"))
+    assert "func:" in "\n".join(session.run("ai @ main"))
+
+
+def test_function_helpers():
+    session, _ = make_session()
+    assert session.run("afln") == ["main"]
+    assert session.run("afl+") == ["10"]
+    session.json_default = True
+    assert json.loads("\n".join(session.run("agf")))["name"] == "main"

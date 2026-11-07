@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from gdare2.cmd import command
 from gdare2.errors import UsageError
+from gdare2.fmt.graph import format_ascii_graph, format_dot_graph
 from gdare2.jsonutil import dumps
 
 
@@ -17,6 +18,20 @@ def _functions(session, statement):
         f"{session.format_addr(int(item['addr']))} {int(item['size']):5d} {item['name']}"
         for item in payload
     ]
+
+
+@command("afln", "list function names")
+def _function_names(session, statement):
+    payload = session.call("functions", limit=10000)
+    session.warn_truncated("function list", len(payload))
+    return [str(item["name"]) for item in payload]
+
+
+@command("afl+", "show the total function size")
+def _function_size(session, statement):
+    payload = session.call("functions", limit=10000)
+    session.warn_truncated("function list", len(payload))
+    return [str(sum(int(item["size"]) for item in payload))]
 
 
 @command("aflc", "count functions")
@@ -83,3 +98,76 @@ def _blocks(session, statement):
         + " ".join(f"0x{int(item):08x}" for item in block.get("successors", []))
         for block in payload
     ]
+
+
+@command("ab", "show the current basic block", aliases=("abj",))
+def _current_block(session, statement):
+    payload = session.call("basic_block", ea=session.seek)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    successors = " ".join(
+        session.format_addr(int(item)) for item in payload.get("successors", [])
+    )
+    return [
+        f"{session.format_addr(int(payload['start']))} "
+        f"{session.format_addr(int(payload['end']))} {successors}".rstrip()
+    ]
+
+
+@command("ao", "show instruction details", aliases=("aoj",))
+def _instruction_info(session, statement):
+    payload = session.call("instruction_info", ea=session.seek)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    lines = [
+        f"addr:  {session.format_addr(int(payload['addr']))}",
+        f"size:  {payload['size']}",
+        f"bytes: {bytes(payload.get('bytes', b'')).hex()}",
+        f"text:  {payload.get('text', '')}",
+        f"flow:  {payload.get('flow', '')}",
+    ]
+    for reference in payload.get("references") or []:
+        lines.append(
+            f"xref:  {session.format_addr(int(reference['from']))} -> "
+            f"{session.format_addr(int(reference['to']))} {reference.get('type', '')}"
+        )
+    return lines
+
+
+@command("ai", "show address information", aliases=("aij",))
+def _address_info(session, statement):
+    payload = session.call("address_info", ea=session.seek)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    lines = [
+        f"addr:  {session.format_addr(int(payload['addr']))}",
+        f"mapped: {str(bool(payload.get('mapped'))).lower()}",
+        f"perms: {payload.get('block', {}).get('perms', '---') if payload.get('block') else '---'}",
+    ]
+    block = payload.get("block")
+    function = payload.get("function")
+    instruction = payload.get("instruction")
+    if block:
+        lines.append(
+            f"block: {block.get('name', '')} "
+            f"{session.format_addr(int(block['addr']))}-"
+            f"{session.format_addr(int(block['end']))}"
+        )
+    if function:
+        lines.append(
+            f"func:  {function.get('name', '')} "
+            f"{session.format_addr(int(function['addr']))}"
+        )
+    if instruction:
+        lines.append(f"insn:  {instruction.get('text', '')}")
+    return lines
+
+
+@command("agf", "show the function control-flow graph", aliases=("agfj", "agfd"))
+def _graph(session, statement):
+    payload = session.call("graph", ea=session.seek)
+    if statement.cmd == "agfj":
+        return [dumps(payload)]
+    if statement.cmd == "agfd":
+        return format_dot_graph(payload)
+    return format_ascii_graph(payload, session.config, int(session.info.get("bits") or 32))

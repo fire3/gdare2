@@ -39,7 +39,16 @@ def load_all() -> None:
     global _LOADED
     if _LOADED:
         return
-    from gdare2d.ops import analysis, batch, disasm, info, memory, session, xrefs  # noqa: F401
+    from gdare2d.ops import (  # noqa: F401
+        analysis,
+        batch,
+        disasm,
+        graph,
+        info,
+        memory,
+        session,
+        xrefs,
+    )
 
     _LOADED = True
 

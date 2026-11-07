@@ -51,6 +51,58 @@ def block_at(ctx, ea: int) -> dict:
     }
 
 
+@op("address_info")
+def address_info(ctx, ea: int) -> dict:
+    from gdare2d.context import to_addr
+    from gdare2d.ops._helpers import function_dict, instruction_dict
+
+    program = require_program(ctx)
+    address = to_addr(program, int(ea))
+    memory = program.getMemory()
+    block = memory.getBlock(address)
+    function = program.getFunctionManager().getFunctionContaining(address)
+    if function is None:
+        function = program.getFunctionManager().getFunctionAt(address)
+    listing = program.getListing()
+    instruction = listing.getInstructionContaining(address)
+    if instruction is None:
+        instruction = listing.getInstructionAt(address)
+    symbol = program.getSymbolTable().getPrimarySymbol(address)
+
+    payload = {
+        "addr": int(address.getOffset()),
+        "mapped": block is not None,
+        "readable": bool(block is not None and block.isRead()),
+        "writable": bool(block is not None and block.isWrite()),
+        "executable": bool(block is not None and block.isExecute()),
+        "block": None,
+        "function": None,
+        "symbol": None,
+        "instruction": None,
+    }
+    if block is not None:
+        payload["block"] = {
+            "name": str(block.getName()),
+            "addr": int(block.getStart().getOffset()),
+            "end": int(block.getEnd().getOffset()),
+            "size": int(block.getSize()),
+            "perms": ("r" if block.isRead() else "-")
+            + ("w" if block.isWrite() else "-")
+            + ("x" if block.isExecute() else "-"),
+        }
+    if function is not None:
+        payload["function"] = function_dict(function)
+    if symbol is not None:
+        payload["symbol"] = {
+            "addr": int(symbol.getAddress().getOffset()),
+            "name": str(symbol.getName()),
+            "type": str(symbol.getSymbolType()),
+        }
+    if instruction is not None:
+        payload["instruction"] = instruction_dict(instruction)
+    return payload
+
+
 @op("hashes")
 def hashes(ctx) -> dict:
     program = require_program(ctx)

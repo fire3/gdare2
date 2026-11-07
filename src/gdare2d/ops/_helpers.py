@@ -11,6 +11,21 @@ def java_bytes(value) -> bytes:
     return bytes((int(byte) & 0xFF) for byte in value)
 
 
+def iter_items(value) -> list:
+    """Normalize a Ghidra iterator, Java array or Python iterable to a list."""
+    if value is None:
+        return []
+    if hasattr(value, "hasNext"):
+        result = []
+        while value.hasNext():
+            result.append(value.next())
+        return result
+    try:
+        return list(value)
+    except TypeError:
+        return [value]
+
+
 def instruction_dict(instruction) -> dict:
     raw = java_bytes(instruction.getBytes())
     flow = instruction.getFlowType()

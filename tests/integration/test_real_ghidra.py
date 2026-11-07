@@ -89,3 +89,29 @@ def test_batch_function_iteration(env):
     assert result.returncode == 0, result.stderr
     assert result.stdout.count("0x") >= 4
     assert "ERROR:" not in result.stderr
+
+
+def test_graph_and_address_info(env):
+    target = "/bin/ls"
+    info = run(env, "-j", "-qc", "iI", target)
+    assert info.returncode == 0, info.stderr
+    entry = int(json.loads(info.stdout)["entry"])
+
+    ascii_graph = run(env, "-qc", f"s 0x{entry:x}; agf", target)
+    assert ascii_graph.returncode == 0, ascii_graph.stderr
+    assert "[0x" in ascii_graph.stdout
+
+    json_graph = run(env, "-qc", f"s 0x{entry:x}; agfj", target)
+    assert json_graph.returncode == 0, json_graph.stderr
+    payload = json.loads(json_graph.stdout)
+    assert payload["blocks"]
+    assert "edges" in payload
+
+    dot = run(env, "-qc", f"s 0x{entry:x}; agfd", target)
+    assert dot.returncode == 0, dot.stderr
+    assert dot.stdout.startswith("digraph")
+
+    details = run(env, "-qc", f"s 0x{entry:x}; ab; ao; ai", target)
+    assert details.returncode == 0, details.stderr
+    assert "flow:" in details.stdout
+    assert "mapped: true" in details.stdout

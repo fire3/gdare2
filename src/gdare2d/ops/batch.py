@@ -8,7 +8,7 @@ from gdare2.errors import NotFuncError, UsageError
 from gdare2.protocol import error as error_payload
 from gdare2d.context import to_addr
 from gdare2d.dispatch import as_error, invoke, op
-from gdare2d.ops._helpers import require_program
+from gdare2d.ops._helpers import iter_items, require_program
 
 MAX_BATCH = 4096
 MAX_TARGETS = 4096
@@ -88,9 +88,7 @@ def _function_targets(program, pattern: str | None, limit: int) -> list[dict]:
 def _instruction_targets(program, ea: int, limit: int) -> list[dict]:
     function = _containing_function(program, ea)
     result = []
-    iterator = program.getListing().getInstructions(function.getBody(), True)
-    while iterator.hasNext() and len(result) < limit:
-        instruction = iterator.next()
+    for instruction in iter_items(program.getListing().getInstructions(function.getBody(), True))[:limit]:
         result.append(
             {
                 "addr": int(instruction.getAddress().getOffset()),
@@ -105,10 +103,8 @@ def _block_targets(program, ea: int, limit: int, monitor) -> list[dict]:
     from ghidra.program.model.block import BasicBlockModel
 
     model = BasicBlockModel(program)
-    iterator = model.getCodeBlocksContaining(function.getBody(), monitor)
     result = []
-    while iterator.hasNext() and len(result) < limit:
-        block = iterator.next()
+    for block in iter_items(model.getCodeBlocksContaining(function.getBody(), monitor))[:limit]:
         start = int(block.getFirstStartAddress().getOffset())
         end = int(block.getMaxAddress().getOffset())
         result.append({"addr": start, "end": end, "size": max(0, end - start + 1)})
