@@ -1,0 +1,240 @@
+# gdare2 与 radare2 的预期语义差异
+
+> 目标不是“假装 Ghidra 是 r2”，而是让高频工作流兼容，同时把无法兼容的地方
+> 明确暴露出来。任何“看起来像 bug”的差异都应该能在本文件找到解释。
+
+## 1. 分析模型
+
+### 1.1 `aa` 通常是 no-op
+
+Ghidra 在导入/首次打开时跑自动分析。`gdare2` 的 `aa` 只在程序尚未分析时触发分析；
+对已经分析过的项目通常是 no-op。保留 `aa` 只为脚本兼容。
+
+`aaa` 会显式请求全量重分析，成本高，建议只在明确需要时使用。
+
+### 1.2 函数名来自 Ghidra
+
+r2 默认命名类似 `sym.main`、`fcn.00401000`；Ghidra 默认命名类似 `FUN_00401000`、
+`LAB_00401000`、`main`。客户端不做“改名为 r2 风格”的伪造，只在渲染时提供
+`sym.`/`fcn.` 前缀的可选规范化。
+
+### 1.3 没有 r2 的 `anal.*` 调参
+
+Ghidra 的分析器由 `AutoAnalysisManager` 和 analyzer options 控制，不是 r2 的
+`anal.*` 配置树。相关 `e anal.*` 键应报 unsupported 或映射到
+`ghidra.analysis.*`。
+
+## 2. 进程与项目
+
+### 2.1 项目独占
+
+Ghidra 同一项目同一时间只能被一个进程可写打开。默认 `gdare2` 会拉起 daemon
+独占项目；此时不能用 Ghidra GUI 打开同一项目。
+
+这是 Ghidra 的硬约束，不是 gdare2 的 bug。
+
+### 2.2 多个 CLI 共享 daemon
+
+r2 每个进程独立打开文件；gdare2 的多个 CLI 默认连同一个 daemon，因此：
+
+- 写入对其他客户端立即可见；
+- 一个客户端的 undo 会影响共享程序状态；
+- `q` 只断开客户端，不关闭 daemon（除非 `.gclose`/`--kill`）。
+
+### 2.3 热启动
+
+第一次打开项目可能很慢（JVM + 导入 + 分析）；后续命令应秒级。若每次命令都很慢，
+说明 daemon 没有复用或项目被反复打开，应检查注册表/日志。
+
+### 2.4 `-L` 的含义不同
+
+r2 的 `-L` 用于列出插件；gdare2 的 `-L` 用于列出本地 daemon 实例。两者不兼容，
+脚本中不要把 `-L` 当作插件列表使用。`L` 命令同样表示 daemon 实例列表。
+
+## 3. 导入与架构
+
+### 3.1 裸二进制必须给语言
+
+Ghidra `BinaryLoader` 默认选择“第一个 preferred language”，这几乎肯定不是用户想要的。
+gdare2 对裸二进制要求 `-a/-b/--endian` 或 `--ghidra-language`；缺失时明确报错。
+
+### 3.2 架构名不是 r2 名
+
+`-a arm` 会映射到 Ghidra `ARM:LE:32:v7`（或用户指定的 v8/Cortex），不是 r2 的
+`arm` 插件名。需要精确控制时用 `--ghidra-language`。
+
+### 3.3 加载基址
+
+`-B` 映射到 `BinaryLoader` 的 `-baseAddr` loader arg，不修改已有程序的内存块。
+对 ELF/PE 默认忽略 `-B`；PIE 重定位需要 `--force-base`，v1 不实现，会明确警告/报错。
+
+## 4. 反汇编
+
+### 4.1 文本格式
+
+Ghidra 的 `Instruction.toString()` 与 r2 的 `pd` 文本不同：
+
+- 助记符大小写/别名可能不同；
+- 操作数顺序、立即数格式、符号显示可能不同；
+- 函数调用目标可能显示为 `FUN_...` 而不是 `sym.imp...`；
+- 没有 r2 的 `;` 注释分隔和颜色语义。
+
+gdare2 渲染层会尽量对齐列布局，但不改写 Ghidra 的语义文本。
+
+### 4.2 地址宽度
+
+r2 根据架构和配置推导地址宽度；gdare2 默认按 `Program.getLanguage().getLanguageDescription().getSize()`
+和镜像基址推导，`e asm.addrwidth` 可覆盖。
+
+### 4.3 `pd` 越界
+
+Ghidra 不会把数据“猜”成指令；`pd` 遇到未定义区域会停止。r2 可能继续按字节解码。
+这是有意的保守行为，避免输出伪指令。
+
+## 5. 反编译
+
+### 5.1 输出不同
+
+Ghidra 反编译器与 Hex-Rays/r2ghidra 的输出必然不同：
+
+- 变量命名、类型恢复、结构体布局不同；
+- 控制流简化程度不同；
+- 注释/行号/函数签名格式不同。
+
+`pdc` 只保证是 Ghidra 的 C 文本；不保证与 r2 的 `pdc` 逐行一致。
+
+### 5.2 `afv` 存储分类
+
+Ghidra `VariableStorage` 不直接对应 r2 的 `reg/sp/bp`：
+
+- 寄存器变量 → `reg`；
+- 栈变量 → `sp`；
+- 其他（内存、复合、未分类）→ `other`。
+
+`bp` 通常为空，因为 Ghidra 不暴露帧基址分类。
+
+### 5.3 `pdd` / `pdg` / `pdk`
+
+没有稳定对应或需要额外插件，v1 明确报 unsupported。
+
+## 6. 类型
+
+### 6.1 C 声明解析
+
+`td` 使用 Ghidra 的 `CParserUtils`/`DataTypeParser`，支持常用 C 类型，但对：
+
+- C++ 模板/类；
+- 匿名结构体/联合；
+- 复杂位域；
+- 编译器扩展属性；
+
+支持程度与 r2 不同。失败时返回 `BAD_ARGS` 和解析消息，不静默创建错误类型。
+
+### 6.2 类型名与 typedef
+
+Ghidra 可能把 typedef 展开或保留为 `TypeDef`，r2 的 `t` 列表格式也不同。
+客户端只做渲染，不改变类型语义。
+
+## 7. 符号与 flag
+
+### 7.1 flag 写回
+
+默认 flag 是会话内状态；`f name @ addr` 要写回 Ghidra 需要：
+
+- `-w`；
+- `e ghidra.flags.write=true`。
+
+否则只影响当前客户端，不会出现在 Ghidra GUI/其他客户端。
+
+### 7.2 删除符号
+
+Ghidra 删除符号可能影响引用/函数名；`f-`/`f--` 需要二次确认，且在只读会话中拒绝。
+
+### 7.3 段权限是近似值
+
+Ghidra `MemoryBlock` 只提供读/写/执行三个布尔属性，不保留完整的 Unix `rwx`
+或文件格式 section flags。`iS` 的权限列是近似值，不应当作原始 section header。
+
+### 7.4 导入/导出是符号视图
+
+Ghidra 没有统一的 ELF dynamic symbol / PE export table API 供所有格式复用。
+`ii`/`iE` 基于 `SymbolTable` 的外部符号、全局符号和 entry point 推断，
+条目数/分类可能与 r2 的原格式解析不同；需要精确导出表时应保留原始格式解析器。
+
+## 8. 搜索
+
+### 8.1 范围
+
+r2 的 `search.in=io.maps` 默认在映射内存中搜索；gdare2 的 `raw` 模式读原始文件，
+`io.maps` 走 `Memory.findBytes`。两者在未初始化/非加载区域结果不同。
+
+### 8.2 字符串正则
+
+`/r` 只遍历已定义字符串（`StringDataType`），不会像 r2 那样扫描任意字节并猜测编码。
+需要全文件扫描时用 `/x` 或 `izz`。
+
+## 9. 写入
+
+### 9.1 `w` 是保存程序
+
+r2 的 `w` 是写字符串；gdare2 与 idare2 一致，把 `w` 定义为“保存 Ghidra program”。
+为兼容 r2，`w <text>` 仍然写字符串，因此 `w` 是重载命令：无参数时保存，
+有参数时写入。需要无歧义保存时使用 `.gsave`。
+
+### 9.2 `io.cache`
+
+`e io.cache=true` 时补丁先进入客户端缓存，`wc+` 一次性提交为一个 Ghidra transaction。
+这与 r2 的写缓存语义接近，但 undo 粒度不同（一个 transaction 而非每条补丁）。
+
+### 9.3 只读请求与 daemon 策略
+
+默认只读。只读请求不仅拒绝 `wx`，也拒绝 `u/U`，因为 undo 会改变程序状态。
+多个客户端共享同一个程序时，写能力是请求级的；`gdare2d --readonly` 可强制整个
+daemon 只读。
+
+## 10. 汇编
+
+- Ghidra 的 SLEIGH assembler 只覆盖部分语言；
+- 汇编语法是 Ghidra 语法，不是 r2/rasm2 语法；
+- 不支持时明确报错，不静默调用外部汇编器；
+- 可选 `--assembler=rasm2` 显式回退，并在输出中标注。
+
+## 11. 输出与 JSON
+
+### 11.1 JSON 字段
+
+gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 r2 的 `esil`、
+`cycles`、`family`）会缺失。缺失字段不伪造默认值。
+
+### 11.2 颜色
+
+颜色只在 TTY 下默认开启；管道/重定向自动关闭。`e scr.color` 可覆盖。
+
+### 11.3 分页
+
+大列表默认分页/截断；`meta.truncated=true` 时必须用 `-o` 继续，不静默丢弃。
+
+## 12. 不支持的命令
+
+以下命令 v1 明确不做，必须报 `unsupported`，不能回退到相似命令：
+
+- `d*`、`g*`、`ae`、`ar`、`as`、`ap`；
+- `V`、`v`、`pz`、`pk`、`pq`；
+- `z`、`Z`；
+- `k`、`m`、`o`、`=`、`#`；
+- `pdg`、`pdd`、`pdk`、`pds`；
+- `ih`、`iH`、`ir`、`ic`、`id`（按 Ghidra 能力）；
+- GUI 同步（v1）。
+
+## 13. 已知的“看起来像 bug”
+
+| 现象 | 原因 |
+|---|---|
+| 第一次命令很慢 | JVM/Ghidra 项目加载与首次分析 |
+| 第二次命令仍慢 | daemon 未复用/项目被重开/分析未完成 |
+| Ghidra GUI 打不开项目 | daemon 持有项目锁 |
+| `pd` 在数据区停止 | Ghidra 不伪造指令 |
+| `afv` 出现 `other` | Ghidra storage 分类与 r2 不同 |
+| `pa` 报 unsupported | 该语言没有 SLEIGH assembler |
+| `f` 改名后 GUI 看不到 | 未 `-w` 或 `e ghidra.flags.write=false` |
+| `u` 在只读会话失败 | undo 也是修改，默认只读 |
