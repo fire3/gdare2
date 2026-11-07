@@ -36,6 +36,15 @@ class FakeClient:
             return [{"addr": 0x3000, "name": "caller", "size": 5, "end": 0x3005}]
         if op == "function_callees":
             return [{"addr": 0x4000, "name": "callee", "size": 5, "end": 0x4005}]
+        if op == "function_rename":
+            return {"addr": args["ea"], "name": args["name"], "size": 10, "end": 0x100A}
+        if op == "function_resize":
+            return {
+                "addr": args["ea"],
+                "name": "main",
+                "size": args["end"] - args["ea"] + 1,
+                "end": args["end"],
+            }
         if op == "function_xrefs":
             return [{"from": 0x1000, "to": 0x4000, "type": "CALL"}]
         if op == "hashes":
@@ -99,6 +108,8 @@ class FakeClient:
             ]
         if op == "batch":
             return [self._batch_item(spec) for spec in args["ops"]]
+        if op == "save":
+            return {"saved": True}
         raise AssertionError(op)
 
     def _batch_item(self, spec):
@@ -252,3 +263,22 @@ def test_function_helpers():
     assert session.run("afl+") == ["10"]
     session.json_default = True
     assert json.loads("\n".join(session.run("agf")))["name"] == "main"
+
+
+def test_function_write_commands():
+    session, client = make_session()
+    renamed = session.run("s main; afn renamed")[0]
+    assert renamed.endswith("renamed")
+    resized = session.run("s main; afu 0x1010")[0]
+    assert "0x0000000000001010" in resized
+    assert [
+        op for op, _ in client.calls if op in ("function_rename", "function_resize")
+    ] == ["function_rename", "function_resize"]
+
+
+def test_dot_commands_reach_registry():
+    session, client = make_session()
+    assert "program: demo" in session.run(".g")
+    session.readonly = False
+    assert session.run(".gsave") == []
+    assert ("save", {"allow_writes": True}) in client.calls

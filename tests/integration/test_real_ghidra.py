@@ -115,3 +115,35 @@ def test_graph_and_address_info(env):
     assert details.returncode == 0, details.stderr
     assert "flow:" in details.stdout
     assert "mapped: true" in details.stdout
+
+
+def test_function_writes_are_gated_and_persist(env):
+    target = "/bin/ls"
+    info = run(env, "-j", "-qc", "iI", target)
+    assert info.returncode == 0, info.stderr
+    entry = int(json.loads(info.stdout)["entry"])
+    instruction = run(env, "-j", "-qc", f"aoj @ 0x{entry:x}", target)
+    assert instruction.returncode == 0, instruction.stderr
+    end = entry + int(json.loads(instruction.stdout)["size"]) - 1
+
+    denied = run(env, "-qc", f"s 0x{entry:x}; afn should_not_apply", target)
+    assert denied.returncode == 1
+    assert "read-only" in denied.stderr.lower()
+
+    name = "gdare2_m2_renamed_test"
+    written = run(
+        env,
+        "-w",
+        "-qc",
+        f"s 0x{entry:x}; afn {name}; afu 0x{end:x}; .gsave; .gclose",
+        target,
+    )
+    assert written.returncode == 0, written.stderr
+    time.sleep(0.5)
+
+    verify = run(env, "-qc", f"afi @ {name}", target)
+    assert verify.returncode == 0, verify.stderr
+    assert name in verify.stdout
+    resized = run(env, "-j", "-qc", f"afij @ 0x{entry:x}", target)
+    assert resized.returncode == 0, resized.stderr
+    assert int(json.loads(resized.stdout)["end"]) == end

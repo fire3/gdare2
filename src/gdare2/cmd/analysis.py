@@ -82,6 +82,25 @@ def _create_function(session, statement):
     return []
 
 
+@command("afn", "rename the current function")
+def _rename_function(session, statement):
+    name = statement.args.strip()
+    if not name:
+        raise UsageError("afn needs a function name")
+    payload = session.call("function_rename", ea=session.seek, name=name)
+    return [f"{session.format_addr(int(payload['addr']))} {payload['name']}"]
+
+
+@command("afu", "resize the current function through an address")
+def _resize_function(session, statement):
+    end = session.resolve(statement.args)
+    payload = session.call("function_resize", ea=session.seek, end=end)
+    return [
+        f"{session.format_addr(int(payload['addr']))} "
+        f"{session.format_addr(int(payload['end']))} {payload['name']}"
+    ]
+
+
 @command("aa", "analyse the program if needed", aliases=("aaa",))
 def _analyze(session, statement):
     payload = session.call("analyze", force=statement.cmd == "aaa")

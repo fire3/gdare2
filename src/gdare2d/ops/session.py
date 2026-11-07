@@ -37,7 +37,7 @@ def analyze(ctx, force: bool = False) -> dict:
     return ctx.runtime.analyze(force=bool(force))
 
 
-@op("save", writes=True)
+@op("save", writes=True, transaction=False)
 def save(ctx) -> dict:
     require_program(ctx)
     ctx.runtime.save()

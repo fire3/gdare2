@@ -21,15 +21,16 @@ class OpSpec:
     name: str
     handler: Handler
     writes: bool = False
+    transaction: bool = True
 
 
 _OPS: dict[str, OpSpec] = {}
 _LOADED = False
 
 
-def op(name: str, *, writes: bool = False):
+def op(name: str, *, writes: bool = False, transaction: bool = True):
     def decorate(handler: Handler) -> Handler:
-        _OPS[name] = OpSpec(name, handler, writes)
+        _OPS[name] = OpSpec(name, handler, writes, transaction)
         return handler
 
     return decorate
@@ -65,7 +66,7 @@ def invoke(ctx: Context, name: str, args: dict[str, Any], *, allow_writes: bool)
         raise UsageError(spec_error)
 
     try:
-        if spec.writes:
+        if spec.writes and spec.transaction:
             import pyghidra
 
             with pyghidra.transaction(ctx.program, f"gdare2: {name}"):

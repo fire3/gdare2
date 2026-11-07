@@ -213,9 +213,7 @@ class Session:
         if statement.iterator is not None or statement.iterator_size is not None:
             return self._dispatch_iterator(statement)
         if statement.dot:
-            if statement.cmd == "g":
-                return self.cmd_info_json(statement)
-            raise UsageError(f"unsupported dot command .{statement.cmd}")
+            statement = replace(statement, cmd=f".{statement.cmd}", dot=False)
         return self.invoke(statement)
 
     def invoke(self, statement: Statement) -> list[str]:

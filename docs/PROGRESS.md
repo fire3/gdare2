@@ -9,7 +9,7 @@
 | P0 预研 | 完成 | PyGhidra 导入/分析/反编译/持久化已验证 |
 | M0 骨架 | 完成 | 两进程链路、注册表、自动拉起、首批命令与测试 |
 | M1 只读核心 | 基本完成 | 只读命令、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
-| M2 分析/图 | 进行中 | 已有 `af/afb`、`sb/sf/sF/so/sn/sp`；继续补 `@@`、`aflc/afln`、块图 `agf` |
+| M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu` 已可用；剩 `a8/ad` 与黄金文件 |
 | M3 反编译/类型 | 待开始 | `pdc`、`afv`、类型与注释 |
 | M4 写入 | 待开始 | `wx/wf/u/U/wc+` 与事务回滚 |
 | M5 兼容/体验 | 待开始 | parity、补全、rc、架构矩阵 |
@@ -55,6 +55,18 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - ARM32 ELF（`../vulfirm/OverFlow/R6700v3/upnpd`）导入与反汇编；
 - 裸二进制 `-a x86 -b 64 -B 0x400000` 导入、自动反汇编与基址识别。
 
+第三轮（M2）新增：
+
+- `@@=`/`@@f`/`@@i`/`@@b`/`@@S`/`@@s` 目标枚举；`@@@` 为每个目标携带大小；
+- `batch` RPC 在同一 executor 时间片顺序执行，单项失败不影响整批；
+- `agf/agfj/agfd` 基本块图，`ab/abj`、`ao/aoj`、`ai/aij`；
+- `afln`、`afl+`，以及 `afn` 重命名与 `afu` 调整函数边界；
+- `afn/afu` 的 `-w` 门控、transaction、`.gsave` 保存与 daemon 重启后持久化；
+- 修正 `.g/.gstatus/.gsave/.gclose` 的 dot 命令分发与 save 事务锁冲突；
+- 统一适配 PyGhidra 返回的 Java 数组/iterator，覆盖 `BasicBlockModel` 路径。
+
+当前测试：离线 `49 passed`；真实 Ghidra `6 passed`。
+
 验收命令：
 
 ```bash
@@ -62,6 +74,9 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pd 5' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 's 0x106760; pd 5; px 16' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pd 20~+call' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -j -qc 'iI' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pd 1 @@f:^entry$' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'agf @ entry; ab @ entry; ao @ entry; ai @ entry' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; afn demo_func; .gsave' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -L
 .venv/bin/python -m pytest -q
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra
@@ -69,18 +84,18 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 
 ## 已知缺口
 
-- session lease、heartbeat 与活跃会话计数尚未实现；
-- `@@`/`@@@` 迭代器与 batch RPC 尚未实现；
-- 反编译、类型、注释、搜索、写入命令尚未实现；
+- `a8/ad` 手工分析写入、`afB` 尚未实现；
+- `/bin/ls` 与 ARM32 样本的结构化黄金文件、架构矩阵尚未补齐；
+- batch 还没有返回统一 `meta`（总数/截断）信息；
+- 反编译、类型、注释、搜索与通用写入命令尚未实现；
 - `pdi/pdl/pd -n` 与 r2 parity 黄金文件尚未补齐；
 - `-i/-I` 当前按打开后脚本处理；
 - GUI 桥未开始。
 
-## 下一轮（M2）
+## 下一轮
 
-1. 实现 `@@f`/`@@i`/`@@b` 与 batch RPC；
-2. 补 `agf/agfj/agfd`、`ab/ao/ai`；
-3. 补 `afn/afu/afln` 等写操作；
-4. 建立 `/bin/ls` 与 ARM32 样本的结构化黄金文件；
-5. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
-6. 继续完善分页 `meta` 与错误码一致性。
+1. 完成 `a8/ad/afB`，收尾 M2；
+2. 建立 `/bin/ls` 与 ARM32 样本的结构化黄金文件；
+3. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
+4. 完善 batch 分页 `meta` 与错误码一致性；
+5. 进入 M3：`pdc`、`afv`、函数签名、类型与注释。
