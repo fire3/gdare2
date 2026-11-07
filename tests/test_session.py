@@ -125,6 +125,29 @@ class FakeClient:
                 "size": args["count"] * 8,
                 "type": "qword",
             }
+        if op == "decompile":
+            return {
+                "addr": args["ea"],
+                "name": "main",
+                "c": "int main(void)\n{\n  return 0;\n}",
+                "signature": "int main(void)",
+            }
+        if op == "function_variables":
+            return {
+                "addr": args["ea"],
+                "name": "main",
+                "variable_count": 1,
+                "parameter_count": 0,
+                "variables": [
+                    {
+                        "name": "local_8",
+                        "type": "int",
+                        "storage": "Stack[-0x8]",
+                        "kind": "sp",
+                        "parameter": False,
+                    }
+                ],
+            }
         raise AssertionError(op)
 
     def _batch_item(self, spec):
@@ -304,3 +327,13 @@ def test_manual_analysis_commands():
     assert "9090c3 NOP" in session.run("a8 90 90 c3")[0]
     assert "2x8 qword" in session.run("ad 2")[0]
     assert [op for op, _ in client.calls] == ["analyze_bytes", "analyze_data"]
+
+
+def test_decompile_and_variables():
+    session, _ = make_session()
+    assert session.run("pdc @ main")[-1] == "}"
+    variables = "\n".join(session.run("afv @ main"))
+    assert "vars: 1" in variables
+    assert "local_8" in variables
+    session.json_default = True
+    assert json.loads("\n".join(session.run("pdc @ main")))["signature"] == "int main(void)"

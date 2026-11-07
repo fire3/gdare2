@@ -174,3 +174,20 @@ def test_manual_analysis_writes_persist(env, tmp_path):
     verify = run(env, *base_args, "-qc", "px 5", str(target))
     assert verify.returncode == 0, verify.stderr
     assert "90 90 c3" in verify.stdout
+
+
+def test_decompile_and_variables(env):
+    target = "/bin/ls"
+    info = run(env, "-j", "-qc", "iI", target)
+    assert info.returncode == 0, info.stderr
+    entry = int(json.loads(info.stdout)["entry"])
+
+    source = run(env, "-qc", f"s 0x{entry:x}; pdc", target)
+    assert source.returncode == 0, source.stderr
+    assert "{" in source.stdout and "}" in source.stdout
+
+    variables = run(env, "-j", "-qc", f"s 0x{entry:x}; afvj", target)
+    assert variables.returncode == 0, variables.stderr
+    payload = json.loads(variables.stdout)
+    assert payload["name"]
+    assert payload["variable_count"] == len(payload["variables"])

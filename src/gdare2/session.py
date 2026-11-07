@@ -317,6 +317,8 @@ class Session:
             "ao": "aoj",
             "ai": "aij",
             "agf": "agfj",
+            "pdc": "pdcj",
+            "afv": "afvj",
             "pdf": "pdfj",
             "axt": "axtj",
             "axf": "axfj",

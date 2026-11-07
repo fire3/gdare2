@@ -10,7 +10,7 @@
 | M0 骨架 | 完成 | 两进程链路、注册表、自动拉起、首批命令与测试 |
 | M1 只读核心 | 基本完成 | 只读命令、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
 | M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；剩黄金文件与架构矩阵 |
-| M3 反编译/类型 | 待开始 | `pdc`、`afv`、类型与注释 |
+| M3 反编译/类型 | 进行中 | `pdc/pdcj`、`afv/afvj` 已可用；类型、签名与注释待补 |
 | M4 写入 | 待开始 | `wx/wf/u/U/wc+` 与事务回滚 |
 | M5 兼容/体验 | 待开始 | parity、补全、rc、架构矩阵 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着 |
@@ -72,7 +72,14 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - `a8/ad` 的只读门控、事务回滚、`.gsave` 持久化与重启后验证；
 - `af` 增加 `aF` 别名。
 
-当前测试：离线 `50 passed`；真实 Ghidra `7 passed`。
+第五轮（M3 开始）新增：
+
+- daemon 级 `DecompInterface` 生命周期与超时参数；
+- `pdc/pdcj` C 反编译输出（可直接配合 `@@` 迭代）；
+- `afv/afvj` 从 `HighFunction.getLocalSymbolMap()` 提取参数/局部变量；
+- `afv` 按 Ghidra `VariableStorage` 分类为 `reg/sp/other`。
+
+当前测试：离线 `51 passed`；真实 Ghidra `8 passed`。
 
 验收命令：
 
@@ -85,6 +92,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pd 1 @@f:^entry$' 
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'agf @ entry; ab @ entry; ao @ entry; ai @ entry' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; afn demo_func; .gsave' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's 0x400000; a8 9090c3; ad 1; .gsave' /tmp/blob.bin
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pdc @ entry; afv @ entry' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -L
 .venv/bin/python -m pytest -q
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra
@@ -95,7 +103,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 - `afB` 当前 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
 - `/bin/ls` 与 ARM32 样本的结构化黄金文件、架构矩阵尚未补齐；
 - batch 还没有返回统一 `meta`（总数/截断）信息；
-- 反编译、类型、注释、搜索与通用写入命令尚未实现；
+- 类型、函数签名、注释、搜索与通用写入命令尚未实现；
 - `pdi/pdl/pd -n` 与 r2 parity 黄金文件尚未补齐；
 - `-i/-I` 当前按打开后脚本处理；
 - GUI 桥未开始。
@@ -105,4 +113,4 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 1. 建立 `/bin/ls` 与 ARM32 样本的结构化黄金文件；
 2. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
 3. 完善 batch 分页 `meta` 与错误码一致性；
-4. 进入 M3：`pdc`、`afv`、函数签名、类型与注释。
+4. 继续 M3：函数签名、类型 `t/ts/td/tu` 与注释 `C*`。

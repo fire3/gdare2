@@ -68,6 +68,14 @@ def _pdf(session, statement):
     return lines
 
 
+@command("pdc", "decompile the current function", aliases=("pdcj",))
+def _pdc(session, statement):
+    payload = session.call("decompile", ea=session.seek)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    return str(payload.get("c") or "").rstrip().splitlines()
+
+
 @command("px", "hexdump memory", detail="Usage: px [n] [@ addr]")
 def _px(session, statement):
     size = _number(statement.args, session.blocksize)

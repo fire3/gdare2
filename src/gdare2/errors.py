@@ -55,6 +55,11 @@ class NotReadyError(GdarError):
     exit_code = 3
 
 
+class DecompileError(GdarError):
+    code = "NO_DECOMPILER"
+    exit_code = 1
+
+
 class RemoteError(GdarError):
     """An error returned by the daemon."""
 

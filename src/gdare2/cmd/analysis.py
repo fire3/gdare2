@@ -72,6 +72,22 @@ def _function_info(session, statement):
     ]
 
 
+@command("afv", "show decompiler variables for the current function", aliases=("afvj",))
+def _function_variables(session, statement):
+    payload = session.call("function_variables", ea=session.seek)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    lines = [f"name: {payload['name']}", f"vars: {payload['variable_count']}"]
+    for variable in payload.get("variables") or []:
+        marker = "param" if variable.get("parameter") else "local"
+        lines.append(
+            f"var {variable.get('type', '')} {variable.get('name', '')} "
+            f"@ {variable.get('storage', '')} "
+            f"[{variable.get('kind', 'other')}/{marker}]"
+        )
+    return lines
+
+
 @command("af", "create a function at seek", aliases=("aF",))
 def _create_function(session, statement):
     if session.readonly:

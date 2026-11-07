@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from gdare2.errors import GdarError
+from gdare2.errors import DecompileError, GdarError
 from gdare2d.import_plan import ImportPlan
 
 log = logging.getLogger("gdare2d.runtime")
@@ -49,6 +49,7 @@ class GhidraRuntime:
         self.project = None
         self.program = None
         self._consumer = None
+        self._decompiler = None
         self._pyghidra = None
         self.summary: dict[str, Any] = {}
         self.sessions: dict[str, dict[str, Any]] = {}
@@ -166,12 +167,38 @@ class GhidraRuntime:
         assert self.program is not None
         self.program.save("gdare2 save", self._pyghidra.task_monitor())
 
+    def decompile(self, function, timeout: int = 30):
+        assert self.program is not None
+        if self._decompiler is None:
+            from ghidra.app.decompiler import DecompInterface
+
+            interface = DecompInterface()
+            interface.setSimplificationStyle("decompile")
+            if not interface.openProgram(self.program):
+                interface.dispose()
+                raise DecompileError("failed to open program in the Ghidra decompiler")
+            self._decompiler = interface
+        results = self._decompiler.decompileFunction(
+            function,
+            max(1, int(timeout)),
+            self._pyghidra.task_monitor(),
+        )
+        if results is None or not results.decompileCompleted():
+            message = "decompilation did not complete"
+            if results is not None and results.getErrorMessage():
+                message = str(results.getErrorMessage())
+            raise DecompileError(message)
+        return results
+
     def close(self) -> None:
         self.state = "draining"
         try:
             if self.program is not None:
                 if self.save_on_close and not self.readonly:
                     self.program.save("gdare2 close", self._pyghidra.task_monitor())
+                if self._decompiler is not None:
+                    self._decompiler.dispose()
+                    self._decompiler = None
                 if self._consumer is not None:
                     self.program.release(self._consumer)
                 self.program = None
