@@ -15,6 +15,77 @@ from gdare2.jsonutil import dumps
 from gdare2.parser import Statement
 
 DEFAULT_BLOCKSIZE = 0x100
+MAX_BATCH_TARGETS = 4096
+
+
+class _ProbeStop(Exception):
+    """Interrupt a command probe as soon as its first daemon op is known."""
+
+
+class _BatchSession:
+    """A Session-shaped view used while replaying one batched target."""
+
+    def __init__(
+        self,
+        parent: Session,
+        *,
+        seek: int | None = None,
+        blocksize: int | None = None,
+        calls: list[tuple[str, dict[str, Any]]] | None = None,
+        responses: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self._parent = parent
+        self.seek = parent.seek if seek is None else seek
+        self.blocksize = parent.blocksize if blocksize is None else blocksize
+        self._calls = calls if calls is not None else []
+        self._responses = responses
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._parent, name)
+
+    def get_var(self, name: str) -> int | None:
+        builtins = {
+            "": self.seek,
+            "b": self.blocksize,
+            "l": self._parent.seek_history[-1]
+            if self._parent.seek_history
+            else self.seek,
+            "s": int(self._parent.info.get("filesize") or 0),
+            "B": int(self._parent.info.get("image_base") or 0),
+            "e": int(self._parent.info.get("entry") or 0),
+            "M": self.seek,
+            "o": self.seek,
+            "?": self._parent.last_result,
+        }
+        if name in self._parent.vars:
+            return self._parent.vars[name]
+        return builtins.get(name)
+
+    def eval(self, text: str) -> int:
+        value = expr.evaluate(text, self)
+        self._parent.last_result = value
+        return value
+
+    def resolve(self, text: str | None, *, default: int | None = None) -> int:
+        if text is None or not text.strip():
+            return self.seek if default is None else default
+        return self.eval(text.strip())
+
+    def call(self, op: str, **args: Any) -> Any:
+        if self._responses is None:
+            self._calls.append((op, dict(args)))
+            raise _ProbeStop
+        if not self._responses:
+            raise GdarError(f"batched command made an unexpected extra {op} call")
+        item = self._responses.pop(0)
+        if not item.get("ok"):
+            error = item.get("error") or {}
+            raise RemoteError(
+                str(error.get("code", "INTERNAL")),
+                str(error.get("message", "batched op failed")),
+                data=error.get("data"),
+            )
+        return item.get("result")
 
 
 class Session:
@@ -140,7 +211,7 @@ class Session:
 
     def dispatch(self, statement: Statement) -> list[str]:
         if statement.iterator is not None or statement.iterator_size is not None:
-            raise UsageError("@@ iterators are not implemented yet")
+            return self._dispatch_iterator(statement)
         if statement.dot:
             if statement.cmd == "g":
                 return self.cmd_info_json(statement)
@@ -155,6 +226,79 @@ class Session:
             return cmd.help_for(spec)
         statement = self._maybe_json(statement)
         return spec.handler(self, statement)
+
+    def _dispatch_iterator(self, statement: Statement) -> list[str]:
+        spec = cmd.lookup(statement.cmd)
+        if spec is None:
+            raise cmd.unknown(statement.cmd)
+        if statement.help:
+            return cmd.help_for(spec)
+        statement = self._maybe_json(statement)
+
+        sized = statement.iterator_size is not None
+        iterator_spec = statement.iterator_size if sized else statement.iterator
+        kind, pattern = _parse_iterator(iterator_spec or "")
+        targets = self._iterator_targets(kind, pattern)
+        if not targets:
+            return []
+        if len(targets) > MAX_BATCH_TARGETS:
+            raise UsageError(f"iterator is limited to {MAX_BATCH_TARGETS} targets")
+
+        probe = _BatchSession(self)
+        try:
+            spec.handler(probe, statement)
+        except _ProbeStop:
+            pass
+        else:
+            raise UsageError(f"{statement.cmd!r} cannot be used with @@ iteration")
+        if len(probe._calls) != 1:
+            raise UsageError(
+                f"{statement.cmd!r} makes {len(probe._calls)} daemon calls; "
+                "@@ iteration currently requires exactly one"
+            )
+        op_name, op_args = probe._calls[0]
+        if "ea" not in op_args:
+            raise UsageError(f"{statement.cmd!r} does not accept an address for @@ iteration")
+
+        operations = []
+        for target in targets:
+            args = dict(op_args)
+            args["ea"] = int(target["addr"])
+            target_size = int(target.get("size") or 0)
+            if sized and target_size > 0 and not statement.args.strip() and "size" in args:
+                args["size"] = target_size
+            operations.append({"op": op_name, "args": args})
+        replies = self.call("batch", ops=operations)
+        if not isinstance(replies, list) or len(replies) != len(targets):
+            raise GdarError("daemon returned an invalid batch response")
+
+        lines: list[str] = []
+        for target, reply in zip(targets, replies):
+            blocksize = self.blocksize
+            if sized and int(target.get("size") or 0) > 0:
+                blocksize = int(target["size"])
+            view = _BatchSession(
+                self,
+                seek=int(target["addr"]),
+                blocksize=blocksize,
+                responses=[reply],
+            )
+            try:
+                lines.extend(spec.handler(view, statement))
+            except GdarError as exc:
+                self.failed = True
+                self.last_error = exc
+                self.stderr(f"ERROR: {exc}")
+        return lines
+
+    def _iterator_targets(self, kind: str, pattern: str | None) -> list[dict[str, Any]]:
+        if kind == "=":
+            text = pattern or ""
+            tokens = [item for item in text.replace(",", " ").split() if item]
+            if not tokens:
+                raise UsageError("@@= needs at least one address")
+            return [{"addr": self.eval(token), "size": 0} for token in tokens]
+        return self.call("iter_targets", kind=kind, ea=self.seek, pattern=pattern)
 
     def _maybe_json(self, statement: Statement) -> Statement:
         if not self.json_default or statement.cmd.endswith("j"):
@@ -218,3 +362,13 @@ class Session:
 
     def json(self, value: Any) -> list[str]:
         return [dumps(value)]
+
+
+def _parse_iterator(spec: str) -> tuple[str, str | None]:
+    text = spec.strip()
+    if not text:
+        raise UsageError("iterator needs an operand")
+    if text.startswith("="):
+        return "=", text.lstrip("=").strip()
+    kind, separator, pattern = text.partition(":")
+    return kind, pattern if separator else None

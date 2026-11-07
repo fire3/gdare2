@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 import time
 import subprocess
@@ -68,3 +69,23 @@ def test_raw_binary_base_and_disassembly(env, tmp_path):
     assert "0x0000000000400000" in result.stdout
     assert "0x0000000000400000" in result.stdout
     assert "NOP" in result.stdout.upper()
+
+
+def test_batch_function_iteration(env):
+    target = "/bin/ls"
+    info = run(env, "-j", "-qc", "iI", target)
+    assert info.returncode == 0, info.stderr
+    entry = int(json.loads(info.stdout)["entry"])
+    function = run(env, "-j", "-qc", f"afij @ 0x{entry:x}", target)
+    assert function.returncode == 0, function.stderr
+    name = json.loads(function.stdout)["name"]
+
+    result = run(
+        env,
+        "-qc",
+        f"s 0x{entry:x}; pd 1 @@f:^{re.escape(name)}$; pd 1 @@i; pd 1 @@b; pd 1 @@=0x{entry:x}",
+        target,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.count("0x") >= 4
+    assert "ERROR:" not in result.stderr

@@ -42,7 +42,33 @@ class FakeClient:
             return {"md5": "abc", "sha256": "def", "path": "/demo", "format": "ELF"}
         if op == "block_at":
             return {"name": ".text", "addr": 0x1000, "end": 0x1FFF, "size": 0x1000, "perms": "r-x"}
+        if op == "iter_targets":
+            return [
+                {"addr": 0x1000, "size": 10, "name": "main"},
+                {"addr": 0x2000, "size": 20, "name": "helper"},
+            ]
+        if op == "batch":
+            return [self._batch_item(spec) for spec in args["ops"]]
         raise AssertionError(op)
+
+    def _batch_item(self, spec):
+        op = spec["op"]
+        args = spec["args"]
+        if op == "disasm":
+            return {
+                "ok": True,
+                "result": [
+                    {
+                        "addr": args["ea"],
+                        "size": 2,
+                        "bytes": b"\x90\x90",
+                        "text": "NOP",
+                    }
+                ],
+            }
+        if op == "read_bytes":
+            return {"ok": True, "result": b"A" * int(args["size"])}
+        return {"ok": False, "error": {"code": "BAD_ARGS", "message": f"no fake {op}"}}
 
 
 def make_session() -> tuple[Session, FakeClient]:
@@ -128,3 +154,30 @@ def test_info_hashes_and_calls():
     assert "caller" in session.run("afc @ main")[0]
     assert "callee" in session.run("afC @ main")[0]
     assert "CALL" in session.run("afx @ main")[0]
+
+
+def test_iterator_uses_one_batch_request():
+    session, client = make_session()
+    lines = session.run("pd 1 @@f")
+    assert len(lines) == 2
+    assert "0x0000000000001000" in lines[0]
+    assert "0x0000000000002000" in lines[1]
+    daemon_calls = [op for op, _ in client.calls if op != "resolve_name"]
+    assert daemon_calls == ["iter_targets", "batch"]
+    assert [item["args"]["ea"] for item in client.calls[-1][1]["ops"]] == [0x1000, 0x2000]
+
+
+def test_explicit_iterator_skips_target_lookup():
+    session, client = make_session()
+    session.run("pd 1 @@=0x1000,0x3000")
+    daemon_calls = [op for op, _ in client.calls]
+    assert daemon_calls == ["batch"]
+    assert [item["args"]["ea"] for item in client.calls[-1][1]["ops"]] == [0x1000, 0x3000]
+
+
+def test_sized_iterator_sets_per_target_blocksize():
+    session, client = make_session()
+    session.run("px @@@f")
+    assert [op for op, _ in client.calls] == ["iter_targets", "batch"]
+    operations = client.calls[-1][1]["ops"]
+    assert [item["args"]["size"] for item in operations] == [10, 20]
