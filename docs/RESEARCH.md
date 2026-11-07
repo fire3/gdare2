@@ -451,3 +451,21 @@ Ghidra GUI (插件/PyGhidra console) ──RPC──▶ gdare2 CLI
 5. 默认只读；`-w` 才允许 transaction 提交和 `program.save()`。
 6. v1 只做 headless；GUI 桥在 M6 以后实现，复用相同 op 协议。
 7. 反汇编/反编译输出以“r2 形状”为目标，不承诺逐字节一致；用 parity 测试锁定差异。
+
+## 9. P0 实测结论（2026-11-07）
+
+环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、JPype 1.5.2、Python 3.13.15、OpenJDK 25。
+
+`tools/spike_pyghidra.py /bin/ls` 结果：
+
+- JVM/Ghidra 冷启动约 2.3–3.3 秒；
+- ELF 首次导入约 2.3 秒；
+- 自动分析约 9.8 秒，414 个函数；
+- 已保存项目热重开约 4.3 秒（含一次反编译）；
+- `DecompInterface` 对目标函数约 0.05 秒；
+- 分析结果和程序在项目关闭后可正常重开；
+- `ProgramLoader` + `results.save()` 能持久化到 `ProjectData`；
+- `ProgramDB` 没有 `getEntryPoint()`，入口需通过 `entry`/`_start` 符号或可执行的
+  external entry 过滤；
+- Ghidra 项目路径不允许包含以 `.` 开头的目录元素，默认数据目录需避开
+  `~/.local/share`。

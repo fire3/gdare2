@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gdare2"
+version = "0.1.0"
+description = "radare2-style CLI backed by Ghidra and PyGhidra"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "fire3" }]
+keywords = ["reverse-engineering", "ghidra", "radare2", "disassembler"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+]
+dependencies = []
+
+[project.optional-dependencies]
+daemon = ["pyghidra>=3.2.0"]
+test = ["pytest>=8"]
+
+[project.scripts]
+gdare2 = "gdare2.cli:main"
+gdare2d = "gdare2d.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/fire3/gdare2"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gdare2", "src/gdare2d"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -m 'not real_ghidra and not parity and not arch_matrix and not gui'"
+markers = [
+    "real_ghidra: requires Ghidra + PyGhidra",
+    "parity: requires radare2",
+    "arch_matrix: imports one raw binary per architecture",
+    "gui: requires a running Ghidra GUI bridge",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.uv]
+prerelease = "allow"

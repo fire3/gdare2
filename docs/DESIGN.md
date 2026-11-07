@@ -504,7 +504,7 @@ daemon 返回的所有对象必须是普通 Python dict/list/str/int/bool/None/b
 ### 8.1 默认项目布局
 
 ```text
-${XDG_DATA_HOME:-~/.local/share}/gdare2/
+${GDARE2_DATA_DIR:-~/gdare2-data}/
   projects/
     <project-key>/
       <project-name>.gpr
@@ -516,6 +516,9 @@ ${XDG_DATA_HOME:-~/.local/share}/gdare2/
 项目名使用目标文件名 + 短哈希，避免同名冲突。`project-key` 必须包含目标
 规范化路径、文件大小/mtime 与导入参数（语言、编译器、基址、loader 参数），
 不能只按文件名生成。
+
+> 实现备注：Ghidra `ProjectLocator` 拒绝包含以 `.` 开头的路径元素，因此默认目录
+> 不能放在 `~/.local/share` 下；`GDARE2_DATA_DIR` 可覆盖该位置。
 
 ### 8.2 首次导入
 

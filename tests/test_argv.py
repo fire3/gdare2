@@ -1,0 +1,61 @@
+from __future__ import annotations
+
+import pytest
+
+from gdare2 import argv
+from gdare2.errors import UsageError
+
+
+def test_clustered_short_flags_and_commands():
+    options = argv.parse(["-qc", "pd 5", "-e", "asm.bytes=false", "/bin/ls"])
+    assert options.quiet == 1
+    assert options.commands == ["pd 5"]
+    assert options.evals == [("asm.bytes", "false")]
+    assert options.file == "/bin/ls"
+
+
+def test_attached_short_value():
+    options = argv.parse(["-s0x1000", "-b64", "/bin/ls"])
+    assert options.seek == "0x1000"
+    assert options.bits == "64"
+
+
+def test_doubled_flags():
+    options = argv.parse(["-qq", "-AA", "/bin/ls"])
+    assert options.quiet == 2
+    assert options.analyze == 2
+
+
+def test_long_daemon_options():
+    options = argv.parse(
+        [
+            "--attach",
+            "auto",
+            "--no-spawn",
+            "--loader-arg",
+            "-baseAddr",
+            "0x400000",
+            "--endian",
+            "big",
+            "/tmp/blob",
+        ]
+    )
+    assert options.attach == "auto"
+    assert options.spawn is False
+    assert options.loader_args == [("-baseAddr", "0x400000")]
+    assert options.endian == "big"
+
+
+def test_rejected_debugger_flag():
+    with pytest.raises(UsageError, match="debugger"):
+        argv.parse(["-d", "/bin/ls"])
+
+
+def test_ignored_flag_is_recorded():
+    options = argv.parse(["-T", "/bin/ls"])
+    assert options.ignored and options.ignored[0][0] == "-T"
+
+
+def test_only_one_target():
+    with pytest.raises(UsageError):
+        argv.parse(["/bin/ls", "/bin/true"])

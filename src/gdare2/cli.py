@@ -1,0 +1,200 @@
+"""gdare2 command-line entry point."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Iterable
+
+from gdare2 import __version__, argv, registry
+from gdare2.client import Client
+from gdare2.config import Config
+from gdare2.errors import GdarError, UsageError
+from gdare2.launcher import ensure
+from gdare2.session import Session
+
+
+def main(argv_list: list[str] | None = None) -> int:
+    try:
+        options = argv.parse(sys.argv[1:] if argv_list is None else argv_list)
+    except UsageError as exc:
+        print(f"gdare2: {exc}", file=sys.stderr)
+        return exc.exit_code
+
+    if options.show_help:
+        _print_help()
+        return 0
+    if options.show_version:
+        print(f"gdare2 {__version__} (protocol 1)")
+        return 0
+    if options.list_sessions:
+        return _list_sessions()
+    if options.kill:
+        return _kill(options.kill)
+    if options.status:
+        return _status(options.status)
+
+    for flag, reason in options.ignored:
+        if options.quiet == 0:
+            print(f"WARN: {flag} ignored: {reason}", file=sys.stderr)
+
+    try:
+        state = ensure(options)
+        config = Config()
+        for key, value in options.evals:
+            config.set(key, value)
+        if options.color is not None:
+            config.set("scr.color", options.color)
+        timeout = options.timeout or float(config.get_int("ghidra.timeout"))
+        client = Client(state, timeout=timeout)
+        info = client.call("info")
+        info["readonly"] = options.readonly
+        session = Session(client, info, config, readonly=options.readonly)
+        session.json_default = options.json
+        if options.seek:
+            session.seek_to(session.eval(options.seek))
+
+        if options.quiet == 0:
+            print(f"gdare2 {__version__} - {info.get('program')} [{info.get('language')}]")
+            print(f"project: {info.get('project_dir')}  pid: {state.get('pid')}")
+
+        commands = list(options.commands)
+        for script in [*options.pre_scripts, *options.post_scripts]:
+            commands.extend(_read_script(script))
+
+        if commands:
+            for command in commands:
+                _emit(session.run(command))
+        elif not sys.stdin.isatty():
+            for line in sys.stdin:
+                line = line.rstrip("\n")
+                if line and not line.lstrip().startswith("#"):
+                    _emit(session.run(line))
+                    if session.quit_requested:
+                        break
+        else:
+            _repl(session, quiet=options.quiet)
+
+        if options.ephemeral:
+            client.shutdown(save=not options.readonly)
+        return 1 if session.failed else 0
+    except GdarError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return exc.exit_code
+    except KeyboardInterrupt:
+        return 130
+
+
+def _repl(session: Session, *, quiet: int) -> None:
+    while not session.quit_requested:
+        try:
+            line = input(f"[{session.format_addr(session.seek)}]> ")
+        except EOFError:
+            break
+        except KeyboardInterrupt:
+            print()
+            continue
+        if not line.strip():
+            continue
+        _emit(session.run(line))
+
+
+def _emit(lines: Iterable[str]) -> None:
+    for line in lines:
+        print(line)
+    sys.stdout.flush()
+
+
+def _read_script(path: str) -> list[str]:
+    try:
+        return [
+            line.strip()
+            for line in Path(path).expanduser().read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    except OSError as exc:
+        raise UsageError(f"cannot read script {path}: {exc}") from exc
+
+
+def _list_sessions() -> int:
+    states = []
+    for state in registry.iter_states():
+        live = registry.live_instance(str(state["instance_id"]))
+        if live is not None:
+            states.append(live)
+    if not states:
+        print("no live gdare2 instances")
+        return 0
+    print("instance          pid     port   state    readonly  target")
+    for state in states:
+        health = state.get("health", {})
+        print(
+            f"{state['instance_id']:<17} {state.get('pid', 0):<7} "
+            f"{state.get('port', 0):<6} {health.get('state', '?'):<8} "
+            f"{str(bool(state.get('readonly'))):<9} {state.get('target', '')}"
+        )
+    return 0
+
+
+def _kill(ingest_id: str) -> int:
+    state = registry.live_instance(ingest_id)
+    if state is None:
+        print(f"gdare2: no live instance {ingest_id!r}", file=sys.stderr)
+        return 3
+    try:
+        Client(state).shutdown(save=False)
+    except GdarError as exc:
+        print(f"gdare2: {exc}", file=sys.stderr)
+        return exc.exit_code
+    return 0
+
+
+def _status(ingest_id: str) -> int:
+    state = registry.live_instance(ingest_id)
+    if state is None:
+        print(f"gdare2: no live instance {ingest_id!r}", file=sys.stderr)
+        return 3
+    print(json.dumps(state, indent=2, sort_keys=True))
+    return 0
+
+
+def _print_help() -> None:
+    print(
+        """Usage: gdare2 [target] [options] [-c command]...
+
+Core options:
+  -a <arch>              raw-binary Ghidra language alias
+  -b <bits>              raw-binary bit width (16, 32, 64)
+  -B, -m <addr>          raw-binary load address
+  -c <command>           run command (repeatable)
+  -e <key=value>         set configuration (repeatable)
+  -j                     JSON output where available
+  -L                     list live daemon instances
+  -n                     skip automatic analysis on first import
+  -q, -qq                quiet, extra quiet
+  -s <addr>              initial seek
+  -w                     allow write operations
+
+Daemon options:
+  --attach <id|auto>     attach to an existing daemon
+  --no-spawn             never start a daemon
+  --project <dir>        Ghidra project parent directory
+  --project-name <name>  Ghidra project name
+  --ghidra-language <id> exact Ghidra language ID
+  --compiler <id>        compiler spec ID
+  --loader <name>        loader class name
+  --loader-arg K V       extra loader argument (repeatable)
+  --endian big|little    raw-binary endianness
+  --ephemeral            close and delete the project after the command
+  --kill <id>            ask a daemon to exit
+  --status <id>          print daemon state as JSON
+
+Commands: s, b, pd, pdf, px, p8, pv, ps, iI, iS, is, ii, ie, iz,
+          afl, afi, af, aa, axt, axf, sb, sf, sF, so, sn, sp, e, q, ?
+Run `<command>?` for per-command help."""
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

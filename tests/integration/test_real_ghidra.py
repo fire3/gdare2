@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+import json
+import os
+import signal
+import time
+import subprocess
+import sys
+
+import pytest
+
+pytestmark = pytest.mark.real_ghidra
+
+
+@pytest.fixture()
+def env(tmp_path):
+    values = os.environ.copy()
+    values["GDARE2_DATA_DIR"] = str(tmp_path / "data")
+    values.setdefault("GHIDRA_INSTALL_DIR", os.path.expanduser("~/ghidra/current"))
+    values["XDG_RUNTIME_DIR"] = str(tmp_path / "run")
+    yield values
+    runtime = tmp_path / "run" / f"gdare2-{os.getuid()}"
+    for state_file in runtime.glob("*.json"):
+        try:
+            pid = int(json.loads(state_file.read_text())["pid"])
+            os.kill(pid, signal.SIGTERM)
+        except (OSError, ValueError, KeyError):
+            continue
+    time.sleep(0.3)
+
+
+def run(env, *args, timeout=240):
+    return subprocess.run(
+        [sys.executable, "-m", "gdare2", *args],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=timeout,
+    )
+
+
+def test_import_disasm_and_reuse(env):
+    target = "/bin/ls"
+    first = run(env, "-qc", "iI; pd 3; px 16", target)
+    assert first.returncode == 0, first.stderr
+    assert "x86" in first.stdout
+    assert "0x0000000000" in first.stdout
+    assert "MOV" in first.stdout.upper() or "XOR" in first.stdout.upper()
+
+    second = run(env, "-qc", "pd 1", target)
+    assert second.returncode == 0, second.stderr
+    assert "import" not in second.stderr.lower()
+
+
+def test_filter_redirect_and_json(env, tmp_path):
+    target = "/bin/ls"
+    out = tmp_path / "pd.txt"
+    result = run(env, "-j", "-qc", f"pd 20~+call; pdfj > {out}", target)
+    assert result.returncode == 0, result.stderr
+    assert out.read_text().strip().startswith("{")

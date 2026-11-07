@@ -1,6 +1,6 @@
 # gdare2 开发与测试指南
 
-> 当前处于设计阶段；本文件先固化环境、目录、调试和测试约定，M0 开始后随实现更新。
+> M0 已完成；本文件固化环境、目录、调试和测试约定，并随里程碑更新。
 
 ## 1. 环境基线
 
@@ -67,12 +67,16 @@ PY
 
 ### 1.3 安装项目
 
+使用 uv 的完整初始化流程：
+
 ```bash
-cd ~/SRC/reverse/gdare2
-uv pip install -e '.[test]'
+uv venv --python 3.13 .venv
+uv pip install --python .venv/bin/python \
+  --no-index -f "$HOME/ghidra/current/Ghidra/Features/PyGhidra/pypkg/dist" pyghidra
+uv pip install --python .venv/bin/python -e '.[test]'
 ```
 
-M0 之前的 `pyproject.toml` 需要先创建。
+如果已经激活虚拟环境，也可以用 `uv pip install -e '.[test]'`。
 
 ## 2. 目录约定
 
@@ -122,6 +126,9 @@ markers = [
 ```bash
 gdare2d --foreground --target /bin/ls --log-level debug
 ```
+
+默认 Ghidra 项目位于 `~/gdare2-data/projects`，可用 `GDARE2_DATA_DIR` 覆盖。
+Ghidra 不接受以 `.` 开头的路径元素，因此不要把它指到 `~/.local/...`。
 
 另一个终端：
 
