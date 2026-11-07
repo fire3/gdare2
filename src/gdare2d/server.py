@@ -66,7 +66,7 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         if self.path == "/sessions":
-            self._json({"ok": True, "sessions": [], "note": "lease tracking lands in M1"})
+            self._json({"ok": True, "sessions": self.server.runtime.session_list()})
             return
         self._json({"ok": False, "error": {"code": "NOT_FOUND", "message": "no such endpoint"}}, status=404)
 

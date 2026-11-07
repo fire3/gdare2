@@ -30,6 +30,38 @@ def sections(ctx) -> list[dict]:
     return result
 
 
+@op("block_at")
+def block_at(ctx, ea: int) -> dict:
+    from gdare2.errors import NotFoundError
+    from gdare2d.context import to_addr
+
+    program = require_program(ctx)
+    block = program.getMemory().getBlock(to_addr(program, int(ea)))
+    if block is None:
+        raise NotFoundError(f"no memory block containing 0x{int(ea):x}")
+    return {
+        "name": str(block.getName()),
+        "addr": int(block.getStart().getOffset()),
+        "end": int(block.getEnd().getOffset()),
+        "size": int(block.getSize()),
+        "perms": ("r" if block.isRead() else "-")
+        + ("w" if block.isWrite() else "-")
+        + ("x" if block.isExecute() else "-"),
+        "initialized": bool(block.isInitialized()),
+    }
+
+
+@op("hashes")
+def hashes(ctx) -> dict:
+    program = require_program(ctx)
+    return {
+        "md5": str(program.getExecutableMD5() or ""),
+        "sha256": str(program.getExecutableSHA256() or ""),
+        "path": str(program.getExecutablePath() or ""),
+        "format": str(program.getExecutableFormat() or ""),
+    }
+
+
 @op("symbols")
 def symbols(ctx, limit: int = MAX_ITEMS) -> list[dict]:
     program = require_program(ctx)
@@ -95,13 +127,15 @@ def strings(ctx, limit: int = MAX_ITEMS) -> list[dict]:
     while iterator.hasNext() and len(result) < limit:
         data = iterator.next()
         try:
+            if not data.hasStringValue():
+                continue
             value = data.getValue()
         except Exception:
             continue
         if value is None:
             continue
         text = str(value)
-        if not text or text.startswith("??"):
+        if len(text) < 2 or text.startswith("??"):
             continue
         result.append(
             {

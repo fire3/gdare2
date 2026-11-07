@@ -18,21 +18,27 @@ def _reference_dict(reference) -> dict:
     }
 
 
+def _references(value) -> list:
+    if hasattr(value, "hasNext"):
+        result = []
+        while value.hasNext():
+            result.append(value.next())
+        return result
+    try:
+        return list(value)
+    except TypeError:
+        return [value]
+
+
 @op("xrefs_to")
 def xrefs_to(ctx, ea: int) -> list[dict]:
     program = require_program(ctx)
-    iterator = program.getReferenceManager().getReferencesTo(to_addr(program, int(ea)))
-    result = []
-    while iterator.hasNext() and len(result) < MAX_REFS:
-        result.append(_reference_dict(iterator.next()))
-    return result
+    references = program.getReferenceManager().getReferencesTo(to_addr(program, int(ea)))
+    return [_reference_dict(reference) for reference in _references(references)[:MAX_REFS]]
 
 
 @op("xrefs_from")
 def xrefs_from(ctx, ea: int) -> list[dict]:
     program = require_program(ctx)
-    iterator = program.getReferenceManager().getReferencesFrom(to_addr(program, int(ea)))
-    result = []
-    while iterator.hasNext() and len(result) < MAX_REFS:
-        result.append(_reference_dict(iterator.next()))
-    return result
+    references = program.getReferenceManager().getReferencesFrom(to_addr(program, int(ea)))
+    return [_reference_dict(reference) for reference in _references(references)[:MAX_REFS]]

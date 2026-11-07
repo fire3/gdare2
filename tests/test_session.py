@@ -21,10 +21,27 @@ class FakeClient:
             ]
         if op == "read_bytes":
             return b"ABCD"
+        if op == "read_value":
+            return {"addr": args["ea"], "width": args.get("width", 4), "value": 0x44434241}
+        if op == "disasm_bytes":
+            return [
+                {"addr": args["ea"], "size": 2, "bytes": b"\x90\x90", "text": "NOP"},
+                {"addr": args["ea"] + 2, "size": 1, "bytes": b"\xc3", "text": "RET"},
+            ]
         if op == "resolve_name":
             return {"main": 0x2000}.get(args["name"])
         if op == "functions":
             return [{"addr": 0x1000, "name": "main", "size": 10, "end": 0x100A}]
+        if op == "function_callers":
+            return [{"addr": 0x3000, "name": "caller", "size": 5, "end": 0x3005}]
+        if op == "function_callees":
+            return [{"addr": 0x4000, "name": "callee", "size": 5, "end": 0x4005}]
+        if op == "function_xrefs":
+            return [{"from": 0x1000, "to": 0x4000, "type": "CALL"}]
+        if op == "hashes":
+            return {"md5": "abc", "sha256": "def", "path": "/demo", "format": "ELF"}
+        if op == "block_at":
+            return {"name": ".text", "addr": 0x1000, "end": 0x1FFF, "size": 0x1000, "perms": "r-x"}
         raise AssertionError(op)
 
 
@@ -88,3 +105,26 @@ def test_temporary_seek_is_restored():
     session.run("s 0x1000")
     session.run("pd 1 @ 0x2000")
     assert session.seek == 0x1000
+
+
+def test_pdi_pi_pdl_and_pd_bytes():
+    session, _ = make_session()
+    assert "NOP" in session.run("pdi 1")[0]
+    assert session.run("pi 2") == ["NOP", "RET"]
+    assert session.run("pdl 1")[0].endswith("NOP")
+    assert len(session.run("pD 3")) == 2
+
+
+def test_words_and_json_variants():
+    session, _ = make_session()
+    assert "1145258561" in session.run("pvj4")[0]
+    assert session.run("p8j 4")[0].startswith("{")
+    assert len(session.run("pxw 4")) == 1
+
+
+def test_info_hashes_and_calls():
+    session, _ = make_session()
+    assert "md5" in session.run("it")[0]
+    assert "caller" in session.run("afc @ main")[0]
+    assert "callee" in session.run("afC @ main")[0]
+    assert "CALL" in session.run("afx @ main")[0]

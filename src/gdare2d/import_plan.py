@@ -40,20 +40,19 @@ def build(
 
     if ghidra_language:
         plan.language = ghidra_language
-    elif arch:
+    elif arch and (raw or force_language):
         plan.language = resolve_alias(arch, bits=bits, endian=endian)
+    elif arch:
+        plan.warnings.append("use --force-language to override a recognized format's language")
     elif raw:
         raise UsageError(
             "raw binaries need a Ghidra language: use -a <arch> [-b 32|64] [--endian big|little] "
             "or --ghidra-language <id>"
         )
 
-    if plan.language and not raw and not force_language and not ghidra_language:
-        plan.warnings.append("language override on a recognized format may break analysis")
-
     if base:
         if raw:
-            plan.loader_args.append(("-baseAddr", hex(int(base, 0))))
+            plan.loader_args.append(("-loader-baseAddr", hex(int(base, 0))))
         elif force_base:
             raise UsageError("--force-base is not implemented for recognized formats")
         else:

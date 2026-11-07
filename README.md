@@ -3,7 +3,7 @@
 `gdare2` 是一个以 Ghidra 为分析后端、命令行与输出模型尽量兼容 radare2 的逆向工具。
 
 当前完成 **P0 预研** 与 **M0 骨架**：客户端、daemon、注册表、自动拉起、
-`s/pd/pdf/px/p8/pv/ps/iI/afl/axt/axf`、`~`/`|`/`>`/`@`、只读门控与
+`s/pd/pdf/px/p8/pv/ps/iI/afl/axt/axf`、`~`/`|`/`>`/`@`、session lease、只读门控与
 真实 Ghidra 冒烟测试均可运行。后续里程碑见 [docs/PROGRESS.md](docs/PROGRESS.md)。
 
 - 文档索引：[docs/README.md](docs/README.md)

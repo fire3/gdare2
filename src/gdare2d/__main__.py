@@ -165,7 +165,7 @@ def _start_watchdog(server: GdarHTTPServer, idle_seconds: float) -> None:
 
     def watch() -> None:
         while not server.shutting_down.is_set():
-            if server.runtime.state == "ready" and (
+            if server.runtime.state == "ready" and not server.runtime.has_active_sessions() and (
                 __import__("time").monotonic() - server.last_activity > idle_seconds
             ):
                 server.shutdown()

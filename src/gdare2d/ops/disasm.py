@@ -59,6 +59,26 @@ def disasm_back(ctx, ea: int, count: int = 1) -> list[dict]:
     return result
 
 
+@op("disasm_bytes")
+def disasm_bytes(ctx, ea: int, size: int) -> list[dict]:
+    program = require_program(ctx)
+    if size < 0:
+        raise UsageError("size must not be negative")
+    if size > MAX_INSTRUCTIONS * 16:
+        raise UsageError("byte-sized disassembly request is too large")
+    instruction = _first(program, int(ea))
+    if instruction is None:
+        raise NotFoundError(f"no instruction at or after 0x{int(ea):x}")
+    listing = program.getListing()
+    result: list[dict] = []
+    consumed = 0
+    while instruction is not None and consumed < size and len(result) < MAX_INSTRUCTIONS:
+        result.append(instruction_dict(instruction))
+        consumed += int(instruction.getLength())
+        instruction = listing.getInstructionAfter(instruction.getAddress())
+    return result
+
+
 @op("instruction_after")
 def instruction_after(ctx, ea: int) -> dict:
     program = require_program(ctx)

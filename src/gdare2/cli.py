@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+import threading
 from pathlib import Path
 from typing import Iterable
 
@@ -16,6 +18,9 @@ from gdare2.session import Session
 
 
 def main(argv_list: list[str] | None = None) -> int:
+    client = None
+    lease = None
+    heartbeat_stop = None
     try:
         options = argv.parse(sys.argv[1:] if argv_list is None else argv_list)
     except UsageError as exc:
@@ -48,6 +53,14 @@ def main(argv_list: list[str] | None = None) -> int:
             config.set("scr.color", options.color)
         timeout = options.timeout or float(config.get_int("ghidra.timeout"))
         client = Client(state, timeout=timeout)
+        lease = client.call(
+            "session_open",
+            pid=os.getpid(),
+            kind="interactive" if sys.stdin.isatty() else "batch",
+            tty=sys.stdin.isatty(),
+            ttl=90,
+        )["lease"]
+        heartbeat_stop = _start_heartbeat(client, lease)
         info = client.call("info")
         info["readonly"] = options.readonly
         session = Session(client, info, config, readonly=options.readonly)
@@ -84,6 +97,28 @@ def main(argv_list: list[str] | None = None) -> int:
         return exc.exit_code
     except KeyboardInterrupt:
         return 130
+    finally:
+        if heartbeat_stop is not None:
+            heartbeat_stop.set()
+        if client is not None and lease is not None:
+            try:
+                client.call("session_close", lease=lease)
+            except GdarError:
+                pass
+
+
+def _start_heartbeat(client: Client, lease: str, *, ttl: int = 90) -> threading.Event:
+    stop = threading.Event()
+
+    def beat() -> None:
+        while not stop.wait(max(10, ttl // 3)):
+            try:
+                client.call("session_heartbeat", lease=lease, ttl=ttl)
+            except GdarError:
+                return
+
+    threading.Thread(target=beat, name="gdare2-heartbeat", daemon=True).start()
+    return stop
 
 
 def _repl(session: Session, *, quiet: int) -> None:

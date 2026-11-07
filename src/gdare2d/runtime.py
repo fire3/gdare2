@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,8 @@ class GhidraRuntime:
         self._consumer = None
         self._pyghidra = None
         self.summary: dict[str, Any] = {}
+        self.sessions: dict[str, dict[str, Any]] = {}
+        self._sessions_lock = threading.Lock()
 
     def open(self) -> None:
         started = time.monotonic()
@@ -80,6 +83,8 @@ class GhidraRuntime:
             if existing is None and self.analyze_program:
                 self.state = "analyzing"
                 self._run_analysis(force=False)
+                if self.plan.raw:
+                    self._disassemble_raw_if_needed()
             if self.program is None:
                 self._open_program()
             self.summary = self._build_summary()
@@ -145,6 +150,18 @@ class GhidraRuntime:
         self.summary = self._build_summary()
         return {"state": "analyzed" if changed else "unchanged", "modification": int(after)}
 
+    def _disassemble_raw_if_needed(self) -> None:
+        assert self.program is not None
+        listing = self.program.getListing()
+        if listing.getInstructionAt(self.program.getMinAddress()) is not None:
+            return
+        from ghidra.app.cmd.disassemble import DisassembleCommand
+
+        command = DisassembleCommand(self.program.getMinAddress(), None, True)
+        with self._pyghidra.transaction(self.program, "gdare2 raw disassembly"):
+            command.applyTo(self.program, self._pyghidra.task_monitor())
+        self.program.save("gdare2 raw disassembly", self._pyghidra.task_monitor())
+
     def save(self) -> None:
         assert self.program is not None
         self.program.save("gdare2 save", self._pyghidra.task_monitor())
@@ -184,6 +201,10 @@ class GhidraRuntime:
             ghidra_version = str(__import__("ghidra.framework.Application", fromlist=["Application"]).getApplicationVersion())
         except Exception:
             ghidra_version = "unknown"
+        image_base = int(program.getImageBase().getOffset())
+        min_addr = int(program.getMinAddress().getOffset())
+        if image_base == 0 and min_addr != 0:
+            image_base = min_addr
         return {
             "target": str(target),
             "program": program.getName(),
@@ -194,8 +215,8 @@ class GhidraRuntime:
             "arch": arch,
             "bits": bits,
             "endian": endian,
-            "image_base": int(program.getImageBase().getOffset()),
-            "min_addr": int(program.getMinAddress().getOffset()),
+            "image_base": image_base,
+            "min_addr": min_addr,
             "max_addr": int(program.getMaxAddress().getOffset()),
             "entry": entry,
             "function_count": int(program.getFunctionManager().getFunctionCount()),
@@ -204,6 +225,51 @@ class GhidraRuntime:
             "ghidra_version": ghidra_version,
             "readonly": self.readonly,
         }
+
+    def session_open(self, *, pid: int, kind: str, tty: bool, ttl: int) -> str:
+        import secrets
+
+        lease = secrets.token_hex(8)
+        with self._sessions_lock:
+            self._purge_sessions()
+            self.sessions[lease] = {
+                "lease": lease,
+                "pid": int(pid),
+                "kind": str(kind),
+                "tty": bool(tty),
+                "last_seen": time.time(),
+                "expires": time.time() + max(10, int(ttl)),
+            }
+        return lease
+
+    def session_heartbeat(self, lease: str, ttl: int) -> bool:
+        with self._sessions_lock:
+            self._purge_sessions()
+            entry = self.sessions.get(lease)
+            if entry is None:
+                return False
+            entry["last_seen"] = time.time()
+            entry["expires"] = time.time() + max(10, int(ttl))
+            return True
+
+    def session_close(self, lease: str) -> bool:
+        with self._sessions_lock:
+            return self.sessions.pop(lease, None) is not None
+
+    def session_list(self) -> list[dict[str, Any]]:
+        with self._sessions_lock:
+            self._purge_sessions()
+            return [dict(entry) for entry in self.sessions.values()]
+
+    def has_active_sessions(self) -> bool:
+        with self._sessions_lock:
+            self._purge_sessions()
+            return bool(self.sessions)
+
+    def _purge_sessions(self) -> None:
+        now = time.time()
+        for lease in [key for key, entry in self.sessions.items() if entry["expires"] < now]:
+            self.sessions.pop(lease, None)
 
     @staticmethod
     def _entry_point(program) -> int:

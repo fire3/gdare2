@@ -42,3 +42,24 @@ def save(ctx) -> dict:
     require_program(ctx)
     ctx.runtime.save()
     return {"saved": True}
+
+
+@op("session_open")
+def session_open(ctx, pid: int = 0, kind: str = "batch", tty: bool = False, ttl: int = 90) -> dict:
+    lease = ctx.runtime.session_open(pid=pid, kind=kind, tty=tty, ttl=ttl)
+    return {"lease": lease, "ttl": ttl}
+
+
+@op("session_heartbeat")
+def session_heartbeat(ctx, lease: str, ttl: int = 90) -> dict:
+    return {"alive": ctx.runtime.session_heartbeat(lease, ttl)}
+
+
+@op("session_close")
+def session_close(ctx, lease: str) -> dict:
+    return {"closed": ctx.runtime.session_close(lease)}
+
+
+@op("session_list")
+def session_list(ctx) -> list[dict]:
+    return ctx.runtime.session_list()

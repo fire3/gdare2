@@ -58,3 +58,13 @@ def test_filter_redirect_and_json(env, tmp_path):
     result = run(env, "-j", "-qc", f"pd 20~+call; pdfj > {out}", target)
     assert result.returncode == 0, result.stderr
     assert out.read_text().strip().startswith("{")
+
+
+def test_raw_binary_base_and_disassembly(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(b"\x90\x90\xc3\xcc")
+    result = run(env, "-a", "x86", "-b", "64", "-B", "0x400000", "-qc", "iI; pd 2", str(target))
+    assert result.returncode == 0, result.stderr
+    assert "0x0000000000400000" in result.stdout
+    assert "0x0000000000400000" in result.stdout
+    assert "NOP" in result.stdout.upper()

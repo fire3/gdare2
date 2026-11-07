@@ -30,7 +30,7 @@ def _info(session, statement):
     ]
 
 
-@command("iS", "list memory blocks", aliases=("iSj",))
+@command("iS", "list memory blocks", aliases=("iSj", "iSS", "iSSj"))
 def _sections(session, statement):
     payload = session.call("sections")
     if statement.cmd.endswith("j"):
@@ -44,9 +44,45 @@ def _sections(session, statement):
     return lines
 
 
+@command("iS.", "show the memory block at seek")
+def _current_section(session, statement):
+    payload = session.call("block_at", ea=session.seek)
+    return [
+        f"name: {payload['name']}",
+        f"addr: {session.format_addr(int(payload['addr']))}",
+        f"end:  {session.format_addr(int(payload['end']))}",
+        f"size: {payload['size']}",
+        f"perm: {payload['perms']}",
+    ]
+
+
+@command("it", "show executable hashes", aliases=("itj",))
+def _hashes(session, statement):
+    payload = session.call("hashes")
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    return [
+        f"md5    {payload.get('md5', '')}",
+        f"sha256 {payload.get('sha256', '')}",
+        f"path   {payload.get('path', '')}",
+        f"format {payload.get('format', '')}",
+    ]
+
+
+@command("iM", "show the main or entry address")
+def _main_address(session, statement):
+    value = session.lookup_name("main")
+    if value is None:
+        value = session.lookup_name("_start")
+    if value is None:
+        value = int(session.info.get("entry") or 0)
+    return [session.format_addr(value)]
+
+
 @command("is", "list symbols", aliases=("isj",))
 def _symbols(session, statement):
     payload = session.call("symbols", limit=10000)
+    session.warn_truncated("symbol list", len(payload))
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item.get('type', ''):8s} {item['name']}" for item in payload]
@@ -55,6 +91,7 @@ def _symbols(session, statement):
 @command("ii", "list imports", aliases=("iij",))
 def _imports(session, statement):
     payload = session.call("imports")
+    session.warn_truncated("import list", len(payload))
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item['name']}" for item in payload]
@@ -71,6 +108,7 @@ def _entries(session, statement):
 @command("iz", "list strings", aliases=("izj",))
 def _strings(session, statement):
     payload = session.call("strings", limit=10000)
+    session.warn_truncated("string list", len(payload))
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item['string']}" for item in payload]

@@ -161,12 +161,20 @@ class Session:
             return statement
         mapping = {
             "iI": "iIj",
+            "it": "itj",
+            "pd": "pdj",
+            "p8": "p8j",
+            "pv": "pvj",
             "afl": "aflj",
+            "afc": "afcj",
+            "afC": "afCj",
+            "afx": "afxj",
             "afi": "afij",
             "pdf": "pdfj",
             "axt": "axtj",
             "axf": "axfj",
             "iS": "iSj",
+            "iSS": "iSSj",
             "is": "isj",
             "ii": "iij",
             "ie": "iej",
@@ -200,6 +208,10 @@ class Session:
         import sys
 
         print(text, file=sys.stderr)
+
+    def warn_truncated(self, label: str, count: int, limit: int = 10000) -> None:
+        if count >= limit:
+            self.stderr(f"WARN: {label} truncated at {limit} items; narrow the query")
 
     def cmd_info_json(self, statement: Statement) -> list[str]:
         return [dumps(self.info)]
