@@ -376,6 +376,11 @@
 | `type_delete` | `name`, `kind` | 删除类型/函数定义类型 |
 | `type_read` | `name`, `ea`/`data`, `count` | 类型化读取的 bytes/values |
 | `exports` | `limit` | 导出符号列表 |
+| `strings_all` | `min_length`, `limit` | 全文件 ASCII 字符串扫描 |
+| `function_reanalyze` | `ea` | 删除并重建函数 |
+| `variable_refs` | `ea`, `name`, `kind` | 变量读/写引用 |
+| `variable_rename` | `ea`, `old`, `new` | 重命名函数变量/参数 |
+| `exec_python` | `code` | 需 `--allow-exec` + `-w` 的 Python 逃生舱 |
 | `symbol_create` | `ea`, `name` | 创建 Ghidra label |
 | `symbol_rename` | `name`, `new_name` | 重命名符号 |
 | `symbol_delete` | `name`/`ea` | 删除符号 |
@@ -384,6 +389,7 @@
 | `comments` | `kind`, `ea`, `text` | 注释列表/更新 |
 | `decompile` | `ea`, `timeout`, `kind` | C 文本/签名/变量 |
 | `search` | `kind`, `pattern`, `from`, `to` | 命中列表 |
+| `search_raw` | `data`, `mask`, `from`, `to` | 原始文件偏移命中列表 |
 | `graph` | `ea`, `format` | blocks/edges |
 | `write` | `kind`, `ea`, `bytes` | 写入结果 |
 | `assemble` | `ea`, `text` | 汇编结果 bytes（不写入） |
@@ -411,18 +417,20 @@
 | 类型/签名 | `t`/`tj`、`ts`/`tsj`、`tu`/`tuj`、`te`/`tej`、`tt`/`ttj`、`tf`/`tfj`、`td`、`tc`/`tcj`、`tfc`/`tfcj`、`t-`、`tf-`、`afs`/`afsj`、`tp`/`tpv`/`tpx` |
 | 注释 | `C`/`Cj`、`C.`、`CC`、`CC-`、`CC.`、`Cd`、`Cb`、`Cp`、`Cr` |
 | flags | `f`、`fj`、`fq`、`f?`、`f-`、`fr`、`f.` |
-| 搜索 | `/`、`/j`、`/x`、`/xj`、`/w`、`/wj`、`/v` 及 `v1/2/4/8`、`/r`、`/rj`、`//`、`/+`、`/-` |
+| 搜索 | `/`、`/j`、`/x`、`/xj`、`/p`、`/pj`、`/a`、`/aj`、`/w`、`/wj`、`/v` 及 `v1/2/4/8`、`/r`、`/rj`、`//`、`/+`、`/-`；`search.in=raw` |
 | 写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U`、`wi` 及宽度/符号变量、`w6d`/`w6e` |
 | 汇编 | `pa`、`wa`、`wa*`、`wa+`、`waf`/`waF` |
-| 脚本/杂项 | `S`、`$`、`_`、`x`/`x8`/`xw`/`xq`/`xj`、`iE`/`iEj`、`ia`/`iaj` |
-| 扩展命令 | `.g`、`.gstatus`、`.gsave`、`.gclose`、`.gsync`、`.ganalyze`、`.ghelp` |
+| 分析写入/变量 | `afr`、`afvR`、`afvW`、`an` |
+| 脚本/杂项 | `S`、`$`、`_`、`x`/`x8`/`xw`/`xq`/`xj`、`iE`/`iEj`、`ia`/`iaj`、`izz`/`izzj` |
+| 迭代 | `@@F`、`@@/x`、`@@/`、`@@.file`、`@@s:from to step`、`@!n`、`@{from to}` |
+| 扩展命令 | `.g`、`.gstatus`、`.gsave`、`.gclose`、`.gsync`、`.ganalyze`、`.ghelp`、`.gexec` |
 
 ### 14.2 未实现（按 ROADMAP 阶段）
 
 | 阶段 | 命令/能力 |
 |---|---|
 | Phase A | **已完成**（loader 参数校验、`pdi` 独立布局、`pdj` 字段集决策） |
-| Phase B（剩余） | `izz`、`/p`、`/a`、`search.in=raw`、`@@/x`、`@@s:from to step`、`@{from to}`、`.gexec`、`afr`、`afvR/afvW`、`an`、`e ghidra.analysis.wait` |
+| Phase B | **已完成**（含 `izz`、`/p`、`/a`、raw search、`@@/x`、`@@s`、`@{from to}`、`.gexec`、`afr`/`afvR`/`afvW`/`an`、`ghidra.analysis.wait`） |
 | Phase C（parity） | `tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 黄金文件、架构矩阵 `pd 1`/`iI` 断言、batch 子 op meta 透传 |
 | Phase D（M6） | Ghidra GUI 桥、`--attach gui:<endpoint>`、GUI 内写入 |
 
@@ -437,7 +445,9 @@
 - `pa/wa` 使用 Ghidra SLEIGH 汇编器；助记符通常需要大写（如 `NOP`），
   不支持的语言明确报 `NOT_SUPPORTED`。`--assembler=rasm2` 仍未实现。
 - `f` 默认只写会话内 flag；写回 Ghidra 需要 `-w` 且 `e ghidra.flags.write=true`。
-- `--allow-exec` 仍未实现，`.gexec` 继续明确报 `BAD_ARGS`。
+- `.gexec` 需要客户端 `--allow-exec`、daemon `--allow-exec` 与 `-w` 三重条件。
+- `/r` 只遍历已定义字符串；`izz`/`search.in=raw` 返回文件偏移；`afr` 为
+  删除+重建函数的近似重分析；`an` 对纯 decompiler 局部变量支持有限。
 
 ### 14.4 2026-11-08 已修复
 
@@ -466,3 +476,7 @@
   `w6d`/`w6e`。
 - 扩展命令：`.gsync`、`.ganalyze`、`.ghelp`。
 - daemon 控制：`--daemon-readonly` 转发 `--readonly`。
+- 搜索/迭代补齐：`izz`/`izzj`、`/p`、`/a`、`search.in=raw`、`@@/x`、
+  `@@/`、`@@s:from to step`、`@{from to}`。
+- 分析写入与逃生舱：`afr`、`afvR`、`afvW`、`an`；`.gexec` 双重
+  `--allow-exec` 门控；`e ghidra.analysis.wait=skip` 跳过 `-A` 自动分析。

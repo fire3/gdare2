@@ -13,16 +13,16 @@
 | M2 分析/图 | 完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 可用；架构矩阵可用 |
 | M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/t-`、`tp/tpv/tpx`、`afs`、`C/CC/Cp` 已可用；复杂 C++ 类型与结构体值格式化仍受 Ghidra 限制 |
 | M4 写入 | 完成（v1 范围） | `wx/w/w0/wf/wd`、`wa/wa*/wa+`、`wi`、`w6d/w6e`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用 |
-| M5 兼容/体验 | 进行中 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、20 配置架构矩阵已可用；parity、`izz`、`/p`、`/a`、`.gexec` 等待补 |
+| M5 兼容/体验 | 进行中 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、`.gexec`、20 配置架构矩阵已可用；parity/黄金文件与矩阵增强待补 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着；方案与验收见 `ROADMAP.md` Phase D |
 
 ## 验证基线（2026-11-08 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `125 passed`，0.09s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `19 passed`，320.40s |
-| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.69s |
+| 离线 | `.venv/bin/python -m pytest -q` | `131 passed`，0.10s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `22 passed`，381.73s |
+| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，7.32s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 
@@ -54,7 +54,7 @@ Phase A 剩余项已全部处理。后续进入 Phase B（命令面）与 Phase 
 > `readonly` 等运行时选项）。旧版本创建的 `projects/<old-id>` 不会被自动复用；
 > 升级后首次运行会按新 id 重新导入一次，之后恢复正常复用。
 
-## Phase B 首批（2026-11-08）
+## Phase B 完成（2026-11-08）
 
 - **flags**：`f`/`fj`/`fq`/`f?`/`f-`/`fr`/`f.`；默认只写会话内 flag，
   `-w` + `e ghidra.flags.write=true` 才写回 Ghidra；daemon 新增
@@ -64,8 +64,13 @@ Phase A 剩余项已全部处理。后续进入 Phase B（命令面）与 Phase 
 - **搜索/迭代**：`/r`、`cmd.hit`、`@@F`、`@@.file`、`@!n`。
 - **汇编/写入**：`pa`、`wa`、`wa*`、`wa+`、`waf`/`waF`、`wi` 宽度/符号变量、
   `w6d`/`w6e`；SLEIGH 助记符通常需要大写。
-- **扩展命令**：`.gsync`、`.ganalyze`、`.ghelp`。
+- **信息/搜索补齐**：`izz`/`izzj`、`/p`、`/a`、`search.in=raw`、
+  `@@/x`、`@@s:from to step`、`@{from to}`。
+- **扩展命令/分析写入**：`.gexec`（客户端 + daemon 双重 `--allow-exec` 门控）、
+  `afr`、`afvR`、`afvW`、`an`；`e ghidra.analysis.wait=skip` 跳过 `-A` 自动分析。
 - **daemon 控制**：`--daemon-readonly` 转发 `--readonly`。
+
+Phase B 剩余项已清零；后续进入 Phase C（parity、架构矩阵增强、batch meta）。
 
 ## 已修复问题对照（原审查清单）
 
@@ -236,19 +241,16 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 ### 功能缺口
 
-- `izz` 全文件字符串尚未实现（`iz` 仍只扫描已定义数据）；
-- `/p`、`/a`、`search.in=raw`、`@@/x`、`@@s:from to step`、`@{from to}` 尚未实现；
-- `.gexec` 尚未实现；`--allow-exec` 继续明确报 `BAD_ARGS`；
-- `afr`、`afvR/afvW`、`an` 尚未实现；`afB` 的 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
-- `e ghidra.analysis.wait` 尚未接入。
+- `afB` 的 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
+- 已知限制：`/r` 只遍历已定义字符串；`izz`/`search.in=raw` 返回文件偏移；
+  `afr` 是删除+重建函数的近似重分析；`an` 对纯 decompiler 局部变量支持有限。
 
 ### 一致性与契约缺口
 
 - `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；
   已决策不伪造缺失字段；
 - batch 子 op 的 `meta` 只汇总错误数，尚未按单项保留；
-- `--assembler=rasm2` 与 `--allow-exec` 在对应命令实现前明确报 `BAD_ARGS`
-  （这是有意的显式拒绝，不是静默回退）。
+- `--assembler=rasm2` 仍未实现，会明确报 `BAD_ARGS`（有意的显式拒绝）。
 
 ### 测试与 parity 缺口
 
@@ -266,12 +268,9 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 1. C1/C2 建立 `tests/parity/`、黄金抓取工具与 `/bin/ls` 黄金文件；
 2. C4 扩展架构矩阵到 `pd 1`/`iI` 断言；
-3. B3 补 `izz`；
-4. B4 补 `/p`、`/a`、`search.in=raw`、`@@/x`、`@@s:from to step`、`@{from to}`；
-5. B6 实现 `.gexec` 与 `--allow-exec` 双重门控；
-6. B7 接入 `e ghidra.analysis.wait`；
-7. 补 `afr`/`afvR`/`afvW`/`an` 或明确记录为不支持；
-8. C15 透传 batch 子 op meta；
-9. C6 记录性能基线并审查错误码/退出码。
+3. C15 透传 batch 子 op meta；
+4. C6 记录性能基线并审查错误码/退出码；
+5. C3 补 ARM32 样本黄金文件与真实集成测试；
+6. 评估 `--assembler=rasm2` 回退与 `f` flag 视觉列。
 
 M6 在 v1 收尾后启动，先做 PyGhidra console 桥原型；详见 `ROADMAP.md` Phase D。

@@ -13,9 +13,9 @@
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `125 passed`，0.09s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `19 passed`，320.40s |
-| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.69s |
+| 离线 | `.venv/bin/python -m pytest -q` | `131 passed`，0.10s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `22 passed`，381.73s |
+| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，7.32s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 
@@ -143,24 +143,31 @@ C15（batch 子 op meta）与 `pdi` 的 flag 列视觉细化转入 Phase C/B1。
 > **升级注意**：instance-id 指纹现在只包含影响导入结果的键。旧项目的
 > `projects/<old-id>` 目录不会被复用；升级后首次运行会按新 id 重新导入一次。
 
-### 2.6 Phase B 首批进展（2026-11-08）
+### 2.6 Phase B 完成（2026-11-08）
 
 - **B1 flags（完成）**：`f`/`fj`/`fq`/`f?`/`f-`/`fr`/`f.`；默认会话内 flag，
-  写回 Ghidra 需 `-w` + `e ghidra.flags.write=true`；新增 daemon
+  写回 Ghidra 需 `-w` + `e ghidra.flags.write=true`；daemon 新增
   `symbol_create/symbol_rename/symbol_delete`。
 - **B2 脚本/变量/输出（完成）**：`S`、`$`/`$?`、`_`、`x`/`x8`/`xw`/`xq`/`xj`。
-- **B3 信息/类型（部分）**：`iE`/`iEj`、`ia`/`iaj`、`t-`、`tp`/`tpv`/`tpx`；
-  `izz` 仍待实现。
-- **B4 搜索/迭代（部分）**：`/r`、`cmd.hit`、`@@F`、`@@.file`、`@!n`；
-  `/p`、`/a`、`search.in=raw`、`@@/x`、`@@s:from to step`、`@{from to}` 待补。
+- **B3 信息/类型（完成）**：`iE`/`iEj`、`ia`/`iaj`、`izz`/`izzj`、`t-`、
+  `tp`/`tpv`/`tpx`。
+- **B4 搜索/迭代（完成）**：`/r`、`/p`、`/a`、`cmd.hit`、`search.in=raw`、
+  `@@F`、`@@/x`、`@@.file`、`@@s:from to step`、`@!n`、`@{from to}`。
 - **B5 汇编/写入（完成）**：`pa`、`wa`、`wa*`、`wa+`、`waf`/`waF`、
   `wi` 宽度/符号变量、`w6d`/`w6e`；Ghidra SLEIGH 助记符通常需要大写。
-- **B6 扩展命令（部分）**：`.gsync`、`.ganalyze`、`.ghelp`；`.gexec` 待实现。
-- **B7 daemon 控制（部分）**：`--daemon-readonly` 已转发；`e ghidra.analysis.wait`
-  待落地。
+- **B6 扩展命令（完成）**：`.gsync`、`.ganalyze`、`.ghelp`、`.gexec`
+  （需客户端 `--allow-exec` + daemon `--allow-exec` + `-w`）。
+- **B7 daemon 控制（完成）**：`--daemon-readonly` 已转发；
+  `e ghidra.analysis.wait=skip` 会跳过 `-A/-AA` 的自动分析。
+- **分析写入（完成）**：`afr` 函数重建、`afvR`/`afvW` 变量读写引用、
+  `an` 变量重命名。
 
-剩余 Phase B：`izz`、`/p`、`/a`、`search.in=raw`、`@@/x`、`@@s:from to step`、
-`@{from to}`、`.gexec`、`afr`、`afvR/afvW`、`an`、`e ghidra.analysis.wait`。
+已知限制（记录在 DIVERGENCES）：`/r` 只遍历已定义字符串；`izz`/raw search
+返回文件偏移；`afr` 是删除+重建函数的近似重分析；`an` 对纯 decompiler
+生成的局部变量可能只能重命名已有 Function 变量/参数。
+
+剩余 Phase B：无。下一步进入 Phase C（parity、架构矩阵增强、batch meta）
+与 M6。
 
 ## 3. 分阶段推进
 
@@ -202,12 +209,12 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
    - `S <file>` 读取脚本；`$name=value`、`$name` 读取；`_` 返回上次输出；
    - `x/x8/xw/xq/xj` 基于 `read_bytes` 的客户端 hexdump 变体；
    - 测试：脚本中的 `;`/`@`/`~` 与 `-i/-I` 一致。
-3. **B3 ◐ 信息与类型（P1/P2）**
+3. **B3 ✅ 信息与类型（P1/P2）**
    - `iE` 导出、`ia` 架构列表、`izz` 全文件字符串（P2）；
    - `t- <glob>` 通用删除（复用 `type_delete`，`kind=None`）；
    - `tp/tpv/tpx`：按类型长度读内存并格式化；`tt` 保持 typedef 列表；
    - 测试：`t-` 删除后 `t` 不再出现；`tp int @ addr` 输出与 `pv4` 对齐。
-4. **B4 ◐ 搜索与迭代（P1/P2）**
+4. **B4 ✅ 搜索与迭代（P1/P2）**
    - `/r` 遍历已定义字符串并正则匹配；`/p` 定长重复模式；`/a` 汇编后搜索；
    - `search.in=raw` 读取原始文件；`cmd.hit` 对每个命中执行命令；
    - `@@F`、`@@/x`、`@@.file`、`@@s:from to step`；`@!n`、`@{from to}`；
@@ -217,13 +224,13 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
    - 使用 `Assemblers.getAssembler(program)`；不支持的语言返回 `NOT_SUPPORTED`，
      可显式 `--assembler=rasm2` 回退；
    - 测试：`wa` 写入后可反汇编；`pa` 不写；只读门控。
-6. **B6 ◐ 扩展命令（P1/P2）**
+6. **B6 ✅ 扩展命令（P1/P2）**
    - `.gsync` 重新拉取 summary/symbols/blocks；
    - `.ganalyze [all]` 触发分析并显示状态；
    - `.gexec` 仅在 `--allow-exec` 且 daemon 允许时可用；
    - `.ghelp` 生成扩展命令帮助；
    - 测试：未开启时 `NOT_SUPPORTED`/`READONLY`。
-7. **B7 ◐ daemon 控制（P1）**
+7. **B7 ✅ daemon 控制（P1）**
    - 客户端 `--daemon-readonly` 或环境开关；转发 `--listen`；
    - `--analysis-timeout` 与 `e ghidra.analysis.wait` 落地；
    - 测试：daemon 只读时 `-w` 仍被拒绝；`--listen` 真正改变绑定地址。
@@ -304,8 +311,7 @@ uv run gdare2 -j -qc 'afl' /bin/ls | jq .
 
 ## 4. 建议执行顺序（可直接拆 commit）
 
-> Phase A 已合并；Phase B 首批（flags/脚本/变量/汇编写入/部分搜索迭代）已在
-> 2026-11-08 完成。以下保留为后续提交顺序参考。
+> Phase A 与 Phase B 已在 2026-11-08 完成。以下保留为后续提交顺序参考。
 
 1. `fix: unify instance id fingerprint`（A1）
 2. `fix: architecture alias endianness`（A2）

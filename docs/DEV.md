@@ -175,13 +175,15 @@ ${XDG_RUNTIME_DIR:-/tmp}/gdare2-<uid>/<instance-id>.log
 
 ### 4.4 逃生舱
 
-`--allow-exec` / `.gexec` 尚未实现，当前会明确报 `BAD_ARGS`。实现后计划：
+`.gexec` 在 daemon 进程内执行 Python。它需要同时满足：客户端 `--allow-exec`、
+daemon `--allow-exec`、以及 `-w`：
 
 ```bash
-gdare2 --allow-exec -qc '.gexec print(program.getName())' /bin/ls
+gdare2 --allow-exec -w -qc '.gexec print(program.getName())' /bin/ls
 ```
 
-默认关闭；生产环境不要开启。
+默认关闭；生产环境不要开启。执行在 Ghidra transaction 内，可直接访问
+`program`、`ctx`、`runtime`。
 
 ## 5. 真实 Ghidra 测试
 

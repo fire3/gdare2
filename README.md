@@ -14,7 +14,7 @@ r2 风格命令，同时保留一个常驻 daemon，让后续命令可以秒级�
 - **真实 Ghidra 回归测试**：离线单测、真实 Ghidra 集成测试与 20 配置架构矩阵分层运行。
 
 当前已完成 M0–M4 核心能力，M5 体验项进行中（rc、补全、搜索、架构矩阵已可用；
-parity、`izz`、`/p`、`/a`、`.gexec` 等剩余命令面待补）。状态见
+parity 黄金文件、架构矩阵增强、batch meta 等 Phase C 工作待补）。状态见
 [docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
@@ -125,11 +125,15 @@ gdare2 -qc 'axt @ main; axf @ main' /bin/ls
 ```bash
 gdare2 -qc '/x 488b' /bin/ls            # 十六进制字节
 gdare2 -qc '/x 90?f' /bin/ls            # ?/./ 表示保留半字节
+gdare2 -qc '/p 488b' /bin/ls            # pattern 搜索
+gdare2 -qc '/a NOP' /bin/ls             # 汇编后搜索字节
 gdare2 -qc '/ entry' /bin/ls            # UTF-8 文本
 gdare2 -qc '/w hello' /bin/ls           # UTF-16 文本
 gdare2 -qc '/v4 0x12345678' /bin/ls     # 32 位立即数
 gdare2 -qc '/xj 488b' /bin/ls           # JSON
 gdare2 -qc '/x 9090; //; /-' /bin/ls    # 继续向后/向前
+gdare2 -qc 'izz~ELF' /bin/ls            # 全文件字符串
+gdare2 -qe search.in=raw -qc '/x 488b' /bin/ls
 ```
 
 可用 `e search.from=0x...`、`e search.to=0x...` 限定范围。当前 `search.in=raw`
@@ -246,8 +250,8 @@ gdare2 --project /data/projects --project-name demo /bin/ls
 |---|---|
 | 信息 | `iI`、`iS`、`is`、`ii`、`ie`、`iz`、`it`、`iM` |
 | 反汇编/内存 | `pd`、`pdf`、`pD`、`pi`、`p8`、`px`、`pv`、`ps`、`pc` |
-| 搜索 | `/`、`/x`、`/w`、`/v[1248]`、`//`、`/+`、`/-` |
-| 函数/图 | `afl`、`afi`、`af`、`afn`、`afu`、`afc`、`afC`、`afx`、`afb`、`ab`、`ao`、`ai`、`agf` |
+| 搜索 | `/`、`/x`、`/p`、`/a`、`/w`、`/v[1248]`、`/r`、`//`、`/+`、`/-`；`search.in=raw` |
+| 函数/图 | `afl`、`afi`、`af`、`afn`、`afu`、`afr`、`afvR`、`afvW`、`an`、`afc`、`afC`、`afx`、`afb`、`ab`、`ao`、`ai`、`agf` |
 | xref | `axt`、`axf` |
 | 反编译/变量 | `pdc`、`afv` |
 | 类型 | `t`、`ts`、`tu`、`te`、`tt`、`tf`、`td`、`tc`、`tfc`、`t-`、`tf-`、`tp`、`tpv`、`tpx` |
@@ -257,8 +261,9 @@ gdare2 --project /data/projects --project-name demo /bin/ls
 | 分析写入 | `a8`、`ad` |
 | 字节写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U`、`wi`、`w6d`、`w6e` |
 | 汇编 | `pa`、`wa`、`wa*`、`wa+`、`waf`、`waF` |
-| 脚本/杂项 | `S`、`$`、`_`、`x`、`x8`、`xw`、`xq`、`xj`、`iE`、`ia` |
-| 会话/配置 | `s`、`b`、`e`、`q`、`.g`、`.gstatus`、`.gsave`、`.gclose`、`.gsync`、`.ganalyze`、`.ghelp` |
+| 脚本/杂项 | `S`、`$`、`_`、`x`、`x8`、`xw`、`xq`、`xj`、`iE`、`ia`、`izz` |
+| 迭代 | `@@F`、`@@/x`、`@@/`、`@@.file`、`@@s:from to step`、`@!n`、`@{from to}` |
+| 会话/配置 | `s`、`b`、`e`、`q`、`.g`、`.gstatus`、`.gsave`、`.gclose`、`.gsync`、`.ganalyze`、`.ghelp`、`.gexec` |
 
 大部分查询命令支持 `j` 后缀 JSON 变体；`<command>?` 查看单命令帮助。
 完整映射见 [docs/COMMANDS.md](docs/COMMANDS.md)。
@@ -284,9 +289,11 @@ gdare2 目标不是“假装 Ghidra 是 r2”，而是兼容高频工作流并�
 - 函数名、反汇编文本、反编译输出使用 Ghidra 语义，不伪造 r2 格式。
 - `w` 无参数是“保存程序”，`w <text>` 才是写字符串。
 - `u/U` 是 daemon 内存级字节补丁历史，不是 Ghidra 全局 undo。
-- `izz`、`/p`、`/a`、`search.in=raw`、`.gexec`、`afr`、`afvR/afvW`、`an` 尚未实现。
 - `f` 默认只写会话内 flag；写回 Ghidra 需要 `-w` 且 `e ghidra.flags.write=true`。
 - `pa/wa` 使用 Ghidra SLEIGH 汇编器，助记符通常需要大写。
+- `/r` 只遍历已定义字符串；`izz`/`search.in=raw` 返回文件偏移。
+- `afr` 为删除+重建函数的近似重分析；`an` 对纯 decompiler 局部变量支持有限。
+- `.gexec` 需要客户端与 daemon 都显式 `--allow-exec`，并且 `-w`。
 - `-B` 只对裸二进制生效；`sh4` 在 Ghidra 12.2 中无对应语言。
 - `-A/-AA`、`--wait`、`--listen` 已生效；`--assembler=rasm2` 与 `--allow-exec`
   在对应命令实现前会明确报参数错误。详见 [docs/ROADMAP.md](docs/ROADMAP.md)。

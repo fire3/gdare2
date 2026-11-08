@@ -292,10 +292,9 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 | `pdi` 布局 | 地址+symbol+字节+文本（symbol 列为空时保留空白） | r2 使用 flag/注释缩进体系；gdare2 的 symbol 列是其近似，完整 flag 列在 Phase B1 后评估 |
 | `tt` | 列出 typedef（与 r2 一致） | 类型读取/转换走 `tp`/`tpv`/`tpx`；不要把 `tt` 当“应用类型” |
 | `--assembler=rasm2` | 明确报 `BAD_ARGS` | `pa/wa` 已使用 Ghidra SLEIGH 汇编器；rasm2 回退尚未接入 |
-| `--allow-exec` | 明确报 `BAD_ARGS` | `.gexec` 尚未实现；实现后由客户端与 daemon 双重门控 |
+| `.gexec` | 需要客户端 `--allow-exec` + daemon `--allow-exec` + `-w` | 三重门控是有意的安全边界；缺任一项都报错 |
 | `afB` | 不实现，报 `NOT_SUPPORTED` | r2 6.2.5 中 `afB` 是 Thumb 位宽切换；旧文档的“第 n 个基本块”语义已过时，不做兼容层 |
 | batch 子 op `meta` | 只汇总错误数 | 应逐项保留；Phase C5 |
-| `izz` / `/p` / `/a` / `search.in=raw` / `.gexec` / `afr` / `afvR` / `afvW` / `an` | 未实现，报 `NOT_SUPPORTED` | 按 ROADMAP Phase B 剩余项补齐 |
 | daemon `--readonly` 下的显式 `aa` | 返回 `READONLY` | 只读 daemon 不允许重新分析；bootstrap 分析阶段已在启动前拒绝 |
 
 ### 14.1 已修复（2026-11-08）
@@ -333,3 +332,14 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 - **`wi` / `w6`**：`wi` 宽度 1/2/4/8，`wi+`/`wi-` 为增减；`w6d` 解码 base64
   并写入，`w6e` 编码当前字节。
 - **`.gsync`**：重新拉取 `info` 并清空 FlagStore，下次 `f` 会重新播种。
+- **`izz` / `search.in=raw`**：扫描/搜索原始文件并返回文件偏移，不是虚拟地址；
+  `izz` 为 ASCII 可打印串（默认最短 4 字节）。
+- **`/p` / `/a`**：`/p` 等价于十六进制 pattern 搜索；`/a` 先用 SLEIGH 汇编
+  再搜索结果字节，因此受语言/助记符大小写限制。
+- **`/r`**：只遍历已定义字符串；r2 6.2.5 的 `/r` 是引用搜索，这是有意保留的
+  gdare2 语义差异。
+- **`afr`**：删除并重建函数，保留非默认函数名；不等同于 Ghidra 的完整重分析。
+- **`an`**：优先重命名 Function 变量/参数；纯 decompiler 生成的局部变量可能
+  无法持久化重命名。
+- **`.gexec`**：在 daemon 进程内执行 Python，默认关闭；必须同时满足客户端
+  `--allow-exec`、daemon `--allow-exec` 与 `-w`。
