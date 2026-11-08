@@ -793,7 +793,7 @@ with pyghidra.transaction(program, f"gdare2:{op}"):
 ### 13.3 保存
 
 - `w` → `program.save("gdare2", monitor)`；显式保存优先于 `--no-save-on-close`；
-- `io.cache=true` 时 `w`/`wq` 先提交未决缓存（等价 `wc+`），再保存；提交失败则不保存；
+- `io.cache=true` 时 `w`/`wq`/`.gsave` 先提交未决缓存（等价 `wc+`），再保存；提交失败则不保存；
 - `wq` → save + quit；
 - daemon 正常关闭且 `save_on_close=true` → save；
 - 只读会话正常关闭不 save；
@@ -802,9 +802,13 @@ with pyghidra.transaction(program, f"gdare2:{op}"):
 
 ### 13.4 undo/redo
 
-- `u` → `program.undo()`；
-- `U` → `program.redo()`；
-- 只读会话是否允许 undo？**不允许**，因为 undo 也是修改项目状态。
+PyGhidra 当前的 `Program` 没有可用的 undo/redo API，因此采用 daemon 内存级字节补丁历史：
+
+- 每个写 op 在写前读取旧字节，成功后记录 `(addr, before, after)`；
+- `u` 逆序恢复最近一条记录的旧字节，`U` 重新应用新字节；
+- `wc+` 的多个补丁作为一条历史记录，一次撤销；
+- 只读会话 **不允许** `u/U`，因为 undo 也是修改程序状态；
+- 只恢复字节，不回滚反汇编/函数/注释等元数据；daemon 重启后历史清空。
 
 ### 13.5 写操作最小集
 

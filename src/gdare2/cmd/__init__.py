@@ -59,6 +59,7 @@ def load_all() -> None:
         print as print_cmd,
         seek,
         types,
+        write,
         xrefs,
     )
 

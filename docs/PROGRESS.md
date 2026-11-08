@@ -1,6 +1,6 @@
 # gdare2 开发进度
 
-更新时间：2026-11-07
+更新时间：2026-11-08
 
 ## 当前状态
 
@@ -11,7 +11,7 @@
 | M1 只读核心 | 基本完成 | 只读命令、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
 | M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；剩黄金文件与架构矩阵 |
 | M3 反编译/类型 | 进行中 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`C/CC/Cp` 已可用；C 声明解析与签名写入待补 |
-| M4 写入 | 待开始 | `wx/wf/u/U/wc+` 与事务回滚 |
+| M4 写入 | 基本完成 | `wx/w/w0/wf/wd`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用；`wa/wi` 等 P2 未做 |
 | M5 兼容/体验 | 待开始 | parity、补全、rc、架构矩阵 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着 |
 
@@ -86,7 +86,17 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - `C/Cj/C.` 注释枚举，`CC/CC-/CC.`、`Cd/Cb/Cp/Cr` 注释写入与删除；
 - 注释写入的 `-w` 门控、transaction、`.gsave` 与重启后可见性验证。
 
-当前测试：离线 `52 passed`；真实 Ghidra `10 passed`。
+第七轮（M4 写入）新增：
+
+- daemon `write_bytes/write_zero/write_file/write_copy/write_patches` 与 `undo/redo`；
+- 客户端 `wx`（支持 `.`/`?` 半字节保留）、`w <text>`、`w0`、`wf -|file`、`wd`；
+- `io.cache=true` 时补丁进入客户端缓存，`wc` 查看、`wc+` 一次 transaction 提交、`wc-` 丢弃；
+- `w` 无参数保存，`wq` 提交缓存后保存并退出；缓存提交失败则不保存；
+- `u/U` 使用 daemon 内存级字节补丁历史撤销/重做；
+- 请求侧 base64 字节解码，写入后 `.gsave` 持久化与重启后可见性验证；
+- 写入前清理写范围内的 code units，避免 Ghidra 的 instruction 冲突。
+
+当前测试：离线 `58 passed`；真实 Ghidra `12 passed`。
 
 验收命令：
 
@@ -102,6 +112,8 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's 0x400000; a8 
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pdc @ entry; afv @ entry' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 't~int; ts; tf~entry' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; CC demo comment; Cp demo plate; .gsave' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's 0x400000; wx 9090; px 2; u; px 2; U' /tmp/blob.bin
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 'e io.cache=true; s 0x400000; wx 4142; wc; wc+; w' /tmp/blob.bin
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -L
 .venv/bin/python -m pytest -q
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra
@@ -113,7 +125,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 - `/bin/ls` 与 ARM32 样本的结构化黄金文件、架构矩阵尚未补齐；
 - batch 还没有返回统一 `meta`（总数/截断）信息；
 - `td` C 声明解析、`tc` C 声明输出、`tf-`/签名写入与类型应用尚未实现；
-- 搜索与通用写入命令尚未实现；
+- 搜索尚未实现；`wa/wa*/wi/w6` 等 P2 写入命令尚未实现；
 - `pdi/pdl/pd -n` 与 r2 parity 黄金文件尚未补齐；
 - `-i/-I` 当前按打开后脚本处理；
 - GUI 桥未开始。
@@ -124,4 +136,4 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 2. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
 3. 完善 batch 分页 `meta` 与错误码一致性；
 4. 继续 M3：`td/tc`、函数签名写入与类型应用；
-5. 开始 M4：`wx/wf/w0/wd`、undo/redo 与 `io.cache`。
+5. 完成 M4 收尾后进入 M5：parity、补全、rc 与架构矩阵；可选补 `wa/wi`。

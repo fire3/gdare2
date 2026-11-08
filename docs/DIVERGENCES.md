@@ -183,10 +183,27 @@ r2 的 `w` 是写字符串；gdare2 与 idare2 一致，把 `w` 定义为“保�
 
 ### 9.2 `io.cache`
 
-`e io.cache=true` 时补丁先进入客户端缓存，`wc+` 一次性提交为一个 Ghidra transaction。
+`e io.cache=true` 时补丁先进入客户端缓存，`wc` 查看、`wc+` 一次性提交为一个
+Ghidra transaction、`wc-` 丢弃。`w`/`wq` 会先提交未决缓存；提交失败则不保存。
 这与 r2 的写缓存语义接近，但 undo 粒度不同（一个 transaction 而非每条补丁）。
 
-### 9.3 只读请求与 daemon 策略
+### 9.3 写入会清理 code units
+
+Ghidra 不允许 `Memory.setBytes` 直接覆盖已定义的指令。`wx/w0/wf/wd/wc+` 会先清理
+写范围内的 code units；因此写入后原反汇编会消失，需要 `a8` 或重新分析才会恢复。
+r2 本身不保存反汇编，所以没有这个步骤；这是 Ghidra 的项目模型差异。
+
+### 9.4 `u/U` 只撤销字节
+
+PyGhidra 暴露的 `Program` 没有可调用的 undo/redo API，因此 gdare2 的 `u/U` 使用
+daemon 内存中的字节补丁历史：
+
+- 只恢复写入前的字节，不回滚反汇编、函数、注释、类型等元数据；
+- 历史只覆盖 `wx/w0/wf/wd/wc+` 产生的字节写入，不包含 `a8/ad`；
+- 历史是 daemon 进程级且所有客户端共享；daemon 重启后清空；
+- 历史最多保留 4096 条；成功的新写入会清空 redo 栈。
+
+### 9.5 只读请求与 daemon 策略
 
 默认只读。只读请求不仅拒绝 `wx`，也拒绝 `u/U`，因为 undo 会改变程序状态。
 多个客户端共享同一个程序时，写能力是请求级的；`gdare2d --readonly` 可强制整个
@@ -238,3 +255,4 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 | `pa` 报 unsupported | 该语言没有 SLEIGH assembler |
 | `f` 改名后 GUI 看不到 | 未 `-w` 或 `e ghidra.flags.write=false` |
 | `u` 在只读会话失败 | undo 也是修改，默认只读 |
+| `u` 后反汇编未恢复 | 只回滚字节，不回滚分析元数据 |

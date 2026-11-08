@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from gdare2 import __version__
-from gdare2.protocol import health_payload
+from gdare2.protocol import decode_bytes, health_payload
 from gdare2d.context import Context
 from gdare2d.dispatch import as_error, invoke
 from gdare2d.executor import Executor
@@ -91,6 +91,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         op = request.get("op")
         args = request.get("args", {})
+        try:
+            args = decode_bytes(args)
+        except ValueError:
+            args = None
         if not isinstance(op, str) or not isinstance(args, dict):
             self._json({"ok": False, "error": {"code": "BAD_ARGS", "message": "invalid envelope"}}, status=400)
             return

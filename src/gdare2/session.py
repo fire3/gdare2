@@ -107,6 +107,7 @@ class Session:
         self.seek_history: list[int] = []
         self.seek_future: list[int] = []
         self.vars: dict[str, int] = {}
+        self.write_cache: list[dict[str, Any]] = []
         self.last_result = 0
         self.last_output: list[str] = []
         self.json_default = False
@@ -359,6 +360,17 @@ class Session:
 
     def call(self, op: str, **args: Any) -> Any:
         return self.client.call(op, allow_writes=not self.readonly, **args)
+
+    def commit_write_cache(self) -> None:
+        if not self.write_cache:
+            return
+        patches = list(self.write_cache)
+        self.client.call(
+            "write_patches",
+            allow_writes=not self.readonly,
+            patches=patches,
+        )
+        self.write_cache.clear()
 
     def stderr(self, text: str) -> None:
         import sys

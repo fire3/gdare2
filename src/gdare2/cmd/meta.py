@@ -70,7 +70,8 @@ def _dot_status(session, statement):
 @command(".gsave", "save the Ghidra program")
 def _dot_save(session, statement):
     if session.readonly:
-        raise UsageError("writing requires -w")
+        raise UsageError("read-only session: re-run with -w to allow writes")
+    session.commit_write_cache()
     session.call("save")
     return []
 

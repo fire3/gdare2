@@ -180,6 +180,18 @@ class FakeClient:
             return {"addr": args["ea"], "kind": args["kind"], "text": args["text"]}
         if op == "comment_delete":
             return {"addr": args["ea"], "kind": args["kind"], "text": ""}
+        if op == "write_bytes":
+            data = bytes(args["data"])
+            return {"addr": args["ea"], "size": len(data), "bytes": data}
+        if op == "write_patches":
+            return {
+                "patches": len(args["patches"]),
+                "bytes": sum(len(patch["data"]) for patch in args["patches"]),
+            }
+        if op == "write_copy":
+            return {"addr": args["dst"], "src": args["src"], "size": args["size"]}
+        if op in ("undo", "redo"):
+            return {"addr": 0x1000, "size": 2, "segments": 1}
         raise AssertionError(op)
 
     def _batch_item(self, spec):
@@ -382,3 +394,75 @@ def test_types_signatures_and_comments():
     session.readonly = False
     assert "updated" in session.run("CC updated @ main")[0]
     assert "deleted" in session.run("CC- @ main")[0]
+
+
+def test_write_commands_are_gated():
+    session, client = make_session()
+    assert session.run("wx 9090") == []
+    assert session.failed
+    assert "read-only" in str(session.last_error)
+    assert not [call for call in client.calls if call[0] == "write_bytes"]
+
+
+def test_wx_and_w_text_write_bytes():
+    session, client = make_session()
+    session.readonly = False
+    assert session.run("wx 90 90") == []
+    assert ("write_bytes", {"allow_writes": True, "ea": 0x1000, "data": b"\x90\x90"}) in client.calls
+    assert session.run('w "hi"') == []
+    assert ("write_bytes", {"allow_writes": True, "ea": 0x1000, "data": b"hi"}) in client.calls
+
+
+def test_wx_wildcard_nibbles_build_a_mask():
+    from gdare2.cmd.write import parse_hexpairs
+
+    data, mask = parse_hexpairs("90?f")
+    assert data == b"\x90\x0f"
+    assert mask == b"\xff\x0f"
+
+
+def test_write_cache_flushes_in_one_request():
+    session, client = make_session()
+    session.readonly = False
+    session.config.set("io.cache", "true")
+    assert session.run("wx 9090; wx 4142") == []
+    assert not [call for call in client.calls if call[0] == "write_bytes"]
+    listed = session.run("wc")
+    assert "9090" in listed[0]
+    assert "4142" in listed[1]
+    assert session.run("wc+") == []
+    writes = [call for call in client.calls if call[0] == "write_patches"]
+    assert len(writes) == 1
+    patches = writes[0][1]["patches"]
+    assert [patch["ea"] for patch in patches] == [0x1000, 0x1000]
+    assert session.write_cache == []
+
+
+def test_w_saves_and_wq_quits():
+    session, client = make_session()
+    session.readonly = False
+    session.config.set("io.cache", "true")
+    assert session.run("wx 90; w") == []
+    ops = [op for op, _ in client.calls]
+    assert ops[-2:] == ["write_patches", "save"]
+    assert session.run("wq") == []
+    assert session.quit_requested
+    assert [op for op, _ in client.calls].count("save") == 2
+
+
+def test_undo_redo_and_wd():
+    session, client = make_session()
+    session.readonly = False
+    session.run("wd 16 4")
+    assert ("write_copy", {"allow_writes": True, "dst": 0x1010, "src": 0x1000, "size": 4}) in client.calls
+    assert session.run("u; U") == []
+    assert [op for op, _ in client.calls if op in ("undo", "redo")] == ["undo", "redo"]
+
+
+def test_gsave_commits_cache_before_saving():
+    session, client = make_session()
+    session.readonly = False
+    session.config.set("io.cache", "true")
+    session.run("wx 90; .gsave")
+    ops = [op for op, _ in client.calls]
+    assert ops[-2:] == ["write_patches", "save"]

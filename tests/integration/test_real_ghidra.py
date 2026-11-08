@@ -232,3 +232,73 @@ def test_comments_are_gated_and_persist(env):
     assert comments.returncode == 0, comments.stderr
     assert "gdare2-comment" in comments.stdout
     assert "gdare2-plate" in comments.stdout
+
+
+def test_byte_writes_are_gated_and_persist(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(b"\xcc" * 16)
+    base_args = ("-a", "x86", "-b", "64", "-B", "0x400000")
+
+    denied = run(env, *base_args, "-qc", "wx 9090", str(target))
+    assert denied.returncode == 1
+    assert "read-only" in denied.stderr.lower()
+    assert "-w" in denied.stderr
+
+    written = run(
+        env,
+        *base_args,
+        "-w",
+        "-qc",
+        "s 0x400000; wx 9090; .gsave; .gclose",
+        str(target),
+    )
+    assert written.returncode == 0, written.stderr
+    time.sleep(0.5)
+
+    verify = run(env, *base_args, "-qc", "px 2", str(target))
+    assert verify.returncode == 0, verify.stderr
+    assert "90 90" in verify.stdout
+
+
+def test_write_cache_undo_redo_and_masks(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(b"\xcc" * 16)
+    base_args = ("-a", "x86", "-b", "64", "-B", "0x400000")
+
+    cached = run(
+        env,
+        *base_args,
+        "-w",
+        "-qc",
+        "e io.cache=true; s 0x400000; wx 4142; wc; wc+; px 2; .gclose",
+        str(target),
+    )
+    assert cached.returncode == 0, cached.stderr
+    assert "4142" in cached.stdout
+    assert "41 42" in cached.stdout
+    time.sleep(0.5)
+
+    history = run(
+        env,
+        *base_args,
+        "-w",
+        "-qc",
+        "s 0x400000; wx 9090; wx 4142; u; px 2; U; px 2; .gclose",
+        str(target),
+    )
+    assert history.returncode == 0, history.stderr
+    lines = history.stdout.splitlines()
+    hex_lines = [line for line in lines if line.startswith("0x0000000000400000")]
+    assert "90 90" in hex_lines[0]
+    assert "41 42" in hex_lines[1]
+
+    masked = run(
+        env,
+        *base_args,
+        "-w",
+        "-qc",
+        "s 0x400000; wx 90?f; px 2; .gclose",
+        str(target),
+    )
+    assert masked.returncode == 0, masked.stderr
+    assert "90 4f" in masked.stdout

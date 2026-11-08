@@ -54,6 +54,8 @@ class GhidraRuntime:
         self.summary: dict[str, Any] = {}
         self.sessions: dict[str, dict[str, Any]] = {}
         self._sessions_lock = threading.Lock()
+        self.write_undo: list[dict[str, Any]] = []
+        self.write_redo: list[dict[str, Any]] = []
 
     def open(self) -> None:
         started = time.monotonic()
@@ -166,6 +168,58 @@ class GhidraRuntime:
     def save(self) -> None:
         assert self.program is not None
         self.program.save("gdare2 save", self._pyghidra.task_monitor())
+
+    def record_write(self, address: int, before: bytes, after: bytes) -> None:
+        self.record_writes([(address, before, after)])
+
+    def record_writes(self, segments: list[tuple[int, bytes, bytes]]) -> None:
+        writes = [
+            {"addr": int(address), "before": bytes(before), "after": bytes(after)}
+            for address, before, after in segments
+            if before != after
+        ]
+        if not writes:
+            return
+        self.write_undo.append({"writes": writes})
+        if len(self.write_undo) > 4096:
+            self.write_undo.pop(0)
+        self.write_redo.clear()
+
+    def undo_write(self) -> dict[str, Any]:
+        if not self.write_undo:
+            raise GdarError("no byte writes to undo")
+        assert self.program is not None
+        entry = self.write_undo.pop()
+        for item in reversed(entry["writes"]):
+            self._write_memory(item["addr"], item["before"])
+        self.write_redo.append(entry)
+        return self._write_result(entry, "before")
+
+    def redo_write(self) -> dict[str, Any]:
+        if not self.write_redo:
+            raise GdarError("no byte writes to redo")
+        assert self.program is not None
+        entry = self.write_redo.pop()
+        for item in entry["writes"]:
+            self._write_memory(item["addr"], item["after"])
+        self.write_undo.append(entry)
+        return self._write_result(entry, "after")
+
+    def _write_memory(self, address: int, data: bytes) -> None:
+        space = self.program.getAddressFactory().getDefaultAddressSpace()
+        start = space.getAddress(int(address))
+        end = space.getAddress(int(address) + len(data) - 1)
+        self.program.getListing().clearCodeUnits(start, end, False)
+        self.program.getMemory().setBytes(start, data)
+
+    @staticmethod
+    def _write_result(entry: dict[str, Any], field: str) -> dict[str, Any]:
+        writes = entry["writes"]
+        return {
+            "addr": int(writes[0]["addr"]),
+            "size": sum(len(item[field]) for item in writes),
+            "segments": len(writes),
+        }
 
     def decompile(self, function, timeout: int = 30):
         assert self.program is not None
