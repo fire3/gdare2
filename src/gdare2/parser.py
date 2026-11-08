@@ -18,6 +18,7 @@ class Statement:
     cmd: str = ""
     args: str = ""
     tmpseek: str | None = None
+    range: tuple[str, str] | None = None
     filter: str | None = None
     pipe: str | None = None
     redirect: str | None = None
@@ -128,6 +129,12 @@ def parse_statement(text: str) -> Statement:
             statement.iterator_size = spec
         elif count == 2:
             statement.iterator = spec
+        elif spec.startswith("{") and spec.endswith("}"):
+            inner = spec[1:-1].strip()
+            parts = inner.split()
+            if len(parts) != 2:
+                raise UsageError("@{from to} needs exactly two addresses")
+            statement.range = (parts[0], parts[1])
         else:
             statement.tmpseek = spec
         text = text[:start].rstrip()

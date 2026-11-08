@@ -137,6 +137,15 @@ def _entries(session, statement):
     return [f"{session.format_addr(int(item['addr']))} {item.get('name', '')}" for item in payload]
 
 
+@command("izz", "scan the whole file for strings", aliases=("izzj",))
+def _strings_all(session, statement):
+    payload = session.call("strings_all", min_length=4, limit=10000)
+    session.warn_truncated("string scan", len(payload), limit=10000)
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    return [f"0x{int(item['offset']):08x} {item['string']}" for item in payload]
+
+
 @command("iz", "list strings", aliases=("izj",))
 def _strings(session, statement):
     payload = session.call("strings", limit=10000)

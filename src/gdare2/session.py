@@ -99,11 +99,13 @@ class Session:
         config: Config,
         *,
         readonly: bool = True,
+        allow_exec: bool = False,
     ) -> None:
         self.client = client
         self.info = info
         self.config = config
         self.readonly = readonly
+        self.allow_exec = allow_exec
         self.pointer_size = max(1, int(info.get("bits", 32)) // 8)
         self.seek = int(info.get("entry") or info.get("image_base") or 0)
         self.blocksize = DEFAULT_BLOCKSIZE
@@ -120,6 +122,7 @@ class Session:
         self.quit_requested = False
         self.flag_store = FlagStore()
         self.flags_loaded = False
+        self.tmp_range: tuple[int, int] | None = None
         self._names: dict[str, int | None] = {}
         self.setup()
 
@@ -248,8 +251,14 @@ class Session:
         for _ in range(max(statement.repeat, 1)):
             saved_seek = self.seek
             saved_blocksize = self.blocksize
+            saved_range = self.tmp_range
             try:
-                if statement.tmpseek:
+                if statement.range:
+                    start = self.eval(statement.range[0])
+                    stop = self.eval(statement.range[1])
+                    self.seek = start
+                    self.tmp_range = (start, stop)
+                elif statement.tmpseek:
                     spec = statement.tmpseek.strip()
                     if spec.startswith("!"):
                         self.blocksize = self.eval(spec[1:].strip())
@@ -257,9 +266,10 @@ class Session:
                         self.seek = self.eval(spec)
                 lines = self.dispatch(statement)
             finally:
-                if statement.tmpseek:
+                if statement.range or statement.tmpseek:
                     self.seek = saved_seek
                     self.blocksize = saved_blocksize
+                self.tmp_range = saved_range
         return self.postprocess(lines, statement)
 
     def dispatch(self, statement: Statement) -> list[str]:
@@ -359,20 +369,102 @@ class Session:
             tokens = [item for item in text.replace(",", " ").split() if item]
             if not tokens:
                 raise UsageError("@@= needs at least one address")
-            targets = [{"addr": self.eval(token), "size": 0} for token in tokens]
-            return targets, {"total": len(targets), "shown": len(targets), "truncated": False}
+            targets = [
+                {"addr": self.eval(token), "size": 0}
+                for token in tokens[:MAX_BATCH_TARGETS]
+            ]
+            return targets, {
+                "total": len(tokens),
+                "shown": len(targets),
+                "truncated": len(tokens) > len(targets),
+            }
         if kind.startswith("."):
             path = kind[1:]
             try:
                 lines = Path(path).expanduser().read_text(encoding="utf-8").splitlines()
             except OSError as exc:
                 raise UsageError(f"cannot read address file {path}: {exc}") from exc
-            targets = []
-            for line in lines:
-                token = line.strip()
-                if token and not token.startswith("#"):
-                    targets.append({"addr": self.eval(token), "size": 0})
-            return targets, {"total": len(targets), "shown": len(targets), "truncated": False}
+            tokens = [
+                line.strip()
+                for line in lines
+                if line.strip() and not line.strip().startswith("#")
+            ]
+            targets = [
+                {"addr": self.eval(token), "size": 0}
+                for token in tokens[:MAX_BATCH_TARGETS]
+            ]
+            return targets, {
+                "total": len(tokens),
+                "shown": len(targets),
+                "truncated": len(tokens) > len(targets),
+            }
+        if kind in ("/", "/x", "/p", "/w"):
+            from gdare2.cmd.write import parse_hexpairs
+            from gdare2.escape import text_bytes
+
+            text = pattern or ""
+            if kind in ("/x", "/p"):
+                data, mask = parse_hexpairs(text)
+            elif kind == "/w":
+                order = "utf-16-be" if self.info.get("endian") == "big" else "utf-16-le"
+                data, mask = text.encode(order), None
+            else:
+                data, mask = text_bytes(text), None
+            scope = self.config.get_str("search.in")
+            if scope == "raw":
+                payload = self.call(
+                    "search_raw",
+                    data=data,
+                    mask=mask,
+                    cursor=0,
+                    forward=True,
+                    limit=MAX_BATCH_TARGETS,
+                    offset=0,
+                )
+            else:
+                payload = self.call(
+                    "search",
+                    data=data,
+                    mask=mask,
+                    cursor=0,
+                    forward=True,
+                    limit=MAX_BATCH_TARGETS,
+                    offset=0,
+                    scope=scope,
+                )
+            hits = [{"addr": int(hit), "size": 0} for hit in payload.get("hits", [])]
+            meta = payload.get("meta") or {}
+            return hits, {
+                "total": int(meta.get("shown", len(hits))),
+                "shown": len(hits),
+                "truncated": bool(meta.get("truncated")),
+            }
+        if kind == "s" and pattern:
+            tokens = pattern.split()
+            if len(tokens) in (2, 3):
+                try:
+                    start = self.eval(tokens[0])
+                    stop = self.eval(tokens[1])
+                    step = self.eval(tokens[2]) if len(tokens) == 3 else 1
+                except Exception:
+                    pass
+                else:
+                    if step <= 0:
+                        raise UsageError("@@s step must be positive")
+                    total = 0 if stop < start else (stop - start) // step + 1
+                    targets = [
+                        {"addr": address, "size": 0}
+                        for address in range(
+                            start,
+                            min(stop, start + step * (MAX_BATCH_TARGETS - 1)) + 1,
+                            step,
+                        )
+                    ][:MAX_BATCH_TARGETS]
+                    return targets, {
+                        "total": total,
+                        "shown": len(targets),
+                        "truncated": total > len(targets),
+                    }
         return self.call_with_meta("iter_targets", kind=kind, ea=self.seek, pattern=pattern)
 
     def _maybe_json(self, statement: Statement) -> Statement:
@@ -419,6 +511,7 @@ class Session:
             "ia": "iaj",
             "ie": "iej",
             "iz": "izj",
+            "izz": "izzj",
             "/": "/j",
             "/x": "/xj",
             "/w": "/wj",
@@ -493,5 +586,8 @@ def _parse_iterator(spec: str) -> tuple[str, str | None]:
         raise UsageError("iterator needs an operand")
     if text.startswith("="):
         return "=", text.lstrip("=").strip()
+    if text.startswith("/"):
+        kind, separator, pattern = text.partition(" ")
+        return kind, pattern.strip() if separator else None
     kind, separator, pattern = text.partition(":")
     return kind, pattern if separator else None

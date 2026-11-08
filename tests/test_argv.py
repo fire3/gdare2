@@ -72,9 +72,9 @@ def test_rasm2_assembler_is_rejected_until_implemented():
         argv.parse(["--assembler", "rasm2", "/bin/ls"])
 
 
-def test_allow_exec_is_rejected_until_gexec_exists():
-    with pytest.raises(UsageError, match="gexec"):
-        argv.parse(["--allow-exec", "/bin/ls"])
+def test_allow_exec_is_accepted():
+    options = argv.parse(["--allow-exec", "/bin/ls"])
+    assert options.allow_exec is True
 
 
 def test_wait_is_accepted():

@@ -13,6 +13,13 @@ def _bits(session) -> int:
     return int(session.info.get("bits") or 32)
 
 
+def _range_size(session, size: int) -> int:
+    if session.tmp_range is not None:
+        start, stop = session.tmp_range
+        return max(0, stop - start + 1)
+    return size
+
+
 @command(
     "pd",
     "disassemble N instructions",
@@ -94,7 +101,7 @@ def _pdc(session, statement):
 def _x(session, statement):
     if statement.cmd in ("xw", "xq"):
         return _words(session, statement, 4 if statement.cmd == "xw" else 8)
-    size = _number(statement.args, session.blocksize)
+    size = _range_size(session, _number(statement.args, session.blocksize))
     data = bytes(session.call("read_bytes", ea=session.seek, size=size))
     if statement.cmd == "x8":
         return [data.hex()]
@@ -111,7 +118,7 @@ def _x(session, statement):
 
 @command("px", "hexdump memory", detail="Usage: px [n] [@ addr]")
 def _px(session, statement):
-    size = _number(statement.args, session.blocksize)
+    size = _range_size(session, _number(statement.args, session.blocksize))
     data = session.call("read_bytes", ea=session.seek, size=size)
     return hexdump(
         bytes(data),
@@ -133,7 +140,7 @@ def _pxq(session, statement):
 
 
 def _words(session, statement, width: int) -> list[str]:
-    size = _number(statement.args, session.blocksize)
+    size = _range_size(session, _number(statement.args, session.blocksize))
     data = bytes(session.call("read_bytes", ea=session.seek, size=size))
     order = "big" if session.info.get("endian") == "big" else "little"
     lines = []
@@ -145,7 +152,7 @@ def _words(session, statement, width: int) -> list[str]:
 
 @command("p8", "print N bytes as hex", aliases=("p8j",))
 def _p8(session, statement):
-    size = _number(statement.args, session.blocksize)
+    size = _range_size(session, _number(statement.args, session.blocksize))
     data = bytes(session.call("read_bytes", ea=session.seek, size=size))
     if statement.cmd.endswith("j"):
         return [dumps({"addr": session.seek, "size": len(data), "bytes": data.hex()})]
@@ -171,14 +178,14 @@ def _pv(session, statement):
 
 @command("ps", "print a string")
 def _ps(session, statement):
-    size = _number(statement.args, session.blocksize)
+    size = _range_size(session, _number(statement.args, session.blocksize))
     data = bytes(session.call("read_bytes", ea=session.seek, size=size))
     return [data.split(b"\x00", 1)[0].decode("utf-8", errors="replace")]
 
 
 @command("pc", "print a C byte array")
 def _pc(session, statement):
-    size = _number(statement.args, session.blocksize)
+    size = _range_size(session, _number(statement.args, session.blocksize))
     data = bytes(session.call("read_bytes", ea=session.seek, size=size))
     return [", ".join(f"0x{byte:02x}" for byte in data)]
 

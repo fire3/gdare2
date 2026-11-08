@@ -657,3 +657,115 @@ def test_assembly_integer_and_base64_writes(env, tmp_path):
     dump = run(env, *args, "-qc", "px 2 @ 0x400000", str(target))
     assert dump.returncode == 0, dump.stderr
     assert "41 42" in dump.stdout
+
+
+def test_function_reanalysis_and_variable_commands(env):
+    target = "/bin/ls"
+    first = run(env, "-qc", "iI", target)
+    assert first.returncode == 0, first.stderr
+
+    variables = run(env, "-j", "-qc", "s entry; afvj", target)
+    assert variables.returncode == 0, variables.stderr
+    payload = json.loads(variables.stdout)
+    if not payload.get("variables"):
+        pytest.skip("main has no decompiler variables")
+    name = payload["variables"][0]["name"]
+
+    reads = run(env, "-qc", f"s entry; afvR {name}", target)
+    assert reads.returncode == 0, reads.stderr
+    writes = run(env, "-qc", f"s entry; afvW {name}", target)
+    assert writes.returncode == 0, writes.stderr
+
+    renamed = run(
+        env,
+        "-w",
+        "-qc",
+        f"s entry; an {name} renamed_var; .gsave",
+        target,
+    )
+    assert renamed.returncode == 0, renamed.stderr
+
+    after = run(env, "-j", "-qc", "s entry; afvj", target)
+    assert after.returncode == 0, after.stderr
+    names = [item["name"] for item in json.loads(after.stdout)["variables"]]
+    assert "renamed_var" in names
+
+    reanalyzed = run(env, "-w", "-qc", "s entry; afr; .gsave", target)
+    assert reanalyzed.returncode == 0, reanalyzed.stderr
+    assert "entry" in reanalyzed.stdout
+
+
+def test_gexec_requires_client_and_daemon_opt_in(env):
+    target = "/bin/ls"
+    first = run(env, "-qc", "iI", target)
+    assert first.returncode == 0, first.stderr
+
+    client_denied = run(
+        env,
+        "-w",
+        "-qc",
+        ".gexec print(program.getName())",
+        target,
+    )
+    assert client_denied.returncode == 1
+    assert "--allow-exec" in client_denied.stderr
+
+    daemon_denied = run(
+        env,
+        "--allow-exec",
+        "-w",
+        "-qc",
+        ".gexec print(program.getName())",
+        target,
+    )
+    assert daemon_denied.returncode == 1
+    assert "disabled" in daemon_denied.stderr or "allow-exec" in daemon_denied.stderr
+
+    run(env, "-qc", ".gclose", target)
+    runtime = Path(env["XDG_RUNTIME_DIR"]) / f"gdare2-{os.getuid()}"
+    deadline = time.monotonic() + 30
+    while list(runtime.glob("*.json")) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    allowed = run(
+        env,
+        "--allow-exec",
+        "-w",
+        "-qc",
+        ".gexec print(program.getName())",
+        target,
+    )
+    assert allowed.returncode == 0, allowed.stderr
+    assert allowed.stdout.strip() == "ls"
+
+
+def test_izz_pattern_assembly_and_raw_search(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(b"\x90HELLO\x00\xc3")
+    args = ["-a", "x86", "-b", "64", "-B", "0x400000"]
+
+    first = run(env, *args, "-qc", "iI", str(target))
+    assert first.returncode == 0, first.stderr
+
+    izz = run(env, *args, "-qc", "izz~HELLO", str(target))
+    assert izz.returncode == 0, izz.stderr
+    assert "HELLO" in izz.stdout
+
+    pattern = run(env, *args, "-qc", "/p 48454c4c4f", str(target))
+    assert pattern.returncode == 0, pattern.stderr
+    assert "0x0000000000400001" in pattern.stdout
+
+    assembled = run(env, *args, "-qc", "/a NOP", str(target))
+    assert assembled.returncode == 0, assembled.stderr
+    assert "0x0000000000400000" in assembled.stdout
+
+    raw = run(
+        env,
+        *args,
+        "-e",
+        "search.in=raw",
+        "-qc",
+        "/x 48454c4c4f",
+        str(target),
+    )
+    assert raw.returncode == 0, raw.stderr
+    assert "0x0000000000000001" in raw.stdout

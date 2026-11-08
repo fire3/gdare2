@@ -48,6 +48,7 @@ def load_all() -> None:
         comments,
         decompile,
         disasm,
+        escape,
         graph,
         info,
         memory,

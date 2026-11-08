@@ -152,6 +152,48 @@ def _analyze(session, statement):
     return [f"analysis: {payload.get('state')}"] if not session.config.get_bool("scr.null") else []
 
 
+@command("afr", "reanalyze the current function")
+def _reanalyze_function(session, statement):
+    require_write(session)
+    payload = session.call("function_reanalyze", ea=session.seek)
+    return [f"{session.format_addr(int(payload['addr']))} {payload['name']}"]
+
+
+def _variable_refs(session, statement, kind):
+    name = statement.args.strip() or None
+    payload = session.call("variable_refs", ea=session.seek, name=name, kind=kind)
+    lines = []
+    for variable in payload:
+        for ref in variable.get("refs", []):
+            lines.append(
+                f"{session.format_addr(int(ref))} {variable['name']} "
+                f"[{variable.get('kind', 'other')}]"
+            )
+    return lines
+
+
+@command("afvR", "list variable read references")
+def _variable_reads(session, statement):
+    return _variable_refs(session, statement, "r")
+
+
+@command("afvW", "list variable write references")
+def _variable_writes(session, statement):
+    return _variable_refs(session, statement, "w")
+
+
+@command("an", "rename a function variable")
+def _rename_variable(session, statement):
+    require_write(session)
+    parts = statement.args.split()
+    if len(parts) != 2:
+        raise UsageError("an needs an old and a new variable name")
+    payload = session.call(
+        "variable_rename", ea=session.seek, old=parts[0], new=parts[1]
+    )
+    return [f"{payload['old']} -> {payload['name']} @ {payload['storage']}"]
+
+
 @command("afb", "list basic blocks of the current function", aliases=("afbj",))
 def _blocks(session, statement):
     payload = session.call("basic_blocks", ea=session.seek)

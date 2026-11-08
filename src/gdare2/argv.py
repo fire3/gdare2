@@ -259,7 +259,7 @@ def _apply_long_bool(options: Options, name: str) -> None:
     elif name == "reimport":
         options.reimport = True
     elif name == "allow-exec":
-        raise UsageError("--allow-exec is not available until .gexec is implemented")
+        options.allow_exec = True
     elif name == "daemon-readonly":
         options.daemon_readonly = True
 

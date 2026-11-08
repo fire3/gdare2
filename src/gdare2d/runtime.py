@@ -38,6 +38,7 @@ class GhidraRuntime:
         save_on_close: bool = True,
         ephemeral: bool = False,
         analysis_timeout: float = 180.0,
+        allow_exec: bool = False,
         ghidra_install: str | None = None,
     ) -> None:
         self.target = target
@@ -52,6 +53,7 @@ class GhidraRuntime:
         self.save_on_close = save_on_close
         self.ephemeral = ephemeral
         self.analysis_timeout = float(analysis_timeout or 0)
+        self.allow_exec = bool(allow_exec)
         self.ghidra_install = ghidra_install
         self.state = "starting"
         self.error: str | None = None

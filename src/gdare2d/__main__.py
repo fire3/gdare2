@@ -113,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         save_on_close=args.save_on_close,
         ephemeral=args.ephemeral,
         analysis_timeout=args.analysis_timeout,
+        allow_exec=args.allow_exec,
         ghidra_install=os.environ.get("GHIDRA_INSTALL_DIR"),
     )
     runtime.instance_id = ingest_id

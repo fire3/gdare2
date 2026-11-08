@@ -64,7 +64,13 @@ def main(argv_list: list[str] | None = None) -> int:
         heartbeat_stop = _start_heartbeat(client, lease)
         info = client.call("info")
         info["readonly"] = options.readonly
-        session = Session(client, info, config, readonly=options.readonly)
+        session = Session(
+            client,
+            info,
+            config,
+            readonly=options.readonly,
+            allow_exec=options.allow_exec,
+        )
         session.json_default = options.json
 
         _run_rc(session, options)
@@ -129,6 +135,8 @@ def _command_lines(options: argv.Options) -> list[str]:
 def _analysis_request(session: Session, options: argv.Options) -> None:
     """Honour r2's -A/-AA: analyze now, before running commands/scripts."""
     if options.analyze <= 0:
+        return
+    if session.config.get_str("ghidra.analysis.wait") == "skip":
         return
     command = "aaa" if options.analyze >= 2 else "aa"
     lines = session.run(command)

@@ -65,3 +65,19 @@ def test_spawn_forwards_daemon_readonly(monkeypatch, tmp_path):
     )
     launcher._spawn(options, "/bin/ls", "0123456789abcdef")
     assert "--readonly" in captured["command"]
+
+
+def test_spawn_forwards_allow_exec(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    captured: dict[str, list[str]] = {}
+
+    class FakePopen:
+        def __init__(self, command, **_kwargs):
+            captured["command"] = command
+
+    monkeypatch.setattr(launcher.subprocess, "Popen", FakePopen)
+    options = argv.parse(
+        ["--allow-exec", "--project", str(tmp_path / "project"), "/bin/ls"]
+    )
+    launcher._spawn(options, "/bin/ls", "0123456789abcdef")
+    assert "--allow-exec" in captured["command"]

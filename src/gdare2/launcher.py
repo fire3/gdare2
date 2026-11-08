@@ -133,6 +133,8 @@ def _spawn(options: Options, target: str, ingest_id: str) -> None:
         command += ["--listen", options.listen]
     if options.daemon_readonly:
         command.append("--readonly")
+    if options.allow_exec:
+        command.append("--allow-exec")
     if options.save_on_close is True:
         command.append("--save-on-close")
     elif options.save_on_close is False:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from gdare2 import __version__
 from gdare2.cmd import command, help_text, require_write
+from gdare2.errors import UsageError
 from gdare2.jsonutil import dumps
 
 
@@ -88,6 +89,18 @@ def _dot_analyze(session, statement):
     force = statement.args.strip().lower() in ("all", "aaa")
     payload = session.call("analyze", force=force)
     return [f"analysis: {payload.get('state')}"]
+
+
+@command(".gexec", "execute Python inside the daemon")
+def _dot_exec(session, statement):
+    if not session.allow_exec:
+        raise UsageError("re-run with --allow-exec to enable .gexec")
+    require_write(session)
+    code = statement.args.strip()
+    if not code:
+        raise UsageError(".gexec needs Python code")
+    payload = session.call("exec_python", code=code)
+    return str(payload.get("output", "")).rstrip().splitlines()
 
 
 @command(".ghelp", "list gdare2 extension commands")

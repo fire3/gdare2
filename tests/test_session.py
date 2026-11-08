@@ -318,6 +318,41 @@ class FakeClient:
             return {"addr": args["dst"], "src": args["src"], "size": args["size"]}
         if op in ("undo", "redo"):
             return {"addr": 0x1000, "size": 2, "segments": 1}
+        if op == "strings_all":
+            return [
+                {"offset": 0x10, "length": 5, "string": "hello"},
+            ]
+        if op == "function_reanalyze":
+            return {"addr": args["ea"], "name": "main", "size": 10, "end": 0x100A}
+        if op == "variable_refs":
+            return [
+                {
+                    "name": args.get("name") or "local_8",
+                    "storage": "Stack[-0x8]",
+                    "kind": "stack",
+                    "refs": [0x1000, 0x1004],
+                }
+            ]
+        if op == "variable_rename":
+            return {
+                "old": args["old"],
+                "name": args["new"],
+                "storage": "Stack[-0x8]",
+            }
+        if op == "exec_python":
+            return {"output": "demo\n"}
+        if op == "search_raw":
+            return {
+                "hits": [0x20, 0x24],
+                "meta": {
+                    "shown": 2,
+                    "offset": 0,
+                    "limit": args.get("limit", 4096),
+                    "truncated": False,
+                    "scope": "raw",
+                    "forward": True,
+                },
+            }
         if op == "search":
             return {
                 "hits": [0x1000, 0x1004],
@@ -819,3 +854,60 @@ def test_assembler_and_integer_base64_writes():
     session.run("w6d QUI=")
     assert client.calls[-1][1]["data"] == b"AB"
     assert session.run("w6e 4") == ["QUJDRA=="]
+
+
+def test_whole_file_strings_pattern_and_assembly_search():
+    session, client = make_session()
+    assert session.run("izz") == ["0x00000010 hello"]
+    assert json.loads("\n".join(session.run("izzj")))[0]["offset"] == 0x10
+
+    assert session.run("/p 9090") == ["0x0000000000001000", "0x0000000000001004"]
+    assert session.run("/a NOP") == ["0x0000000000001000", "0x0000000000001004"]
+    assert [op for op, _ in client.calls if op in ("search", "assemble")][-2:] == [
+        "assemble",
+        "search",
+    ]
+
+
+def test_raw_search_and_search_iterators():
+    session, client = make_session()
+    session.config.set("search.in", "raw")
+    assert session.run("/x 9090") == ["0x0000000000000020", "0x0000000000000024"]
+    assert client.calls[-1][0] == "search_raw"
+
+    lines = session.run("px 1 @@/x 9090")
+    assert any("0x0000000000000020" in line for line in lines)
+    assert any("0x0000000000000024" in line for line in lines)
+    assert client.calls[-1][0] == "batch"
+    assert [item["args"]["ea"] for item in client.calls[-1][1]["ops"]] == [0x20, 0x24]
+
+    lines = session.run("pd 1 @@s:0x1000 0x1004 2")
+    assert len(lines) == 3
+    assert [item["args"]["ea"] for item in client.calls[-1][1]["ops"]] == [
+        0x1000,
+        0x1002,
+        0x1004,
+    ]
+
+
+def test_temporary_range_operator():
+    session, client = make_session()
+    session.run("px @{0x1000 0x1003}")
+    assert ("read_bytes", {"allow_writes": False, "ea": 0x1000, "size": 4}) in client.calls
+    assert session.tmp_range is None
+
+
+def test_gexec_and_variable_analysis_commands():
+    session, _ = make_session()
+    session.readonly = False
+    session.allow_exec = True
+    assert session.run(".gexec print('demo')") == ["demo"]
+    session.allow_exec = False
+    assert session.run(".gexec 1+1") == []
+    assert "allow-exec" in str(session.last_error)
+
+    assert session.run("s main; afr") == ["0x0000000000002000 main"]
+    refs = session.run("afvR local_8")
+    assert refs and refs[0].endswith("[stack]")
+    assert session.run("afvW local_8") == refs
+    assert "local_8 -> new_name" in session.run("an local_8 new_name")[0]

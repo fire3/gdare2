@@ -24,6 +24,20 @@ def _search_hex(session, statement):
     return _search(session, statement, data, mask)
 
 
+@command("/p", "search for a hex pattern", aliases=("/pj",))
+def _search_pattern(session, statement):
+    data, mask = parse_hexpairs(statement.args)
+    return _search(session, statement, data, mask)
+
+
+@command("/a", "assemble text and search for its bytes", aliases=("/aj",))
+def _search_assembly(session, statement):
+    if not statement.args.strip():
+        raise UsageError("/a needs assembly text")
+    payload = session.call("assemble", ea=session.seek, text=statement.args)
+    return _search(session, statement, bytes(payload["bytes"]), None)
+
+
 @command("/w", "search for UTF-16 text", aliases=("/wj",))
 def _search_wide(session, statement):
     order = "utf-16-be" if session.info.get("endian") == "big" else "utf-16-le"
@@ -125,6 +139,7 @@ def _repeat(session, statement, *, forward: bool):
         state.get("mask"),
         cursor=cursor,
         forward=forward,
+        scope=state.get("scope"),
     )
 
 
@@ -132,7 +147,8 @@ def _search(session, statement, data: bytes, mask: bytes | None) -> list[str]:
     if not data:
         raise UsageError("search pattern is empty")
     lower = int(session.config.get_int("search.from")) or None
-    cursor = lower if lower is not None else session.seek
+    scope = session.config.get_str("search.in")
+    cursor = lower if lower is not None else (0 if scope == "raw" else session.seek)
     return _execute(session, statement, data, mask, cursor=cursor, forward=True)
 
 
@@ -144,21 +160,36 @@ def _execute(
     *,
     cursor: int,
     forward: bool,
+    scope: str | None = None,
 ) -> list[str]:
     lower = int(session.config.get_int("search.from")) or None
     upper = int(session.config.get_int("search.to")) or None
-    payload = session.call(
-        "search",
-        data=data,
-        mask=mask,
-        from_addr=lower,
-        to_addr=upper,
-        cursor=int(cursor),
-        forward=forward,
-        limit=DEFAULT_LIMIT,
-        offset=0,
-        scope=session.config.get_str("search.in"),
-    )
+    scope = scope or session.config.get_str("search.in")
+    if scope == "raw":
+        payload = session.call(
+            "search_raw",
+            data=data,
+            mask=mask,
+            from_addr=lower,
+            to_addr=upper,
+            cursor=int(cursor),
+            forward=forward,
+            limit=DEFAULT_LIMIT,
+            offset=0,
+        )
+    else:
+        payload = session.call(
+            "search",
+            data=data,
+            mask=mask,
+            from_addr=lower,
+            to_addr=upper,
+            cursor=int(cursor),
+            forward=forward,
+            limit=DEFAULT_LIMIT,
+            offset=0,
+            scope=scope,
+        )
     hits = [int(hit) for hit in payload.get("hits", [])]
     if hits:
         session.last_result = hits[0]
@@ -176,6 +207,7 @@ def _execute(
     session.last_search = {
         "data": data,
         "mask": mask,
+        "scope": scope,
         "last": hits[0] if hits else int(cursor),
     }
     if statement.cmd.endswith("j"):

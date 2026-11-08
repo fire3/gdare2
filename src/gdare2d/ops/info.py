@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from gdare2.errors import UsageError
+from pathlib import Path
+
+from gdare2.errors import GdarError, UsageError
 from gdare2d.dispatch import op
 from gdare2d.ops._helpers import require_program
 
@@ -189,6 +191,48 @@ def entries(ctx) -> list[dict]:
             {
                 "addr": int(address.getOffset()),
                 "name": str(symbol.getName()) if symbol is not None else "",
+            }
+        )
+    return result
+
+
+@op("strings_all")
+def strings_all(ctx, min_length: int = 4, limit: int = MAX_ITEMS) -> list[dict]:
+    program = require_program(ctx)
+    if min_length < 1 or min_length > 256:
+        raise UsageError("string minimum length must be between 1 and 256")
+    _check_limit(limit)
+    path = str(program.getExecutablePath() or "")
+    if not path:
+        raise UsageError("program has no executable path for a whole-file scan")
+    try:
+        data = Path(path).read_bytes()
+    except OSError as exc:
+        raise GdarError(f"cannot read {path}: {exc}") from exc
+    result = []
+    start = None
+    for index, byte in enumerate(data):
+        printable = 0x20 <= byte < 0x7F
+        if printable and start is None:
+            start = index
+        elif not printable and start is not None:
+            if index - start >= min_length:
+                result.append(
+                    {
+                        "offset": start,
+                        "length": index - start,
+                        "string": data[start:index].decode("latin-1"),
+                    }
+                )
+                if len(result) >= limit:
+                    break
+            start = None
+    if start is not None and len(data) - start >= min_length and len(result) < limit:
+        result.append(
+            {
+                "offset": start,
+                "length": len(data) - start,
+                "string": data[start:].decode("latin-1"),
             }
         )
     return result
