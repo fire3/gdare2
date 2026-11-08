@@ -10,11 +10,13 @@ from typing import Any
 from gdare2 import PROTOCOL_VERSION
 from gdare2.errors import ConnectionFailure, RemoteError, TimeoutFailure
 from gdare2.protocol import decode_bytes, encode_bytes
+from gdare2.registry import http_host
 
 
 class Client:
     def __init__(self, state: dict[str, Any], *, timeout: float = 30.0) -> None:
         self.instance_id = str(state["instance_id"])
+        self.host = http_host(state.get("host"))
         self.port = int(state["port"])
         self.token = str(state["token"])
         self.timeout = timeout
@@ -40,7 +42,7 @@ class Client:
         }
         body = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
-            f"http://127.0.0.1:{self.port}/rpc",
+            f"http://{self.host}:{self.port}/rpc",
             data=body,
             headers={
                 "Authorization": f"Bearer {self.token}",
@@ -74,7 +76,7 @@ class Client:
 
     def info(self) -> dict[str, Any]:
         request = urllib.request.Request(
-            f"http://127.0.0.1:{self.port}/info",
+            f"http://{self.host}:{self.port}/info",
             headers={"Authorization": f"Bearer {self.token}"},
         )
         try:
@@ -86,7 +88,7 @@ class Client:
     def shutdown(self, *, save: bool = True) -> None:
         body = json.dumps({"save": save}).encode("utf-8")
         request = urllib.request.Request(
-            f"http://127.0.0.1:{self.port}/shutdown",
+            f"http://{self.host}:{self.port}/shutdown",
             data=body,
             headers={
                 "Authorization": f"Bearer {self.token}",

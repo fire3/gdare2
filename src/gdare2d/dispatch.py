@@ -66,7 +66,10 @@ def invoke(ctx: Context, name: str, args: dict[str, Any], *, allow_writes: bool)
     if spec is None:
         raise UnknownOpError(f"unknown op {name!r}")
     if spec.writes and (ctx.readonly or not allow_writes):
-        raise ReadOnlyError("read-only request cannot perform a write op", data={"op": name})
+        raise ReadOnlyError(
+            "read-only request cannot perform a write op; re-run with -w to allow writes",
+            data={"op": name},
+        )
     spec_error = _check_args(spec, args)
     if spec_error is not None:
         raise UsageError(spec_error)

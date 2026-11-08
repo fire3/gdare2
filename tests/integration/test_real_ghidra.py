@@ -7,6 +7,8 @@ import signal
 import subprocess
 import sys
 import time
+import urllib.request
+from pathlib import Path
 
 import pytest
 
@@ -430,3 +432,80 @@ def test_memory_search_variants_and_history(env, tmp_path):
     assert "0x0000000000400008" in lines
     assert "0x000000000040000E" in lines or "0x000000000040000e" in lines
     assert "0x0000000000400006" in lines
+
+
+def _wait_for_health(env, instance, timeout=90):
+    runtime = Path(env["XDG_RUNTIME_DIR"]) / f"gdare2-{os.getuid()}"
+    state_file = runtime / f"{instance}.json"
+    deadline = time.monotonic() + timeout
+    last_error = None
+    while time.monotonic() < deadline:
+        try:
+            state = json.loads(state_file.read_text())
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{state['port']}/health", timeout=1
+            ) as response:
+                health = json.loads(response.read())
+            if health.get("state") in ("ready", "error"):
+                return health, state
+        except (OSError, ValueError, KeyError) as exc:
+            last_error = exc
+        time.sleep(0.2)
+    raise AssertionError(f"daemon did not become ready: {last_error}")
+
+
+def test_readonly_daemon_exposes_state_and_rejects_writes(env):
+    target = "/bin/ls"
+    first = run(env, "-qc", "iI", target)
+    assert first.returncode == 0, first.stderr
+
+    runtime = Path(env["XDG_RUNTIME_DIR"]) / f"gdare2-{os.getuid()}"
+    state = json.loads(next(runtime.glob("*.json")).read_text())
+    instance = state["instance_id"]
+
+    closed = run(env, "-qc", ".gclose", target)
+    assert closed.returncode == 0, closed.stderr
+
+    state_file = runtime / f"{instance}.json"
+    deadline = time.monotonic() + 30
+    while state_file.exists() and time.monotonic() < deadline:
+        time.sleep(0.1)
+
+    daemon = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "gdare2d",
+            "--foreground",
+            "--target",
+            target,
+            "--readonly",
+            "--linger",
+            "30",
+        ],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    try:
+        health, state = _wait_for_health(env, instance)
+        assert health["state"] == "ready", health
+        assert state["state"] == "ready"
+
+        info = run(env, "--attach", instance, "-qc", ".g")
+        assert info.returncode == 0, info.stderr
+        assert f"instance_id: {instance}" in info.stdout
+        assert "state: ready" in info.stdout
+
+        denied = run(env, "--attach", instance, "-w", "-qc", "s entry; wx 90")
+        assert denied.returncode == 1
+        assert "read-only" in denied.stderr
+        assert "-w" in denied.stderr
+    finally:
+        daemon.terminate()
+        try:
+            daemon.wait(timeout=20)
+        except subprocess.TimeoutExpired:
+            daemon.kill()
+            daemon.wait(timeout=5)

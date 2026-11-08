@@ -22,8 +22,8 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(prog="gdare2d")
     result.add_argument("--foreground", action="store_true")
     result.add_argument("--target", required=True)
-    result.add_argument("--project", required=True)
-    result.add_argument("--project-name", required=True)
+    result.add_argument("--project")
+    result.add_argument("--project-name")
     result.add_argument("--program")
     result.add_argument("--instance-id")
     result.add_argument("--readonly", action="store_true", default=False)
@@ -78,6 +78,8 @@ def main(argv: list[str] | None = None) -> int:
             "no_analysis": args.no_analysis,
         },
     )
+    project_dir = args.project or str(registry.data_dir() / "projects" / ingest_id)
+    project_name = args.project_name or registry.project_name(target, ingest_id)
     program_path = args.program or "/" + Path(target).name
     try:
         plan = build_import_plan(
@@ -99,8 +101,8 @@ def main(argv: list[str] | None = None) -> int:
 
     runtime = GhidraRuntime(
         target=target,
-        project_dir=args.project,
-        project_name=args.project_name,
+        project_dir=project_dir,
+        project_name=project_name,
         program_path=program_path,
         plan=plan,
         analyze=not args.no_analysis,
@@ -109,21 +111,25 @@ def main(argv: list[str] | None = None) -> int:
         readonly=args.readonly,
         save_on_close=args.save_on_close,
         ephemeral=args.ephemeral,
+        analysis_timeout=args.analysis_timeout,
         ghidra_install=os.environ.get("GHIDRA_INSTALL_DIR"),
     )
     runtime.instance_id = ingest_id
+    runtime.pid = os.getpid()
     executor = Executor(runtime)
     token = secrets.token_urlsafe(32)
     server = GdarHTTPServer((args.listen, args.port), Handler, token=token, runtime=runtime, executor=executor)
     port = int(server.server_address[1])
+    runtime.port = port
     state = {
         "instance_id": ingest_id,
         "pid": os.getpid(),
         "port": port,
         "token": token,
         "target": target,
-        "project_dir": args.project,
-        "project_name": args.project_name,
+        "host": args.listen,
+        "project_dir": project_dir,
+        "project_name": project_name,
         "program": program_path,
         "state": "starting",
         "started_at": server.started_at,
@@ -139,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
 
     def request_stop(*_args) -> None:
         stop_event.set()
+        state["state"] = "draining"
+        registry.write_state(state)
         threading.Thread(target=server.shutdown, daemon=True).start()
 
     signal.signal(signal.SIGTERM, request_stop)
@@ -147,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     executor.start()
     threading.Thread(
         target=_stop_on_bootstrap_failure,
-        args=(executor, server),
+        args=(executor, server, runtime, state),
         name="gdare2-bootstrap",
         daemon=True,
     ).start()
@@ -156,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         executor.stop()
         registry.remove_state(ingest_id)
-    return 0
+    return 1 if executor.failed else 0
 
 
 def _start_watchdog(server: GdarHTTPServer, idle_seconds: float) -> None:
@@ -175,8 +183,17 @@ def _start_watchdog(server: GdarHTTPServer, idle_seconds: float) -> None:
     threading.Thread(target=watch, name="gdare2-idle", daemon=True).start()
 
 
-def _stop_on_bootstrap_failure(executor: Executor, server: GdarHTTPServer) -> None:
+def _stop_on_bootstrap_failure(
+    executor: Executor,
+    server: GdarHTTPServer,
+    runtime: GhidraRuntime,
+    state: dict,
+) -> None:
     executor.ready.wait()
+    state["state"] = runtime.state
+    if runtime.error:
+        state["error"] = runtime.error
+    registry.write_state(state)
     if executor.failed:
         server.shutdown()
 

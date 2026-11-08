@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from gdare2 import __version__
-from gdare2.cmd import command, help_text
-from gdare2.errors import UsageError
+from gdare2.cmd import command, help_text, require_write
 from gdare2.jsonutil import dumps
 
 
@@ -69,8 +68,7 @@ def _dot_status(session, statement):
 
 @command(".gsave", "save the Ghidra program")
 def _dot_save(session, statement):
-    if session.readonly:
-        raise UsageError("read-only session: re-run with -w to allow writes")
+    require_write(session)
     session.commit_write_cache()
     session.call("save")
     return []

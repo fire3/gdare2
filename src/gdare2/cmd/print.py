@@ -70,7 +70,11 @@ def _pdf(session, statement):
 
 @command("pdc", "decompile the current function", aliases=("pdcj",))
 def _pdc(session, statement):
-    payload = session.call("decompile", ea=session.seek)
+    payload = session.call(
+        "decompile",
+        ea=session.seek,
+        timeout=session.config.get_int("ghidra.decompile.timeout"),
+    )
     if statement.cmd.endswith("j"):
         return [dumps(payload)]
     return str(payload.get("c") or "").rstrip().splitlines()

@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import tempfile
 import urllib.error
 import urllib.request
@@ -36,6 +37,36 @@ def data_dir() -> Path:
     return path
 
 
+# Only options that change the imported Program identity belong in the
+# instance id. Runtime actions (analysis, reimport, ephemeral, read-only)
+# must not split otherwise identical instances.
+FINGERPRINT_KEYS = (
+    "arch",
+    "bits",
+    "base",
+    "endian",
+    "ghidra_language",
+    "compiler",
+    "loader",
+    "loader_args",
+    "force_language",
+    "force_base",
+    "no_analysis",
+)
+
+
+def import_fingerprint(import_options: dict[str, Any] | None = None) -> str:
+    """Return the canonical import-options fingerprint used for instance ids."""
+    options = import_options or {}
+    normalized: dict[str, Any] = {}
+    for key in FINGERPRINT_KEYS:
+        value = options.get(key)
+        if key == "loader_args" and value:
+            value = [list(item) for item in value]
+        normalized[key] = value
+    return json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+
+
 def instance_id(
     target: str,
     *,
@@ -47,8 +78,13 @@ def instance_id(
         identity = f"{resolved}:{stat.st_size}:{stat.st_mtime_ns}"
     except OSError:
         identity = resolved
-    fingerprint = json.dumps(import_options or {}, sort_keys=True, separators=(",", ":"))
+    fingerprint = import_fingerprint(import_options)
     return hashlib.sha256(f"{identity}:{fingerprint}".encode()).hexdigest()[:16]
+
+
+def project_name(target: str, ingest_id: str) -> str:
+    stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path(target).name) or "program"
+    return f"{stem}-{ingest_id[:8]}"
 
 
 def state_path(ingest_id: str) -> Path:
@@ -106,8 +142,20 @@ def pid_alive(pid: int) -> bool:
     return True
 
 
-def health(port: int, timeout: float = 0.4) -> dict[str, Any] | None:
-    url = f"http://127.0.0.1:{port}/health"
+def http_host(host: str | None) -> str:
+    """Return a host suitable for a loopback/local HTTP URL."""
+    value = (host or "").strip()
+    if not value or value in {"0.0.0.0", "*"}:
+        return "127.0.0.1"
+    if value == "::":
+        return "[::1]"
+    if ":" in value and not value.startswith("["):
+        return f"[{value}]"
+    return value
+
+
+def health(port: int, host: str | None = None, timeout: float = 0.4) -> dict[str, Any] | None:
+    url = f"http://{http_host(host)}:{port}/health"
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
@@ -123,10 +171,12 @@ def live_instance(ingest_id: str) -> dict[str, Any] | None:
     if not pid_alive(int(state.get("pid", 0))):
         remove_state(ingest_id)
         return None
-    health_data = health(int(state.get("port", 0)))
+    health_data = health(int(state.get("port", 0)), str(state.get("host") or ""))
     if health_data is None:
         return None
     state["health"] = health_data
+    if health_data.get("state"):
+        state["state"] = health_data["state"]
     return state
 
 

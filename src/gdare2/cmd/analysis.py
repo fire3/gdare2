@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gdare2.cmd import command
+from gdare2.cmd import command, require_write
 from gdare2.errors import UsageError
 from gdare2.fmt.graph import format_ascii_graph, format_dot_graph
 from gdare2.jsonutil import dumps
@@ -74,7 +74,11 @@ def _function_info(session, statement):
 
 @command("afv", "show decompiler variables for the current function", aliases=("afvj",))
 def _function_variables(session, statement):
-    payload = session.call("function_variables", ea=session.seek)
+    payload = session.call(
+        "function_variables",
+        ea=session.seek,
+        timeout=session.config.get_int("ghidra.decompile.timeout"),
+    )
     if statement.cmd.endswith("j"):
         return [dumps(payload)]
     lines = [f"name: {payload['name']}", f"vars: {payload['variable_count']}"]
@@ -90,8 +94,7 @@ def _function_variables(session, statement):
 
 @command("af", "create a function at seek", aliases=("aF",))
 def _create_function(session, statement):
-    if session.readonly:
-        raise UsageError("writing requires -w")
+    require_write(session)
     address = session.resolve(statement.args)
     payload = session.call("create_function", ea=address)
     session.seek_to(int(payload["addr"]))
@@ -100,6 +103,7 @@ def _create_function(session, statement):
 
 @command("afn", "rename the current function")
 def _rename_function(session, statement):
+    require_write(session)
     name = statement.args.strip()
     if not name:
         raise UsageError("afn needs a function name")
@@ -109,6 +113,7 @@ def _rename_function(session, statement):
 
 @command("afu", "resize the current function through an address")
 def _resize_function(session, statement):
+    require_write(session)
     end = session.resolve(statement.args)
     payload = session.call("function_resize", ea=session.seek, end=end)
     return [
@@ -119,6 +124,7 @@ def _resize_function(session, statement):
 
 @command("a8", "analyze a hex byte array at seek")
 def _analyze_bytes(session, statement):
+    require_write(session)
     payload = session.call("analyze_bytes", ea=session.seek, hexpairs=statement.args)
     instruction = payload.get("instruction")
     text = instruction.get("text", "") if instruction else "no instruction"
@@ -130,6 +136,7 @@ def _analyze_bytes(session, statement):
 
 @command("ad", "analyze data words at seek")
 def _analyze_data(session, statement):
+    require_write(session)
     args = statement.args.strip()
     count = int(args, 0) if args else 1
     payload = session.call("analyze_data", ea=session.seek, count=count)

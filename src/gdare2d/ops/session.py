@@ -10,7 +10,17 @@ from gdare2d.ops._helpers import require_program
 @op("info")
 def info(ctx) -> dict:
     require_program(ctx)
-    return dict(ctx.runtime.summary)
+    payload = dict(ctx.runtime.summary)
+    payload.update(
+        {
+            "instance_id": getattr(ctx.runtime, "instance_id", None),
+            "state": ctx.runtime.state,
+            "pid": getattr(ctx.runtime, "pid", None),
+            "port": getattr(ctx.runtime, "port", None),
+            "error": ctx.runtime.error,
+        }
+    )
+    return payload
 
 
 @op("resolve_name")

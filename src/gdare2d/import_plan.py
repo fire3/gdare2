@@ -131,24 +131,39 @@ def resolve_alias(arch: str, *, bits: str | None = None, endian: str | None = No
     order = "BE" if big else "LE"
 
     if family == "x86":
+        if big:
+            raise UsageError("Ghidra provides no big-endian x86 language")
+        _require_width(family, width, (16, 32, 64))
         if width == 16:
-            variant = "Real Mode" if order == "LE" else "Real Mode"
-            return f"x86:LE:16:{variant}"
-        return f"x86:{order}:{width}:default"
+            return "x86:LE:16:Real Mode"
+        return f"x86:LE:{width}:default"
     if family == "ARM":
+        _require_width(family, width, (32,))
         return f"ARM:{order}:{width}:v7"
     if family == "AARCH64":
-        return f"AARCH64:{order}:64:v8A"
+        _require_width(family, width, (64,))
+        return f"AARCH64:{order}:{width}:v8A"
     if family == "MIPS":
+        _require_width(family, width, (32, 64))
         return f"MIPS:{order}:{width}:default"
     if family == "PowerPC":
+        _require_width(family, width, (32, 64))
         return f"PowerPC:{order}:{width}:default"
     if family == "RISCV":
+        if big:
+            raise UsageError("Ghidra provides no big-endian RISC-V language")
+        _require_width(family, width, (32, 64))
         return f"RISCV:LE:{width}:default"
     if family == "68000":
+        if not big:
+            raise UsageError("Ghidra provides only big-endian 68000 languages")
+        _require_width(family, width, (32,))
         return "68000:BE:32:default"
     if family == "sparc":
-        return f"sparc:{order}:{width}:default"
+        if not big:
+            raise UsageError("Ghidra 12.2 provides only big-endian SPARC languages")
+        _require_width(family, width, (32, 64))
+        return f"sparc:BE:{width}:default"
     if family == "SuperH4":
         raise UsageError(
             "Ghidra 12.2 has no SH-4 language; use --ghidra-language with a "
@@ -173,9 +188,22 @@ def _bits(key: str, explicit: str | None) -> int:
     return 32
 
 
+# radare2's bare architecture names imply these endianness defaults.
+_DEFAULT_BIG = frozenset({"MIPS", "PowerPC", "68000", "sparc"})
+
+
 def _is_big(key: str, endian: str | None) -> bool:
     if endian:
         return endian == "big"
     if key.endswith("be"):
         return True
-    return False
+    if key.endswith("le"):
+        return False
+    family = _ALIASES.get(key)
+    return family in _DEFAULT_BIG
+
+
+def _require_width(family: str, width: int, allowed: tuple[int, ...]) -> None:
+    if width not in allowed:
+        choices = ", ".join(str(item) for item in allowed)
+        raise UsageError(f"{family} supports bit width {choices}, not {width}")

@@ -9,7 +9,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from gdare2.errors import DecompileError, GdarError
+from gdare2.errors import (
+    DecompileError,
+    GdarError,
+    NotReadyError,
+    ReadOnlyError,
+    TimeoutFailure,
+)
 from gdare2d.import_plan import ImportPlan
 
 log = logging.getLogger("gdare2d.runtime")
@@ -30,6 +36,7 @@ class GhidraRuntime:
         readonly: bool = True,
         save_on_close: bool = True,
         ephemeral: bool = False,
+        analysis_timeout: float = 180.0,
         ghidra_install: str | None = None,
     ) -> None:
         self.target = target
@@ -43,9 +50,13 @@ class GhidraRuntime:
         self.readonly = readonly
         self.save_on_close = save_on_close
         self.ephemeral = ephemeral
+        self.analysis_timeout = float(analysis_timeout or 0)
         self.ghidra_install = ghidra_install
         self.state = "starting"
         self.error: str | None = None
+        self.instance_id: str | None = None
+        self.pid: int | None = None
+        self.port: int | None = None
         self.project = None
         self.program = None
         self._consumer = None
@@ -67,21 +78,41 @@ class GhidraRuntime:
             if not pyghidra.started():
                 kwargs = {"install_dir": Path(self.ghidra_install)} if self.ghidra_install else {}
                 pyghidra.start(**kwargs)
-            self.project = pyghidra.open_project(self.project_dir, self.project_name, create=True)
+            if self.readonly and not self._project_exists():
+                raise NotReadyError(
+                    "read-only daemon requires an existing Ghidra project; "
+                    "open it once without --readonly first"
+                )
+            self.project = pyghidra.open_project(
+                self.project_dir,
+                self.project_name,
+                create=not self.readonly,
+            )
 
             existing = self._find_program()
             if existing is not None and self.reimport:
+                if self.readonly:
+                    raise ReadOnlyError("read-only daemon cannot reimport the program")
                 existing.delete()
                 existing = None
             if existing is None:
+                if self.readonly:
+                    raise NotReadyError(
+                        "read-only daemon requires an existing analyzed program; "
+                        "import it once without --readonly first"
+                    )
                 self.state = "importing"
                 self._import()
             elif self.reanalyze:
+                if self.readonly:
+                    raise ReadOnlyError("read-only daemon cannot reanalyze the program")
                 self.state = "analyzing"
                 self._open_program()
                 self._run_analysis(force=True)
             else:
                 self._open_program()
+                if self.readonly:
+                    self._require_analyzed()
 
             if existing is None and self.analyze_program:
                 self.state = "analyzing"
@@ -100,9 +131,22 @@ class GhidraRuntime:
             log.exception("failed to open program")
             raise
 
+    def _project_exists(self) -> bool:
+        return (self.project_dir / f"{self.project_name}.gpr").exists()
+
     def _find_program(self):
         data = self.project.getProjectData()
         return data.getFile(self.program_path)
+
+    def _require_analyzed(self) -> None:
+        from ghidra.program.util.GhidraProgramUtilities import shouldAskToAnalyze
+
+        assert self.program is not None
+        if shouldAskToAnalyze(self.program):
+            raise NotReadyError(
+                "read-only daemon requires an analyzed program; "
+                "run an analysis without --readonly first"
+            )
 
     def _import(self) -> None:
         loader = (
@@ -138,11 +182,25 @@ class GhidraRuntime:
             log.info("program already analyzed")
             return
         started = time.monotonic()
-        self._pyghidra.analyze(self.program)
+        timeout = int(self.analysis_timeout) if self.analysis_timeout > 0 else None
+        monitor = self._pyghidra.task_monitor(timeout)
+        self._pyghidra.analyze(self.program, monitor)
+        elapsed = time.monotonic() - started
+        log.info("analysis finished in %.2fs", elapsed)
+        if timeout is not None and elapsed >= timeout:
+            # Cancelled analysis may have left partial metadata in memory.
+            # Do not persist it on daemon shutdown; an explicit save can still
+            # be requested if the user wants the partial result.
+            self.save_on_close = False
+            raise TimeoutFailure(
+                f"analysis exceeded the {timeout}s timeout",
+                data={"timeout": timeout},
+            )
         self.program.save("gdare2 analysis", self._pyghidra.task_monitor())
-        log.info("analysis finished in %.2fs", time.monotonic() - started)
 
     def analyze(self, *, force: bool = False) -> dict[str, Any]:
+        if self.readonly:
+            raise ReadOnlyError("daemon is read-only; analysis is disabled")
         assert self.program is not None
         before = self.program.getModificationNumber()
         self._run_analysis(force=force)

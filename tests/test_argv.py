@@ -59,3 +59,29 @@ def test_ignored_flag_is_recorded():
 def test_only_one_target():
     with pytest.raises(UsageError):
         argv.parse(["/bin/ls", "/bin/true"])
+
+
+def test_ignored_value_flag_consumes_its_argument():
+    options = argv.parse(["-k", "linux", "/bin/ls"])
+    assert options.file == "/bin/ls"
+    assert options.ignored == [("-k", argv.IGNORED["k"])]
+
+
+def test_rasm2_assembler_is_rejected_until_implemented():
+    with pytest.raises(UsageError, match="rasm2"):
+        argv.parse(["--assembler", "rasm2", "/bin/ls"])
+
+
+def test_allow_exec_is_rejected_until_gexec_exists():
+    with pytest.raises(UsageError, match="gexec"):
+        argv.parse(["--allow-exec", "/bin/ls"])
+
+
+def test_wait_is_accepted():
+    options = argv.parse(["--wait", "/bin/ls"])
+    assert options.wait is True
+
+
+def test_ignored_value_flag_accepts_a_glued_argument():
+    options = argv.parse(["-klinux", "/bin/ls"])
+    assert options.file == "/bin/ls"

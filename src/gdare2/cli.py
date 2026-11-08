@@ -73,6 +73,7 @@ def main(argv_list: list[str] | None = None) -> int:
         if options.color is not None:
             config.set("scr.color", options.color)
         client.timeout = options.timeout or float(config.get_int("ghidra.timeout"))
+        _analysis_request(session, options)
         if options.seek:
             session.seek_to(session.eval(options.seek))
 
@@ -123,6 +124,16 @@ def _command_lines(options: argv.Options) -> list[str]:
     for script in options.post_scripts:
         commands.extend(_read_script(script))
     return commands
+
+
+def _analysis_request(session: Session, options: argv.Options) -> None:
+    """Honour r2's -A/-AA: analyze now, before running commands/scripts."""
+    if options.analyze <= 0:
+        return
+    command = "aaa" if options.analyze >= 2 else "aa"
+    lines = session.run(command)
+    if options.quiet == 0:
+        _emit(lines)
 
 
 def _run_rc(session: Session, options: argv.Options) -> None:

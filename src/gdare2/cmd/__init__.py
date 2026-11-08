@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable
 
-from gdare2.errors import UnsupportedError
+from gdare2.errors import ReadOnlyError, UnsupportedError
 
 if TYPE_CHECKING:
     from gdare2.session import Session
@@ -93,3 +93,9 @@ def help_for(spec: CommandSpec) -> list[str]:
 
 def unknown(cmd: str) -> UnsupportedError:
     return UnsupportedError(f"unknown or unsupported command {cmd!r}")
+
+
+def require_write(session) -> None:
+    """Reject writes in a read-only client before the daemon round-trip."""
+    if session.readonly:
+        raise ReadOnlyError("read-only session: re-run with -w to allow writes")

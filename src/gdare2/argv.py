@@ -24,6 +24,9 @@ IGNORED = {
     "T": "Ghidra has no IDA-style hash cache",
     "u": "gdare2 does not filter symbol names",
 }
+# Ignored short options that still take a value in radare2.
+IGNORED_VALUE = frozenset("k")
+
 REJECTED = {
     "d": "the debugger is not implemented",
     "D": "the debugger is not implemented",
@@ -215,6 +218,8 @@ def _apply_long_value(options: Options, name: str, value: str) -> None:
     elif name == "assembler":
         if value not in ("ghidra", "rasm2"):
             raise UsageError("--assembler must be ghidra or rasm2")
+        if value == "rasm2":
+            raise UsageError("--assembler=rasm2 is not implemented yet")
         options.assembler = value
     elif name == "listen":
         options.listen = value
@@ -252,7 +257,7 @@ def _apply_long_bool(options: Options, name: str) -> None:
     elif name == "reimport":
         options.reimport = True
     elif name == "allow-exec":
-        options.allow_exec = True
+        raise UsageError("--allow-exec is not available until .gexec is implemented")
 
 
 def _short(options: Options, cluster: str, argv: list[str], index: int) -> int:
@@ -268,6 +273,12 @@ def _short(options: Options, cluster: str, argv: list[str], index: int) -> int:
             raise UsageError(f"-{char} is not supported by gdare2: {REJECTED[char]}")
         if char in IGNORED:
             options.ignored.append((f"-{char}", IGNORED[char]))
+            if char in IGNORED_VALUE:
+                rest = cluster[position + 1 :]
+                if rest:
+                    return index
+                index += 1
+                _next(argv, index - 1, f"-{char}")
             position += 1
             continue
         if char == "-":

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gdare2.cmd import command
+from gdare2.cmd import command, require_write
 from gdare2.errors import NotFoundError, UsageError
 from gdare2.jsonutil import dumps
 
@@ -35,12 +35,14 @@ def _set_comment(session, statement):
     text = statement.args.strip()
     if not text:
         return _comments(session, statement)
+    require_write(session)
     payload = session.call("comment_set", ea=session.seek, text=text, kind="eol")
     return [f"{session.format_addr(int(payload['addr']))} {payload['kind']} {payload['text']}"]
 
 
 @command("CC-", "delete an end-of-line comment")
 def _delete_comment(session, statement):
+    require_write(session)
     payload = session.call("comment_delete", ea=session.seek, kind="eol")
     return [f"{session.format_addr(int(payload['addr']))} {payload['kind']} deleted"]
 
@@ -75,6 +77,7 @@ def _repeatable_comment(session, statement):
 
 
 def _set_kind(session, statement, kind):
+    require_write(session)
     text = statement.args.strip()
     if not text:
         raise UsageError(f"{kind} comment text is required")

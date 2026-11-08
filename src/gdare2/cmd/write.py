@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from gdare2.cmd import command
+from gdare2.cmd import command, require_write
 from gdare2.errors import GdarError, UsageError
 from gdare2.escape import text_bytes
 
@@ -15,7 +15,7 @@ MAX_FILE_BYTES = 1024 * 1024
 
 @command("w", "save the program, or write a string at seek")
 def _write(session, statement):
-    _require_write(session)
+    require_write(session)
     text = statement.args
     if text:
         _write_data(session, session.seek, text_bytes(text))
@@ -27,7 +27,7 @@ def _write(session, statement):
 
 @command("wq", "commit the cache, save and quit")
 def _write_quit(session, statement):
-    _require_write(session)
+    require_write(session)
     _commit_cache(session)
     session.call("save")
     session.quit_requested = True
@@ -36,7 +36,7 @@ def _write_quit(session, statement):
 
 @command("wx", "write hexpairs at seek")
 def _write_hex(session, statement):
-    _require_write(session)
+    require_write(session)
     data, mask = parse_hexpairs(statement.args)
     _write_data(session, session.seek, data, mask)
     return []
@@ -44,7 +44,7 @@ def _write_hex(session, statement):
 
 @command("w0", "write zero bytes at seek")
 def _write_zero(session, statement):
-    _require_write(session)
+    require_write(session)
     args = statement.args.strip()
     size = int(args, 0) if args else session.blocksize
     if size < 0:
@@ -57,7 +57,7 @@ def _write_zero(session, statement):
 
 @command("wf", "write a file (or stdin with -) at seek")
 def _write_file(session, statement):
-    _require_write(session)
+    require_write(session)
     path = statement.args.strip()
     if not path:
         raise UsageError("wf needs a file name or -")
@@ -76,7 +76,7 @@ def _write_file(session, statement):
 
 @command("wd", "duplicate bytes at seek+offset")
 def _write_duplicate(session, statement):
-    _require_write(session)
+    require_write(session)
     args = statement.args.split()
     offset = int(args[0], 0) if args else 0
     size = int(args[1], 0) if len(args) > 1 else session.blocksize
@@ -103,7 +103,7 @@ def _write_cache(session, statement):
 
 @command("wc+", "commit the pending write cache")
 def _write_cache_commit(session, statement):
-    _require_write(session)
+    require_write(session)
     _commit_cache(session)
     return []
 
@@ -116,7 +116,7 @@ def _write_cache_clear(session, statement):
 
 @command("u", "undo the last byte write")
 def _undo(session, statement):
-    _require_write(session)
+    require_write(session)
     _commit_cache(session)
     session.call("undo")
     return []
@@ -124,15 +124,10 @@ def _undo(session, statement):
 
 @command("U", "redo the last undone byte write")
 def _redo(session, statement):
-    _require_write(session)
+    require_write(session)
     _commit_cache(session)
     session.call("redo")
     return []
-
-
-def _require_write(session) -> None:
-    if session.readonly:
-        raise UsageError("read-only session: re-run with -w to allow writes")
 
 
 def _write_data(session, address: int, data: bytes, mask: bytes | None = None) -> None:
@@ -150,7 +145,7 @@ def _write_data(session, address: int, data: bytes, mask: bytes | None = None) -
 
 
 def _cache_patch(session, address: int, data: bytes, mask: bytes | None = None) -> None:
-    _require_write(session)
+    require_write(session)
     patch = {"ea": int(address), "data": bytes(data)}
     if mask is not None:
         patch["mask"] = bytes(mask)

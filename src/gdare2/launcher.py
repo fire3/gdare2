@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -49,10 +48,10 @@ def attach(options: Options) -> dict[str, Any]:
 
 
 def ensure(options: Options) -> dict[str, Any]:
-    if not options.file:
-        raise ConnectionFailure("a target file is required unless --attach is used")
     if options.attach:
         return attach(options)
+    if not options.file:
+        raise ConnectionFailure("a target file is required unless --attach is used")
 
     target = str(Path(options.file).expanduser())
     ingest_id = registry.instance_id(target, import_options=import_options(options))
@@ -76,7 +75,7 @@ def ensure(options: Options) -> dict[str, Any]:
 def _spawn(options: Options, target: str, ingest_id: str) -> None:
     project_parent = Path(options.project) if options.project else registry.data_dir() / "projects" / ingest_id
     project_parent.mkdir(parents=True, exist_ok=True)
-    project_name = options.project_name or _project_name(target, ingest_id)
+    project_name = options.project_name or registry.project_name(target, ingest_id)
     program = options.program or "/" + Path(target).name
 
     command = [
@@ -125,6 +124,8 @@ def _spawn(options: Options, target: str, ingest_id: str) -> None:
         command += ["--idle", str(options.idle)]
     if options.ephemeral:
         command.append("--ephemeral")
+    if options.listen:
+        command += ["--listen", options.listen]
     if options.save_on_close is True:
         command.append("--save-on-close")
     elif options.save_on_close is False:
@@ -160,10 +161,11 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
             last_state = str(state.get("state", "starting"))
             if not registry.pid_alive(int(state.get("pid", 0))):
                 break
-            health = registry.health(int(state.get("port", 0)))
+            health = registry.health(int(state.get("port", 0)), str(state.get("host") or ""))
             if health is not None:
                 if health.get("state") == "ready":
                     state["health"] = health
+                    state["state"] = "ready"
                     check_protocol(health)
                     return state
                 if health.get("state") == "error":
@@ -181,8 +183,3 @@ def _log_tail(ingest_id: str, lines: int = 20) -> str:
         return ""
     tail = text.splitlines()[-lines:]
     return "\n" + "\n".join(tail) if tail else ""
-
-
-def _project_name(target: str, ingest_id: str) -> str:
-    stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path(target).name) or "program"
-    return f"{stem}-{ingest_id[:8]}"

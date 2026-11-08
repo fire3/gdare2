@@ -393,6 +393,7 @@ def test_function_helpers():
 
 def test_function_write_commands():
     session, client = make_session()
+    session.readonly = False
     renamed = session.run("s main; afn renamed")[0]
     assert renamed.endswith("renamed")
     resized = session.run("s main; afu 0x1010")[0]
@@ -412,6 +413,7 @@ def test_dot_commands_reach_registry():
 
 def test_manual_analysis_commands():
     session, client = make_session()
+    session.readonly = False
     assert "9090c3 NOP" in session.run("a8 90 90 c3")[0]
     assert "2x8 qword" in session.run("ad 2")[0]
     assert [op for op, _ in client.calls] == ["analyze_bytes", "analyze_data"]
@@ -442,9 +444,10 @@ def test_types_signatures_and_comments():
 
 def test_type_define_c_output_and_signature_write():
     session, client = make_session()
+    session.readonly = False
     defined = session.run("td 'struct demo_new { int field; };'")[0]
     assert "demo_new struct size=8" in defined
-    assert ("type_define", {"allow_writes": False, "decl": "struct demo_new { int field; };"}) in client.calls
+    assert ("type_define", {"allow_writes": True, "decl": "struct demo_new { int field; };"}) in client.calls
     assert "struct demo_new" in "\n".join(session.run("tc demo_new"))
     assert "int main(void)" in session.run("tfc")[0]
     session.readonly = False

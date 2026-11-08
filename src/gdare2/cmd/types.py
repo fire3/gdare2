@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gdare2.cmd import command
+from gdare2.cmd import command, require_write
 from gdare2.errors import UsageError
 from gdare2.escape import unquote_text
 from gdare2.jsonutil import dumps
@@ -86,6 +86,7 @@ def _signatures(session, statement):
 
 @command("td", "define C types from a declaration")
 def _define_type(session, statement):
+    require_write(session)
     text = unquote_text(statement.args)
     if not text:
         raise UsageError("td needs a C type declaration")
@@ -122,6 +123,7 @@ def _signatures_c(session, statement):
 
 @command("tf-", "delete loaded function definition types")
 def _delete_signature_type(session, statement):
+    require_write(session)
     name = statement.args.strip()
     if not name:
         raise UsageError("tf- needs a function type name or glob")
@@ -133,6 +135,7 @@ def _delete_signature_type(session, statement):
 def _function_signature(session, statement):
     text = unquote_text(statement.args)
     if text:
+        require_write(session)
         payload = session.call("function_set_signature", ea=session.seek, signature=text)
     else:
         payload = session.call("function_signature", ea=session.seek)
