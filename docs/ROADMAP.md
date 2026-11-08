@@ -14,8 +14,8 @@
 | 套件 | 命令 | 结果 |
 |---|---|---|
 | 离线 | `.venv/bin/python -m pytest -q` | `114 passed`，0.12s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `16 passed`，248.41s |
-| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.41s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `17 passed`，270.06s |
+| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.70s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 
@@ -45,8 +45,8 @@ parity 黄金文件、GUI 桥** 四类。
 
 ### 2.1 正确性与一致性缺陷（必须先修）
 
-> 状态：C1–C9、C12 已在 2026-11-08 修复，见 §2.5；C10/C11 为布局/字段差异，
-> C13–C15 仍待处理。
+> 状态：C1–C13 已在 2026-11-08 修复或决策，见 §2.5；C14（矩阵增强）与
+> C15（batch meta）转入 Phase C。
 
 | ID | 现象 | 证据 | 影响 | 修复方向 |
 |---|---|---|---|---|
@@ -59,8 +59,8 @@ parity 黄金文件、GUI 桥** 四类。
 | C7 | daemon `--readonly` 语义未落实 | `src/gdare2d/runtime.py:84` 即使 `readonly` 仍 `open_project(create=True)`、导入、分析并保存 | 审计/共享场景仍产生 bootstrap 写入，与 DESIGN §13.1 不符 | `readonly` 时要求项目/程序已存在且已分析；缺失时报 `NOT_READY`，不隐式导入 |
 | C8 | 分析与反编译超时未生效 | `src/gdare2d/runtime.py:141` 的 `pyghidra.analyze()` 与 `task_monitor()` 无超时；`--analysis-timeout` 未使用；`ghidra.decompile.timeout` 未传给 `pdc/afv` | 大目标分析可能无限期占用 executor；`e ghidra.decompile.timeout` 无效 | 给 `task_monitor(timeout)` 传值并取消；`pdc`/`afv` 读取配置键；超时映射 `TIMEOUT` |
 | C9 | 只读错误信息不统一 | `src/gdare2/errors.py` 的 `ReadOnlyError` 固定为 “read-only request cannot perform a write op”；`afn/afu/a8/ad/td/afs/CC` 依赖 daemon 报错 | DESIGN §13.1 要求错误包含 `re-run with -w to allow writes` | 统一 `ReadOnlyError` 文案，或所有写命令先走客户端 `_require_write()`；加测试 |
-| C10 | `pdj` 字段集与 r2 不同 | `src/gdare2/cmd/print.py:29` 返回 `addr/bytes/size/text/mnemonic/call/jump/conditional`；r2 6.2.5 顶层也是数组，但含 `esil/opcode/disasm/family/type/refptr/type_num` 等 | 依赖 `esil`/`family` 的脚本不兼容；部分字段 Ghidra 无法提供 | 顶层数组形状保持不变；在 DIVERGENCES 记录缺失字段，不伪造；可选补 `type`/`family` 近似值 |
-| C11 | `pdi` 与 `pd` 布局未区分 | `src/gdare2/cmd/print.py:16` 把 `pdi` 作为 `pd` 别名；r2 6.2.5 的 `pd` 带 flag/注释缩进，`pdi` 是地址+flag+字节+文本的紧凑格式；两者默认都显示字节 | 依赖 `pdi` 紧凑布局的脚本/输出清洗需要适配 | 为 `pdi` 增加独立渲染（地址+flag+字节+文本），保留 `pd` 现有布局；同步测试与 README |
+| C10 | `pdj` 字段集与 r2 不同 | `src/gdare2/cmd/print.py:29` 返回 `addr/bytes/size/text/mnemonic/symbol/call/jump/conditional`；r2 6.2.5 顶层也是数组，但含 `esil/opcode/disasm/family/type/refptr/type_num` 等 | 依赖 `esil`/`family` 的脚本不兼容；部分字段 Ghidra 无法提供 | **已决策**：保持顶层数组与原生字段，不伪造缺失字段；DIVERGENCES 记录 |
+| C11 | `pdi` 与 `pd` 布局未区分 | 原实现把 `pdi` 作为 `pd` 别名；r2 6.2.5 的 `pd` 带 flag/注释缩进，`pdi` 是地址+flag+字节+文本的紧凑格式 | 依赖 `pdi` 紧凑布局的脚本/输出清洗需要适配 | **已修复**：`pdi` 增加 symbol 列（地址+symbol+字节+文本），`pd` 保持原布局 |
 | C12 | 带值的被忽略短选项不消费参数 | `src/gdare2/argv.py:12` 的 `IGNORED` 中 `-k` 在 r2 中带值（`-k [OS/kern]`），当前直接继续，后续 token 被当作目标文件；`-E/-S/-t` 是布尔选项，无此问题 | `gdare2 -k linux /bin/ls` 会把 `linux` 当文件 | 区分 `IGNORED_BOOL` 与 `IGNORED_VALUE`，后者消费下一个参数 |
 | C13 | `--loader-arg` 未校验 | `src/gdare2d/import_plan.py:39` 直接追加；DESIGN §8.4 要求未知 key 报 `BAD_ARGS` | Ghidra 只打 warning，用户误以为参数生效 | 通过 `Loader.getDefaultOptions()` 校验 key；未知 key 直接失败 |
 | C14 | 架构矩阵只校验语言 ID | `tools/arch_matrix.py` 未验证 `pd 1`/`iI`；`DEV.md` §3 与 `PLAN.md` §8 的验收要求更高 | 语言正确但二进制无法反汇编的回归不会被发现 | 每个配置断言 `pd 1` 非空、`iI` 的 arch/bits/endian/base 正确 |
@@ -126,10 +126,19 @@ parity 黄金文件、GUI 桥** 四类。
 - **C9/A7** 写命令统一客户端 `require_write()`；daemon 错误信息包含
   `re-run with -w to allow writes`。
 - **C12** 被忽略的 `-k` 会消费其参数，避免把值当成目标文件。
-- **额外修复**：`--attach` 不再要求目标文件；daemon bootstrap 失败返回非零退出码。
+- **C13** `--loader-arg`/`--loader` 校验：启动时用 Ghidra
+  `LoaderService.getSupportedLoadSpecs()` + `Option.getArg()` 校验；未知 loader
+  或未知参数返回 `BAD_ARGS`。支持类名与显示名（如 `BinaryLoader` / `Raw Binary`）。
+- **C11** `pdi` 独立布局：新增 symbol 列（`address  symbol  bytes  text`），
+  `pd` 保持原布局；`instruction_dict` 增加 `symbol` 字段。
+- **C10** `pdj` 决策：保持 r2 6.2.5 的顶层数组形状与 Ghidra 原生字段
+  （`addr/size/bytes/text/mnemonic/symbol/call/jump/conditional`），不伪造
+  `esil/opcode/family/type`；缺失字段在 DIVERGENCES 记录。
+- **额外修复**：`--attach` 不再要求目标文件；daemon bootstrap 失败返回非零退出码，
+  并以 `BAD_ARGS`/`NOT_READY` 等原始错误码回传客户端；启动失败不再空等 180 秒。
 
-仍待处理：C10/C11 的 `pdi`/`pdj` 布局与字段集、C13 `--loader-arg` 校验、
-C14 架构矩阵增强、C15 batch 子 op `meta`。
+Phase A 的剩余项已全部处理。C13（loader 校验）已完成；C14（架构矩阵增强）、
+C15（batch 子 op meta）与 `pdi` 的 flag 列视觉细化转入 Phase C/B1。
 
 > **升级注意**：instance-id 指纹现在只包含影响导入结果的键。旧项目的
 > `projects/<old-id>` 目录不会被复用；升级后首次运行会按新 id 重新导入一次。
@@ -148,8 +157,8 @@ C14 架构矩阵增强、C15 batch 子 op `meta`。
 | A4 ✅ CLI 选项契约 | `argv.py`、`launcher.py`、`cli.py`、`gdare2d/__main__.py` | `tests/test_argv.py` + 新增 launcher 测试 | `--listen` 真正转发；`--wait/-A/-AA` 有行为；`--assembler/--allow-exec` 未实现时明确报错 |
 | A5 ✅ 手工 daemon 默认值 | `gdare2d/__main__.py` | 集成/手工 | DEV.md 的命令可直接启动 |
 | A6 ✅ `--readonly` 与超时 | `runtime.py`、`ops/decompile.py`、`cmd/print.py` | 新增真实 Ghidra 测试：只读 daemon 不导入、不保存；超时映射 | `--readonly` 缺项目时报 `NOT_READY`；超时返回 `TIMEOUT` |
-| A7 ✅ 只读文案；pdi/pdj 字段留 Phase B | `errors.py`、`cmd/*`、`cmd/print.py` | 单测断言错误含 `-w`；`pdj` 形状测试 | 所有写命令文案一致；`pdj` 决策落地 |
-| A8 ◐ 小修（`--loader-arg` 校验待补） | `argv.py` 忽略选项已修；`import_plan.py` loader 参数校验待补 | 单测 | lint/测试通过 |
+| A7 ✅ 只读文案与 JSON 形状 | `errors.py`、`cmd/*`、`cmd/print.py` | 单测断言错误含 `-w`；`pdi`/`pdj` 测试 | 文案一致；`pdj` 决策落地 |
+| A8 ✅ 小修 | `argv.py` 忽略选项、`launcher.py` 启动错误、`runtime.py` loader 校验 | 单测 + 集成测试 | lint/测试通过 |
 
 **Phase A 退出条件**
 
@@ -295,7 +304,7 @@ uv run gdare2 -j -qc 'afl' /bin/ls | jq .
 
 | 问题 | 选项 | 建议 |
 |---|---|---|
-| `pd` / `pdi` 是否共用渲染？ | 共用现状 / 为 `pdi` 增加独立布局 | 为 `pdi` 增加“地址+flag+字节+文本”紧凑布局（flag 列在 B1 后接入）；`pd` 保留现有字节显示 |
+| `pd` / `pdi` 是否共用渲染？ | 已决策：为 `pdi` 增加 symbol 列独立布局 | 当前 `pdi` 为“地址+symbol+字节+文本”；后续 B1 接入 FlagStore 后再决定是否增加 flag 列 |
 | `-A/-AA` 语义 | `-A` 触发 `aa` / `-AA` 触发 `aaa` | 与 r2 保持一致，并在 `--attach` 到已分析项目时也执行 |
 | `--allow-exec` 是否保留 | 实现 `.gexec` / 移除选项 | 保留但默认关闭；daemon 也需显式开关 |
 | 架构矩阵目标 | 20 / 21（加 SH-2A）/ 22 | 先加 SH-2A 到 21；第 22 项等确认可用语言后再加 |

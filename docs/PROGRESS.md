@@ -21,8 +21,8 @@
 | 套件 | 命令 | 结果 |
 |---|---|---|
 | 离线 | `.venv/bin/python -m pytest -q` | `114 passed`，0.12s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `16 passed`，248.41s |
-| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.41s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `17 passed`，270.06s |
+| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.70s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 
@@ -42,9 +42,13 @@
    `READONLY`；`--analysis-timeout` 与 `e ghidra.decompile.timeout` 生效。
 7. **只读文案统一**：所有写命令先走客户端 `require_write()`，错误包含
    `re-run with -w to allow writes`。
+8. **loader 参数校验**：`--loader`/`--loader-arg` 用 Ghidra `Option.getArg()`
+   校验；未知 loader/参数返回 `BAD_ARGS`，支持类名与显示名。
+9. **`pdi` 独立布局**：增加 symbol 列（地址+symbol+字节+文本）；`pd` 保持原布局。
+10. **`pdj` 决策**：保持 r2 6.2.5 顶层数组与 Ghidra 原生字段，不伪造
+    `esil/opcode/family/type`；缺失字段写入 DIVERGENCES。
 
-仍待处理：`pdi`/`pdj` 布局与字段集、`--loader-arg` 校验、架构矩阵增强、
-batch 子 op `meta`、Phase B 命令面与 parity。
+Phase A 剩余项已全部处理。后续进入 Phase B（命令面）与 Phase C（parity/矩阵）。
 
 > **升级注意**：`instance_id` 指纹已规范化（忽略 `analyze`/`reimport`/`ephemeral`/
 > `readonly` 等运行时选项）。旧版本创建的 `projects/<old-id>` 不会被自动复用；
@@ -60,8 +64,11 @@ batch 子 op `meta`、Phase B 命令面与 parity。
 - C7 daemon `--readonly` 语义 → 已修复（A6）
 - C8 分析/反编译超时 → 已修复（A6）
 - C9 只读错误文案 → 已统一（A7）
+- C10 `pdj` 字段集 → 已决策：保持顶层数组与原生字段，不伪造缺失字段
+- C11 `pdi`/`pd` 布局 → 已修复：`pdi` 增加 symbol 列
 - C12 被忽略的 `-k` 不消费参数 → 已修复（A8）
-- 额外：`--attach` 无目标文件、daemon bootstrap 退出码 → 已修复
+- C13 `--loader-arg` 未校验 → 已修复（A8）
+- 额外：`--attach` 无目标文件、daemon bootstrap 退出码/错误码回传 → 已修复
 
 ## P0 验收
 
@@ -230,8 +237,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 ### 一致性与契约缺口
 
 - `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；
-  `pdi` 与 `pd` 当前布局相同；
-- `--loader-arg` 未按 DESIGN 要求校验未知 key；
+  已决策不伪造缺失字段；
 - batch 子 op 的 `meta` 只汇总错误数，尚未按单项保留；
 - `--assembler=rasm2` 与 `--allow-exec` 在对应命令实现前明确报 `BAD_ARGS`
   （这是有意的显式拒绝，不是静默回退）。
@@ -252,13 +258,11 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 1. C1/C2 建立 `tests/parity/`、黄金抓取工具与 `/bin/ls` 黄金文件；
 2. C4 扩展架构矩阵到 `pd 1`/`iI` 断言；
-3. C13 补 `--loader-arg` key 校验（或明确记录为后续）；
-4. B1 实现 `f` flags 家族（含写回门控）；
-5. B3 补 `t-`、`tp/tpv/tpx` 与 `iE`/`ia`；
-6. B4 补 `/r`、`/p`、`/a`、`cmd.hit` 与更多 `@@` 变体；
-7. B5/B6 补 P2 写入与 `.gsync/.ganalyze/.gexec/.ghelp`；
-8. C15 透传 batch 子 op meta；
-9. C6 记录性能基线并审查错误码/退出码；
-10. C11 实现 `pdi` 独立布局，C10 决定 `pdj` 字段集。
+3. B1 实现 `f` flags 家族（含写回门控）；
+4. B3 补 `t-`、`tp/tpv/tpx` 与 `iE`/`ia`；
+5. B4 补 `/r`、`/p`、`/a`、`cmd.hit` 与更多 `@@` 变体；
+6. B5/B6 补 P2 写入与 `.gsync/.ganalyze/.gexec/.ghelp`；
+7. C15 透传 batch 子 op meta；
+8. C6 记录性能基线并审查错误码/退出码。
 
 M6 在 v1 收尾后启动，先做 PyGhidra console 桥原型；详见 `ROADMAP.md` Phase D。

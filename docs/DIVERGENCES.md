@@ -288,12 +288,12 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 
 | 现象 | 当前实现 | 目标/说明 |
 |---|---|---|
-| `pdj` 字段集 | 顶层数组；字段 `addr/bytes/size/text/mnemonic/call/jump/conditional` | r2 6.2.5 顶层也是数组，但含 `esil/opcode/disasm/family/type` 等；缺失字段不伪造 |
-| `pdi` | 与 `pd` 相同 | r2 的 `pd` 带 flag/注释缩进，`pdi` 是地址+flag+字节+文本的紧凑格式；Phase B 调整 |
+| `pdj` 字段集 | 顶层数组；字段 `addr/size/bytes/text/mnemonic/symbol/call/jump/conditional` | r2 6.2.5 顶层也是数组，但含 `esil/opcode/disasm/family/type` 等；已决策不伪造缺失字段 |
+| `pdi` 布局 | 地址+symbol+字节+文本（symbol 列为空时保留空白） | r2 使用 flag/注释缩进体系；gdare2 的 symbol 列是其近似，完整 flag 列在 Phase B1 后评估 |
 | `tt` | 列出 typedef（与 r2 一致） | 类型应用/转换走 `tp`，尚未实现；不要把 `tt` 当“应用类型” |
 | `--assembler=rasm2` | 明确报 `BAD_ARGS` | `pa/wa` 尚未实现；实现后再接入回退 |
 | `--allow-exec` | 明确报 `BAD_ARGS` | `.gexec` 尚未实现；实现后由客户端与 daemon 双重门控 |
-| `--loader-arg` | 未校验 key | 未知 key 应报 `BAD_ARGS`；待补 |
+| `afB` | 不实现，报 `NOT_SUPPORTED` | r2 6.2.5 中 `afB` 是 Thumb 位宽切换；旧文档的“第 n 个基本块”语义已过时，不做兼容层 |
 | batch 子 op `meta` | 只汇总错误数 | 应逐项保留；Phase C5 |
 | `f` / `S` / `x` / `$` / `iE` / `t-` / `tp` / `/r` / `/p` / `/a` / `wa` / `wi` | 未实现，报 `NOT_SUPPORTED` | 按 ROADMAP Phase B 补齐 |
 | daemon `--readonly` 下的显式 `aa` | 返回 `READONLY` | 只读 daemon 不允许重新分析；bootstrap 分析阶段已在启动前拒绝 |
@@ -308,4 +308,7 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 - daemon `--readonly` 要求已有且已分析的项目，不再隐式导入/分析/保存。
 - `--analysis-timeout` 与 `e ghidra.decompile.timeout` 生效；超时映射 `TIMEOUT`。
 - 写命令统一客户端门控，错误信息包含 `re-run with -w to allow writes`。
-- 被忽略的 `-k` 会消费其参数；daemon bootstrap 失败返回非零退出码。
+- 被忽略的 `-k` 会消费其参数；daemon bootstrap 失败返回非零退出码，
+  并以 `BAD_ARGS`/`NOT_READY` 等原始错误码回传客户端。
+- `--loader`/`--loader-arg` 使用 Ghidra `Option.getArg()` 校验；支持类名与显示名。
+- `pdi` 增加 symbol 列；`pdj` 增加 `symbol` 字段并保持顶层数组。

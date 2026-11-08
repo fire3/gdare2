@@ -254,9 +254,9 @@ gdare2 -w -qc 'e io.cache=true; wx 9090; wc+' /tmp/target
 
 ### 8.2 待完成
 
-1. **一致性修复**（Phase A）：已完成 instance-id 指纹、架构默认端序、daemon 状态、
-   CLI 空转选项、`--readonly`、分析/反编译超时、只读文案；剩余 `pdi` 布局、
-   `--loader-arg` 校验与 `pdj` 字段集决策。
+1. **一致性修复**（Phase A）：**已完成**。包括 instance-id 指纹、架构默认端序、
+   daemon 状态、CLI 选项、`--readonly`、分析/反编译超时、只读文案、loader 参数
+   校验、`pdi` 独立布局与 `pdj` 字段集决策。
 2. **命令面收尾**（Phase B）：`f` flags、`S`/`$`/`_`、`x`、`iE`、
    `t-`/`tp/tpv/tpx`、`/r`/`/p`/`/a`、`cmd.hit`、更多 `@@` 变体、
    `wa/wi/w6`、`.gsync/.ganalyze/.gexec/.ghelp`。

@@ -35,4 +35,4 @@
 - 调研基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、idare2 0.1/b2cd758、radare2 6.2.5
 - 目标：v1 命令面收尾、parity 黄金文件与可靠性加固，然后进入 M6 GUI 桥
 - 当前状态：M0–M4 核心完成，M5 进行中，M6 未开始（2026-11-08 实测
-  离线 114 passed、真实 Ghidra 16 passed、架构矩阵 2 passed）
+  离线 114 passed、真实 Ghidra 17 passed、架构矩阵 2 passed）

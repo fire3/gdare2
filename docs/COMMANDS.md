@@ -77,7 +77,7 @@
 | `pi [n]` | 仅指令文本 | `Instruction.toString()`，客户端省列 | P1 |
 | `pI [n]` | 含函数体 | 同 `pd` | P2 |
 | `pdl` | 指令大小 | `Instruction.getLength()` | P1 |
-| `pdi` | 地址+字节+文本 | 同 `pd` + `getBytes()`；当前与 `pd` 相同，待区分 | P1 |
+| `pdi` | 地址+symbol+字节+文本 | `Instruction.getBytes()` + `getPrimarySymbol()` | P1 |
 | `pds` | 摘要 | 无稳定对应；**X** | X |
 | `pdj` / `pdJ` | JSON | 同 `pd` | P0 |
 | `pd*` | r2 命令 | 可渲染为 `wx`/`f` 命令；v1 不做 | X |
@@ -412,15 +412,16 @@
 
 | 阶段 | 命令/能力 |
 |---|---|
-| Phase A（剩余一致性） | `--loader-arg` key 校验；`pdi` 独立布局；`afB` 语义确认 |
+| Phase A | **已完成**（loader 参数校验、`pdi` 独立布局、`pdj` 字段集决策） |
 | Phase B（v1 命令面） | `f` 家族、`S`、`$`、`_`、`x`/`x8`/`xw`/`xq`/`xj`、`iE`、`ia`、`izz`、`t-`、`tp/tpv/tpx`、`/r`、`/p`、`/a`、`cmd.hit`、`search.in=raw`、`@@F`、`@@/x`、`@@.file`、`@@s:from to step`、`@!n`、`@{from to}`、`wa/wa*/wa+/waf/w6/wi`、`.gsync`、`.ganalyze`、`.gexec`、`.ghelp`、`afr`、`afvR/afvW`、`an` |
 | Phase C（parity） | `tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 黄金文件、架构矩阵 `pd 1`/`iI` 断言、batch 子 op meta 透传 |
 | Phase D（M6） | Ghidra GUI 桥、`--attach gui:<endpoint>`、GUI 内写入 |
 
 ### 14.3 已知语义差异
 
-- `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；不伪造缺失字段。
-- `pdi` 当前与 `pd` 相同；r2 的 `pd` 带 flag/注释缩进，`pdi` 是地址+flag+字节+文本的紧凑格式。
+- `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；
+  已决策不伪造缺失字段，现有字段包含 `symbol`。
+- `pdi` 现已独立布局：`地址 + symbol + 字节 + 文本`；`pd` 保持原布局。
 - `tt` 是 typedef 列表（与 r2 一致）；类型应用/转换走 `tp`，尚未实现。
 - `u/U` 只恢复字节，不回滚反编译/函数/注释/类型；daemon 重启后历史清空。
 - `--assembler=rasm2` 与 `--allow-exec` 在对应命令实现前明确报 `BAD_ARGS`。
@@ -435,3 +436,6 @@
   `e ghidra.decompile.timeout` 生效。
 - 写命令统一客户端门控，错误信息包含 `re-run with -w to allow writes`。
 - 被忽略的 `-k` 消费其参数；daemon bootstrap 失败返回非零退出码。
+- `--loader`/`--loader-arg` 用 Ghidra `Option.getArg()` 校验，未知值返回 `BAD_ARGS`；
+  支持 `BinaryLoader` 类名与 `Raw Binary` 显示名。
+- `pdi` 增加 symbol 列；`pdj` 增加 `symbol` 字段，缺失的 r2 字段不伪造。
