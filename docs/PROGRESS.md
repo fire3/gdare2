@@ -1,6 +1,7 @@
 # gdare2 开发进度
 
 更新时间：2026-11-08
+最近验证：2026-11-08
 
 ## 当前状态
 
@@ -9,11 +10,54 @@
 | P0 预研 | 完成 | PyGhidra 导入/分析/反编译/持久化已验证 |
 | M0 骨架 | 完成 | 两进程链路、注册表、自动拉起、首批命令与测试 |
 | M1 只读核心 | 基本完成 | 只读命令、搜索、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
-| M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；架构矩阵已完成，剩结构化黄金文件 |
-| M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/tf-`、`afs`、`C/CC/Cp` 已可用；复杂 C++ 类型仍受 Ghidra parser 限制 |
-| M4 写入 | 基本完成 | `wx/w/w0/wf/wd`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用；`wa/wi` 等 P2 未做 |
-| M5 兼容/体验 | 进行中 | rc、readline 历史/Tab 补全、`-I/-i` 顺序、20 配置架构矩阵已可用；parity 待补 |
-| M6 GUI 桥 | 待开始 | Ghidra GUI 附着 |
+| M2 分析/图 | 完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 可用；架构矩阵可用 |
+| M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/tf-`、`afs`、`C/CC/Cp` 已可用；`tp/tpv/tpx`、`t-` 待补；复杂 C++ 类型受 Ghidra parser 限制 |
+| M4 写入 | 基本完成 | `wx/w/w0/wf/wd`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用；`wa/wi/w6` 等 P2 未做 |
+| M5 兼容/体验 | 进行中 | rc、readline 历史/Tab 补全、`-I/-i` 顺序、搜索、20 配置架构矩阵已可用；parity 黄金文件、flags、脚本/变量、部分命令面待补 |
+| M6 GUI 桥 | 待开始 | Ghidra GUI 附着；方案与验收见 `ROADMAP.md` Phase D |
+
+## 验证基线（2026-11-08 实测）
+
+| 套件 | 命令 | 结果 |
+|---|---|---|
+| 离线 | `.venv/bin/python -m pytest -q` | `114 passed`，0.12s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `16 passed`，248.41s |
+| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.41s |
+
+环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
+
+## 本次修复（2026-11-08，详见 ROADMAP §2.5）
+
+1. **instance-id 指纹统一**：客户端与 daemon 共用 `registry.import_fingerprint()`；
+   手工 `gdare2d` 与 `gdare2 target` 可互相发现。
+2. **架构默认端序修正**：`ppc/mips/sparc` 默认 BE；`x86/RISCV` 的 BE 请求、
+   `sparc/68000` 的 LE 请求、非法位宽明确报 `BAD_ARGS`。
+3. **daemon 状态可见**：`info` 合并 `instance_id/state/pid/port/error`；
+   `.g`/`.gstatus` 不再显示 `None`；注册表状态随 ready/error/draining 更新。
+4. **CLI 选项生效**：`-A/-AA` 触发 `aa/aaa`；`--listen` 转发；`--wait` 为默认；
+   `--assembler=rasm2` 与 `--allow-exec` 在实现前明确报错。
+5. **手工 daemon 默认值**：`gdare2d --foreground --target /bin/ls` 可直接启动；
+   `--attach` 不再要求目标文件。
+6. **只读与超时**：daemon `--readonly` 要求已有且已分析项目；显式 `aa` 返回
+   `READONLY`；`--analysis-timeout` 与 `e ghidra.decompile.timeout` 生效。
+7. **只读文案统一**：所有写命令先走客户端 `require_write()`，错误包含
+   `re-run with -w to allow writes`。
+
+仍待处理：`pdi`/`pdj` 布局与字段集、`--loader-arg` 校验、架构矩阵增强、
+batch 子 op `meta`、Phase B 命令面与 parity。
+
+## 已修复问题对照（原审查清单）
+
+- C1 instance-id 指纹 → 已修复（A1）
+- C2 `ppc/mips/sparc` 默认端序 → 已修复（A2）
+- C3/C4 `.g/.gstatus` 状态与注册表状态 → 已修复（A3）
+- C5 CLI 空转选项 → 已修复/明确报错（A4）
+- C6 手工 `gdare2d` 参数 → 已提供默认值（A5）
+- C7 daemon `--readonly` 语义 → 已修复（A6）
+- C8 分析/反编译超时 → 已修复（A6）
+- C9 只读错误文案 → 已统一（A7）
+- C12 被忽略的 `-k` 不消费参数 → 已修复（A8）
+- 额外：`--attach` 无目标文件、daemon bootstrap 退出码 → 已修复
 
 ## P0 验收
 
@@ -132,7 +176,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - `@@` 迭代使用服务端目标总数；目标截断时输出明确警告，batch 失败仍保持单项错误隔离；
 - 未知 daemon op 统一返回 `UNKNOWN_OP`，不再混用 `NOT_SUPPORTED`。
 
-当前测试：离线 `69 passed`；真实 Ghidra `15 passed`；架构矩阵 `2 passed`。
+第十一轮结束时的测试基线：离线 `69 passed`；真实 Ghidra `15 passed`；架构矩阵 `2 passed`。
 
 验收命令：
 
@@ -166,18 +210,51 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 ## 已知缺口
 
-- `afB` 当前 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
-- `/bin/ls` 与 ARM32 样本的结构化 parity 黄金文件尚未补齐（架构矩阵已覆盖 20 配置）；
-- batch 子 op 的 `meta` 只汇总错误数，尚未按单项保留子 op 自己的 `meta`；
-- `td` 支持常用 C 声明，但 C++ 模板/类、匿名复合体与复杂位域仍由 Ghidra parser 决定；
-- `tp/tpv/tpx` 类型化读取与 `t-` 通用类型删除尚未实现；
-- 搜索 `/r`、`/p`、`/a`、`cmd.hit` 与 `search.in=raw` 尚未实现；`wa/wa*/wi/w6` 等 P2 写入命令尚未实现；
-- `pdi/pdl/pd -n` 与 r2 parity 黄金文件尚未补齐；
-- GUI 桥未开始。
+### 功能缺口
+
+- `f` flags 家族（`f/fj/fq/f-/fr/f.`）尚未实现；当前按名字 seek 直接走 daemon `resolve_name`；
+- `S` 脚本、`$` 变量/别名、`_` 上次输出、`.cmd` 尚未实现；
+- `x/x8/xw/xq/xj` hexdump 变体尚未实现（可基于 `read_bytes` 补齐）；
+- `iE` 导出、`ia` 架构列表、`izz` 全文件字符串尚未实现；
+- `t-` 通用类型删除、`tp/tpv/tpx` 类型化读取尚未实现；`tt` 当前按 r2 语义列出 typedef；
+- `/r`、`/p`、`/a`、`cmd.hit`、`search.in=raw` 尚未实现；
+- `wa/wa*/wa+/waf/w6/wi` 等 P2 写入命令尚未实现；
+- `@@F`、`@@/x`、`@@.file`、`@@s:from to step`、`@!n`、`@{from to}` 尚未实现；
+- `.gsync`、`.ganalyze`、`.gexec`、`.ghelp` 尚未实现；
+- `afr`、`afvR/afvW`、`an` 尚未实现；`afB` 的 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现。
+
+### 一致性与契约缺口
+
+- `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；
+  `pdi` 与 `pd` 当前布局相同；
+- `--loader-arg` 未按 DESIGN 要求校验未知 key；
+- batch 子 op 的 `meta` 只汇总错误数，尚未按单项保留；
+- `--assembler=rasm2` 与 `--allow-exec` 在对应命令实现前明确报 `BAD_ARGS`
+  （这是有意的显式拒绝，不是静默回退）。
+
+### 测试与 parity 缺口
+
+- `tests/parity/` 目录不存在，`pytest -m parity` 没有实际测试；
+- `tools/capture_r2_golden.py` 尚未实现（`DEV.md` 已引用）；
+- `/bin/ls` 与 ARM32 样本的结构化黄金文件尚未补齐；
+- 架构矩阵覆盖 20 配置，目标为 22；且只校验语言 ID，未校验 `pd 1`/`iI`；
+- 没有 ARM32 样本的真实 Ghidra 集成测试；
+- 已补 argv/launcher/registry/import_plan 的边界回归测试（见新增测试文件）；
+- 没有性能基线（导入/分析耗时、`afl`/`pd`/`pdc` 延迟）。
 
 ## 下一轮
 
-1. 建立 `/bin/ls` 与 ARM32 样本的结构化黄金文件；
-2. 继续 M3：`tp/tpv/tpx` 类型化读取、`t-` 类型删除与更多签名/变量类型写入；
-3. 继续 M5：r2 结构化 parity 黄金文件、batch 子 op meta 透传；
-4. 可选补 `wa/wi` 等 P2 写入命令。
+详细任务、文件、测试与验收见 **[ROADMAP.md](ROADMAP.md)**。按以下顺序推进：
+
+1. C1/C2 建立 `tests/parity/`、黄金抓取工具与 `/bin/ls` 黄金文件；
+2. C4 扩展架构矩阵到 `pd 1`/`iI` 断言；
+3. C13 补 `--loader-arg` key 校验（或明确记录为后续）；
+4. B1 实现 `f` flags 家族（含写回门控）；
+5. B3 补 `t-`、`tp/tpv/tpx` 与 `iE`/`ia`；
+6. B4 补 `/r`、`/p`、`/a`、`cmd.hit` 与更多 `@@` 变体；
+7. B5/B6 补 P2 写入与 `.gsync/.ganalyze/.gexec/.ghelp`；
+8. C15 透传 batch 子 op meta；
+9. C6 记录性能基线并审查错误码/退出码；
+10. C11 实现 `pdi` 独立布局，C10 决定 `pdj` 字段集。
+
+M6 在 v1 收尾后启动，先做 PyGhidra console 桥原型；详见 `ROADMAP.md` Phase D。

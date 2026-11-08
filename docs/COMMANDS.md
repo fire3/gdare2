@@ -1,15 +1,17 @@
 # gdare2 命令参考与 Ghidra 映射
 
-> 本文件是设计稿，不代表已实现。状态：
+> 本文件是命令映射设计稿。**状态列是优先级，不是实现状态**：
 >
 > - **P0**：M0/M1 必须实现，决定工具是否可用；
 > - **P1**：v1 核心，M2–M4 实现；
 > - **P2**：v1 增强或后续（M5+ / v1.1 / v2）；
-> - **X**：v1 明确不做，报 `unsupported`；
+> - **X**：v1 明确不做，报 `NOT_SUPPORTED`；
 > - **[C]**：纯客户端实现，不调用 Ghidra；
 > - **[W]**：写操作，需要 `-w`。
 >
-> `X` 状态的命令返回错误码 `NOT_SUPPORTED`，退出码为 1；不要静默回退到相似命令。
+> 实际实现状态见文末 **§14 实现状态（2026-11-08）**；后续任务见
+> [ROADMAP.md](ROADMAP.md)。`X` 状态的命令返回错误码 `NOT_SUPPORTED`，
+> 退出码为 1；不要静默回退到相似命令。
 
 ## 0. 元命令
 
@@ -75,7 +77,7 @@
 | `pi [n]` | 仅指令文本 | `Instruction.toString()`，客户端省列 | P1 |
 | `pI [n]` | 含函数体 | 同 `pd` | P2 |
 | `pdl` | 指令大小 | `Instruction.getLength()` | P1 |
-| `pdi` | 地址+字节+文本 | 同 `pd` + `getBytes()` | P1 |
+| `pdi` | 地址+字节+文本 | 同 `pd` + `getBytes()`；当前与 `pd` 相同，待区分 | P1 |
 | `pds` | 摘要 | 无稳定对应；**X** | X |
 | `pdj` / `pdJ` | JSON | 同 `pd` | P0 |
 | `pd*` | r2 命令 | 可渲染为 `wx`/`f` 命令；v1 不做 | X |
@@ -235,9 +237,9 @@
 | `td <decl>` **[W]** | 解析 C 声明 | `CParser` + `DataTypeManager.addDataType` | P1 |
 | `t- <name>` **[W]** | 删除类型 | `DataTypeManager.remove(...)` | P2 |
 | `tf- <name|glob>` **[W]** | 删除函数定义类型 | `DataTypeManager.remove(...)` + `FunctionDefinition` 过滤 | P1 |
-| `tp` / `tpv` / `tpx` | 按类型显示 | `Data` + `DataType` 布局 | P2 |
-| `tt <name> [addr]` **[W]** | 应用类型 | `Listing.createData(addr, dt)` 或 `Data.setDataType` | P2 |
-| `tt-` | 列出 typedef | `TypeDef` | P1 |
+| `tp` / `tpv` / `tpx` | 按类型读取/格式化 | `Data` + `DataType` 布局 | P2 |
+| `tt` / `ttj` | 列出 typedef | `TypeDef` 过滤；当前已实现 | P1 |
+| `tt <typename>` | 显示 typedef 对应的真实类型 | `TypeDef` + `getBaseDataType()` | P2 |
 | `tf` / `tfj` / `tfc` | 函数签名 | `Function.getSignature()` / `getPrototypeString` | P1 |
 | `afs [signature]` **[W]** | 获取/写入当前函数签名 | `CParserUtils.parseSignature` + `ApplyFunctionSignatureCmd` | P1 |
 | `tn` / `tn-` | 重命名类型 | `DataTypeManager` rename | P2 |
@@ -277,7 +279,7 @@
 | `wc` / `wc+` / `wc-` | 写缓存 | 客户端缓存 + `wc+` 批量提交 | P1 |
 | `wi[1248][+-][n]` | 整数读写 | `Memory.get*` / `set*` | P2 |
 | `w6[d/e/x]` | base64 | 客户端解码 + `wx` | P2 |
-| `u` / `U` | 撤销/重做 | `program.undo()` / `redo()` | P1 |
+| `u` / `U` | 撤销/重做（daemon 内存级字节历史） | daemon `write_undo/write_redo`；不调用 Ghidra undo | P1 |
 
 ## 9. `/` — 搜索
 
@@ -385,3 +387,51 @@
 | `batch` | `ops[]` | 信封数组 |
 | `status` | — | daemon 状态 |
 | `session` | `kind`, `lease`, `ttl` | open/heartbeat/close 与活跃客户端列表 |
+
+## 14. 实现状态（2026-11-08）
+
+> 本节记录当前代码的实际状态，避免把“优先级”误读成“已实现”。
+> 详细差距、文件位置与推进顺序见 [ROADMAP.md](ROADMAP.md)。
+
+### 14.1 已实现
+
+| 类别 | 命令 |
+|---|---|
+| 定位/会话 | `s`、`s+`、`s-`、`s++`、`s--`、`s.`、`sb`、`sf`、`sF`、`so`、`sn`、`sp`、`b`、`q`、`?`、`?V`、`e` |
+| 反汇编/内存 | `pd`、`pdj`、`pdi`、`pi`、`pdl`、`pD`、`pdf`、`pdfj`、`pdc`、`pdcj`、`px`、`pxw`、`pxq`、`p8`、`p8j`、`pv` 及 `pvj/1/2/4/8`、`ps`、`pc` |
+| 信息 | `iI`/`iIj`/`ij`、`iS`/`iSj`/`iSS`/`iSSj`、`iS.`、`it`/`itj`、`iM`、`is`/`isj`、`ii`/`iij`、`ie`/`iej`、`iz`/`izj` |
+| 分析/图 | `afl`/`aflj`、`afln`、`afl+`、`aflc`、`afc`/`afcj`、`afC`/`afCj`、`afi`/`afij`、`afv`/`afvj`、`af`/`aF`、`afn`、`afu`、`a8`、`ad`、`aa`/`aaa`、`afb`/`afbj`、`ab`/`abj`、`ao`/`aoj`、`ai`/`aij`、`agf`/`agfj`/`agfd` |
+| 交叉引用 | `axt`/`axtj`、`axf`/`axfj`、`afx`/`afxj` |
+| 类型/签名 | `t`/`tj`、`ts`/`tsj`、`tu`/`tuj`、`te`/`tej`、`tt`/`ttj`、`tf`/`tfj`、`td`、`tc`/`tcj`、`tfc`/`tfcj`、`tf-`、`afs`/`afsj` |
+| 注释 | `C`/`Cj`、`C.`、`CC`、`CC-`、`CC.`、`Cd`、`Cb`、`Cp`、`Cr` |
+| 搜索 | `/`、`/j`、`/x`、`/xj`、`/w`、`/wj`、`/v` 及 `v1/2/4/8`、`//`、`/+`、`/-` |
+| 写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U` |
+| 扩展命令 | `.g`、`.gstatus`、`.gsave`、`.gclose` |
+
+### 14.2 未实现（按 ROADMAP 阶段）
+
+| 阶段 | 命令/能力 |
+|---|---|
+| Phase A（剩余一致性） | `--loader-arg` key 校验；`pdi` 独立布局；`afB` 语义确认 |
+| Phase B（v1 命令面） | `f` 家族、`S`、`$`、`_`、`x`/`x8`/`xw`/`xq`/`xj`、`iE`、`ia`、`izz`、`t-`、`tp/tpv/tpx`、`/r`、`/p`、`/a`、`cmd.hit`、`search.in=raw`、`@@F`、`@@/x`、`@@.file`、`@@s:from to step`、`@!n`、`@{from to}`、`wa/wa*/wa+/waf/w6/wi`、`.gsync`、`.ganalyze`、`.gexec`、`.ghelp`、`afr`、`afvR/afvW`、`an` |
+| Phase C（parity） | `tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 黄金文件、架构矩阵 `pd 1`/`iI` 断言、batch 子 op meta 透传 |
+| Phase D（M6） | Ghidra GUI 桥、`--attach gui:<endpoint>`、GUI 内写入 |
+
+### 14.3 已知语义差异
+
+- `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；不伪造缺失字段。
+- `pdi` 当前与 `pd` 相同；r2 的 `pd` 带 flag/注释缩进，`pdi` 是地址+flag+字节+文本的紧凑格式。
+- `tt` 是 typedef 列表（与 r2 一致）；类型应用/转换走 `tp`，尚未实现。
+- `u/U` 只恢复字节，不回滚反编译/函数/注释/类型；daemon 重启后历史清空。
+- `--assembler=rasm2` 与 `--allow-exec` 在对应命令实现前明确报 `BAD_ARGS`。
+
+### 14.4 2026-11-08 已修复
+
+- 客户端/daemon `instance_id` 指纹统一；`.g`/`.gstatus` 显示真实 `instance_id`/`state`。
+- `ppc/mips/sparc` 默认 BE；单端序架构的冲突参数报错。
+- `-A/-AA` 触发 `aa/aaa`；`--listen` 转发；`--wait` 为默认行为。
+- `gdare2d` 自动推导项目路径/名称；`--attach` 不再要求目标文件。
+- daemon `--readonly` 要求已有且已分析项目；`--analysis-timeout` 与
+  `e ghidra.decompile.timeout` 生效。
+- 写命令统一客户端门控，错误信息包含 `re-run with -w to allow writes`。
+- 被忽略的 `-k` 消费其参数；daemon bootstrap 失败返回非零退出码。

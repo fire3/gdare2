@@ -1,6 +1,7 @@
 # gdare2 开发与测试指南
 
-> M0 已完成；本文件固化环境、目录、调试和测试约定，并随里程碑更新。
+> M0–M4 核心已完成；本文件固化环境、目录、调试和测试约定，并随里程碑更新。
+> 任务级缺口与后续顺序见 [ROADMAP.md](ROADMAP.md)。
 
 ## 1. 环境基线
 
@@ -85,7 +86,8 @@ src/gdare2/       # 客户端：无 JVM 依赖
 src/gdare2d/      # daemon：依赖 pyghidra
 tests/            # 离线单测默认
 tests/integration # -m real_ghidra
-tests/parity      # -m parity
+tests/parity      # -m parity（待建立）
+tests/golden      # parity 黄金文件（待建立）
 tests/arch_matrix # -m arch_matrix
 tools/            # spike、黄金文件抓取、矩阵汇总
 docs/             # 本设计文档
@@ -123,9 +125,16 @@ markers = [
 
 ### 4.1 前台 daemon
 
+`gdare2d` 会根据目标与导入选项自动推导项目位置和名称：
+
 ```bash
 gdare2d --foreground --target /bin/ls --log-level debug
 ```
+
+默认项目位置为 `$GDARE2_DATA_DIR/projects/<instance-id>`，项目名为
+`<target-basename>-<instance-id[:8]>`。客户端与 daemon 现在共用同一份
+import-options 指纹，因此手工启动的 daemon 可以被 `gdare2 /bin/ls` 复用。
+需要固定位置时再显式传 `--project` / `--project-name`。
 
 默认 Ghidra 项目位于 `~/gdare2-data/projects`，可用 `GDARE2_DATA_DIR` 覆盖。
 Ghidra 不接受以 `.` 开头的路径元素，因此不要把它指到 `~/.local/...`。
@@ -166,7 +175,7 @@ ${XDG_RUNTIME_DIR:-/tmp}/gdare2-<uid>/<instance-id>.log
 
 ### 4.4 逃生舱
 
-开发期可开启：
+`--allow-exec` / `.gexec` 尚未实现，当前会明确报 `BAD_ARGS`。实现后计划：
 
 ```bash
 gdare2 --allow-exec -qc '.gexec print(program.getName())' /bin/ls
@@ -215,11 +224,17 @@ python tools/arch_matrix.py
 
 ### 6.1 抓黄金文件
 
+目标形态（Phase C 建立）：
+
 ```bash
 r2 -e scr.color=0 -q -A -c 'pd 10' target > tests/golden/pd.txt
 ```
 
-脚本：`tools/capture_r2_golden.sh`。
+计划脚本：`tools/capture_r2_golden.py`（当前不存在，见 ROADMAP C1）。脚本必须：
+
+- 记录 r2 版本、Ghidra 版本、language ID、目标 sha256；
+- 生成可归一化的结构化输出，而不是仅保存原始文本；
+- 版本不匹配时提示重新生成，而不是直接判失败。
 
 ### 6.2 规范化
 
@@ -286,14 +301,15 @@ r2 -e scr.color=0 -q -A -c 'pd 10' target > tests/golden/pd.txt
 ## 8. 提交前检查
 
 ```bash
-uv run pytest
-uv run ruff check src tests
-uv run pytest -m real_ghidra
-uv run pytest -m parity
-uv run pytest -m arch_matrix
+.venv/bin/python -m pytest -q
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m parity
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 ```
 
-M0–M2 阶段可只跑前两项 + 一个真实 Ghidra 冒烟。
+当前 `parity` 尚未建立，运行会得到 0 个测试；Phase C 完成后必须全绿。
+`ruff` 不在当前 venv 中，可用系统/独立环境运行。
 
 ## 9. 参考
 

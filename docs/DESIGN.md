@@ -3,9 +3,13 @@
 > 用 Ghidra 作为分析后端，提供 radare2 风格命令行、输出和交互体验。
 
 - 版本：0.1（立项设计）
-- 日期：2026-11-07
+- 日期：2026-11-07（实现状态更新：2026-11-08）
 - 基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、radare2 6.2.5、idare2 0.1
-- 状态：尚未实现；本文是 M0 之前的架构契约
+- 状态：M0–M4 核心已实现，M5 进行中；本文保留为架构契约
+
+> 实现状态、已知缺口与后续顺序见 [PROGRESS.md](PROGRESS.md) 与
+> [ROADMAP.md](ROADMAP.md)。本文描述的是目标设计；当实现与设计不一致时，
+> 以 ROADMAP 的差距清单为准，并在实现后回写本文。
 
 ---
 
@@ -812,18 +816,22 @@ PyGhidra 当前的 `Program` 没有可用的 undo/redo API，因此采用 daemon
 
 ### 13.5 写操作最小集
 
-v1 只实现：
+当前已实现：
 
 - `wx`（hexpairs）
 - `w <text>`
 - `w0`
 - `wf <file>`
 - `wd`
-- `wa`（若语言支持 assembler）
-- `wc+` / `wc-`（缓存）
-- `u` / `U`
+- `wc` / `wc+` / `wc-`（缓存）
+- `u` / `U`（daemon 内存级字节历史）
 
-其余写命令明确报 unsupported，避免误写。
+待实现：
+
+- `wa` / `wa*` / `wa+` / `waf` / `waF`（需要语言支持 SLEIGH assembler）
+- `wi[1248]`、`w6`
+
+其余写命令明确报 unsupported，避免误写。详见 ROADMAP Phase B5。
 
 ---
 
@@ -881,6 +889,11 @@ gdare2 [target] [options] [-c cmd]...
 ### 16.2 参数
 
 A 档（实现，保留 r2 语义）：
+
+> 实现状态（2026-11-08）：`-A/-AA` 已在命令前触发 `aa/aaa`；`--wait`
+> 是默认行为（launcher 总是等待 ready）；`--listen` 会转发给 daemon；
+> `--assembler=rasm2` 与 `--allow-exec` 在对应命令（`pa/wa`、`.gexec`）
+> 实现前会明确报 `BAD_ARGS`，不再静默忽略。
 
 | 参数 | 说明 |
 |---|---|
@@ -1155,7 +1168,7 @@ gdare2/
 │   ├── arch_matrix/           # -m arch_matrix
 │   └── fixtures/
 └── tools/
-    ├── capture_r2_golden.sh
+    ├── capture_r2_golden.py
     └── arch_matrix.py
 ```
 

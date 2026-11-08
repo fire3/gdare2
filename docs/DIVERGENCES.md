@@ -281,3 +281,31 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 | `f` 改名后 GUI 看不到 | 未 `-w` 或 `e ghidra.flags.write=false` |
 | `u` 在只读会话失败 | undo 也是修改，默认只读 |
 | `u` 后反汇编未恢复 | 只回滚字节，不回滚分析元数据 |
+
+## 14. 当前实现差异（2026-11-08）
+
+以下差异是当前实现的真实状态，不是设计目标；已修复项见 `ROADMAP.md` §2.5。
+
+| 现象 | 当前实现 | 目标/说明 |
+|---|---|---|
+| `pdj` 字段集 | 顶层数组；字段 `addr/bytes/size/text/mnemonic/call/jump/conditional` | r2 6.2.5 顶层也是数组，但含 `esil/opcode/disasm/family/type` 等；缺失字段不伪造 |
+| `pdi` | 与 `pd` 相同 | r2 的 `pd` 带 flag/注释缩进，`pdi` 是地址+flag+字节+文本的紧凑格式；Phase B 调整 |
+| `tt` | 列出 typedef（与 r2 一致） | 类型应用/转换走 `tp`，尚未实现；不要把 `tt` 当“应用类型” |
+| `--assembler=rasm2` | 明确报 `BAD_ARGS` | `pa/wa` 尚未实现；实现后再接入回退 |
+| `--allow-exec` | 明确报 `BAD_ARGS` | `.gexec` 尚未实现；实现后由客户端与 daemon 双重门控 |
+| `--loader-arg` | 未校验 key | 未知 key 应报 `BAD_ARGS`；待补 |
+| batch 子 op `meta` | 只汇总错误数 | 应逐项保留；Phase C5 |
+| `f` / `S` / `x` / `$` / `iE` / `t-` / `tp` / `/r` / `/p` / `/a` / `wa` / `wi` | 未实现，报 `NOT_SUPPORTED` | 按 ROADMAP Phase B 补齐 |
+| daemon `--readonly` 下的显式 `aa` | 返回 `READONLY` | 只读 daemon 不允许重新分析；bootstrap 分析阶段已在启动前拒绝 |
+
+### 14.1 已修复（2026-11-08）
+
+- 客户端/daemon `instance_id` 指纹统一；手工 `gdare2d` 与客户端可互相发现。
+- `ppc/mips/sparc` 默认端序改为 BE；`sparc` 只接受 BE；单端序架构的冲突参数报错。
+- `.g`/`.gstatus` 显示真实 `instance_id`/`state`；注册表状态在 ready/error/draining 时更新。
+- `-A/-AA` 触发 `aa/aaa`；`--listen` 转发给 daemon；`--wait` 为默认行为。
+- `gdare2d` 自动推导 `--project`/`--project-name`；`--attach` 不再要求目标文件。
+- daemon `--readonly` 要求已有且已分析的项目，不再隐式导入/分析/保存。
+- `--analysis-timeout` 与 `e ghidra.decompile.timeout` 生效；超时映射 `TIMEOUT`。
+- 写命令统一客户端门控，错误信息包含 `re-run with -w to allow writes`。
+- 被忽略的 `-k` 会消费其参数；daemon bootstrap 失败返回非零退出码。

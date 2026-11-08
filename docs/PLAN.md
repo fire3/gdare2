@@ -3,6 +3,10 @@
 > 从空仓库到可用 v1 的分阶段计划。每个里程碑都要有可运行的验收命令，
 > 不以“代码写完”为完成标准。
 
+- 更新时间：2026-11-08
+- 当前进度：M0–M4 核心完成，M5 进行中，M6 未开始
+- 任务级细化与缺陷清单：见 [ROADMAP.md](ROADMAP.md)
+
 ## 0. 实施原则
 
 1. **先打通一条完整链路，再扩命令面。** M0 只做 `s/pd/px/q/?`，但必须走完
@@ -174,12 +178,15 @@ gdare2 -qc 'pd 2 @@f' target
 
 ### 任务
 
-1. `ops/decompile.py`：`pdc`、函数签名、`afv`。
-2. `DecompInterface` 生命周期与超时。
-3. `ops/types.py`：`t`、`ts`、`tu`、`te`、`td`、`tf`、`tt-`。
-4. `ops/comments.py`：`C`、`CC`、`Cd`、`Cb`、`Cp`、`Cr`。
-5. 客户端 C 代码渲染/分页。
-6. `afv` 存储分类与 `DIVERGENCES.md` 对齐。
+1. `ops/decompile.py`：`pdc`、函数签名、`afv`。**（已完成）**
+2. `DecompInterface` 生命周期与超时。**（生命周期完成；超时配置待落实）**
+3. `ops/types.py`：`t`、`ts`、`tu`、`te`、`td`、`tf`、`tc`、`tfc`、`tf-`。
+   **（已完成）**
+4. `ops/comments.py`：`C`、`CC`、`Cd`、`Cb`、`Cp`、`Cr`。**（已完成）**
+5. 客户端 C 代码渲染/分页。**（基本完成；分页待补）**
+6. `afv` 存储分类与 `DIVERGENCES.md` 对齐。**（已完成）**
+7. 类型化读取：`tp`/`tpv`/`tpx`、`t-` 通用类型删除。**（待实现，见 ROADMAP B3）**
+8. 函数签名写入：`afs`、`ApplyFunctionSignatureCmd`。**（已完成）**
 
 ### 验收
 
@@ -231,17 +238,33 @@ gdare2 -w -qc 'e io.cache=true; wx 9090; wc+' /tmp/target
 
 ## 8. M5 兼容与体验（2 周）
 
-### 任务
+> 当前状态：进行中。rc、readline、`-i/-I`、搜索、20 配置矩阵已完成；
+> parity、flags、脚本/变量、部分命令面仍待补。任务级拆分见 ROADMAP Phase A–C。
 
-1. 完整 `~`/`|`/`>`/`` ` `` 移植与测试。
-2. JSON 输出 (`-j`, `j` 后缀)。
+### 8.1 已完成
+
+1. `~`/`|`/`>`/`;`/`@` 基础语义与测试。
+2. JSON 输出（`-j`、`j` 后缀）与常用命令映射。
 3. REPL、readline 历史、Tab 补全。
-4. rc 文件（`~/.gdare2rc`、`$XDG_CONFIG_HOME/gdare2/rc`）。
-5. `-i/-I` 脚本、`S` 脚本。
-6. r2 parity 黄金文件。
-7. 架构矩阵（22 配置）。
-8. 性能优化：函数列表缓存、分页、batch。
-9. 错误信息/退出码审查。
+4. rc 文件（`~/.gdare2rc`、`$XDG_CONFIG_HOME/gdare2/rc`）与 `-N/-NN`。
+5. `-i/-I` 脚本顺序。
+6. 内存搜索 `/`、`/x`、`/w`、`/v[1248]`、`//`、`/+`、`/-`。
+7. 架构矩阵（20 配置）与 `tools/arch_matrix.py`。
+8. `.g/.gstatus/.gsave/.gclose` 基础扩展命令。
+
+### 8.2 待完成
+
+1. **一致性修复**（Phase A）：已完成 instance-id 指纹、架构默认端序、daemon 状态、
+   CLI 空转选项、`--readonly`、分析/反编译超时、只读文案；剩余 `pdi` 布局、
+   `--loader-arg` 校验与 `pdj` 字段集决策。
+2. **命令面收尾**（Phase B）：`f` flags、`S`/`$`/`_`、`x`、`iE`、
+   `t-`/`tp/tpv/tpx`、`/r`/`/p`/`/a`、`cmd.hit`、更多 `@@` 变体、
+   `wa/wi/w6`、`.gsync/.ganalyze/.gexec/.ghelp`。
+3. **parity 基础设施**（Phase C）：`tests/parity/`、`tests/golden/`、
+   `tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 样本黄金文件。
+4. **架构矩阵增强**：每个配置校验 `pd 1` 与 `iI`；目标配置数补齐。
+5. **性能与错误审计**：导入/分析基线、函数列表缓存、分页、退出码检查。
+6. **batch 子 op meta 透传**。
 
 ### 验收
 
@@ -259,7 +282,8 @@ uv run gdare2 -j -qc 'afl' target | jq .
 - 离线测试 < 5s；
 - 真实 Ghidra 测试可重复；
 - parity 差异都有归因；
-- 架构矩阵全部通过。
+- 架构矩阵全部通过；
+- 未实现命令明确报 `NOT_SUPPORTED`，不静默回退。
 
 ## 9. M6 GUI 桥（2–4 周，v2）
 
@@ -291,6 +315,18 @@ uv run gdare2 -j -qc 'afl' target | jq .
 - 复杂度最高，但可复用最多代码。
 
 建议先做方案 2 的原型；若线程模型不可靠，再做方案 1。
+
+### 细化阶段
+
+1. **D1 可行性原型**：在 PyGhidra console 中启动桥；验证线程模型、
+   `PluginTool`/`ProgramManager` 取程序路径、项目所有权。
+2. **D2 桥接器设计**：op 复用方式、调度到 Ghidra 线程、只读/写入策略、
+   失败回退。
+3. **D3 协议与发现**：registry `kind=gui`、`--attach gui:<endpoint>`、
+   `/health` 增加 `kind`。
+4. **D4 MVP 命令**：`pd/pdf/px/afl/afi/axt/pdc/afv/iI`，随后
+   `wx/w0/CC/Cp/afn`。
+5. **D5 验收**：GUI 不冻结、光标不动、写入可见、关闭后客户端明确报错。
 
 ### 验收
 
@@ -347,11 +383,18 @@ uv run gdare2 -j -qc 'afl' target | jq .
 | 类型解析 | M3 | 失败明确报错 |
 | GUI 线程 | M6 | 原型先行；不阻塞 v1 |
 
-## 12. 立即可执行的下一步
+## 12. 当前可执行的下一步
 
-1. 建 Python 3.13 venv，安装本地 PyGhidra wheel。
-2. 写 `tools/spike_pyghidra.py`，验证启动/导入/分析/反编译。
-3. 记录 `/bin/ls` 的导入/分析耗时。
-4. 用 `../vulfirm` 的 ARM32 样本验证裸二进制导入与语言映射。
-5. 把实测结果补进 `RESEARCH.md`。
-6. 开始 M0：复制 idare2 纯客户端模块 + 搭 daemon 骨架。
+> 详细任务、文件、测试和验收见 [ROADMAP.md](ROADMAP.md)。
+
+1. 统一客户端/daemon 的 instance-id 指纹（ROADMAP A1）。
+2. 修正 `ppc/mips/sparc` 默认端序并补别名单测（A2）。
+3. 补 daemon 状态字段与注册表状态更新，修复 `.g/.gstatus`（A3/C4）。
+4. 落实 `-A/-AA`、`--wait`、`--listen`，给手工 `gdare2d` 合理默认值（A4/A5）。
+5. 落实 `--readonly`、分析超时、反编译超时（A6/C7/C8）。
+6. 建立 parity 基础设施与 `/bin/ls` 黄金文件（C1/C2）。
+7. 扩展架构矩阵到 `pd 1`/`iI` 断言（C4）。
+8. 实现 `f` flags 家族（B1）。
+9. 补 `t-`/`tp`/`/r`/`/p`/`/a` 等命令面（B3/B4）。
+10. 记录性能基线并审查错误码/退出码（C6）。
+11. 完成 v1 后再启动 M6 GUI 桥原型（Phase D）。

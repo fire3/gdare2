@@ -13,8 +13,10 @@ r2 风格命令，同时保留一个常驻 daemon，让后续命令可以秒级�
 - **批处理友好**：`-qc`、`-j`、`~` 过滤、`|` 管道、`>` 重定向、`@@` 批量迭代。
 - **真实 Ghidra 回归测试**：离线单测、真实 Ghidra 集成测试与 20 配置架构矩阵分层运行。
 
-当前已完成 M0–M4 核心能力，M5 体验项进行中（rc、补全、搜索、架构矩阵已可用），
-详见 [docs/PROGRESS.md](docs/PROGRESS.md)。
+当前已完成 M0–M4 核心能力，M5 体验项进行中（rc、补全、搜索、架构矩阵已可用；
+parity、flags、脚本/变量与部分命令面待补）。状态见
+[docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
+[docs/ROADMAP.md](docs/ROADMAP.md)。
 
 ## 架构
 
@@ -262,8 +264,10 @@ gdare2 目标不是“假装 Ghidra 是 r2”，而是兼容高频工作流并�
 - 函数名、反汇编文本、反编译输出使用 Ghidra 语义，不伪造 r2 格式。
 - `w` 无参数是“保存程序”，`w <text>` 才是写字符串。
 - `u/U` 是 daemon 内存级字节补丁历史，不是 Ghidra 全局 undo。
-- `search.in=raw`、`wa/wi`、`/r`、`/p`、`/a` 等尚未实现。
+- `search.in=raw`、`wa/wi`、`/r`、`/p`、`/a`、`f` flags、`S` 脚本、`x` 等尚未实现。
 - `-B` 只对裸二进制生效；`sh4` 在 Ghidra 12.2 中无对应语言。
+- `-A/-AA`、`--wait`、`--listen` 已生效；`--assembler=rasm2` 与 `--allow-exec`
+  在对应命令实现前会明确报参数错误。详见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 完整列表见 [docs/DIVERGENCES.md](docs/DIVERGENCES.md)。
 
@@ -281,6 +285,10 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
   .venv/bin/python -m pytest -q -m arch_matrix
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
+
+# r2 parity（待建立，见 docs/ROADMAP.md Phase C）
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
+  .venv/bin/python -m pytest -q -m parity
 ```
 
 目录边界：`src/gdare2` 是客户端，不得导入 `pyghidra`/`jpype`；
@@ -296,3 +304,4 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 - 实施计划：[docs/PLAN.md](docs/PLAN.md)
 - 开发指南：[docs/DEV.md](docs/DEV.md)
 - 开发进度：[docs/PROGRESS.md](docs/PROGRESS.md)
+- 后续路线：[docs/ROADMAP.md](docs/ROADMAP.md)
