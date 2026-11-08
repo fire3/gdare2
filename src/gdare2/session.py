@@ -75,6 +75,12 @@ class _BatchSession:
         return self.eval(text.strip())
 
     def call(self, op: str, **args: Any) -> Any:
+        return self.call_with_meta(op, **args)[0]
+
+    def call_assembler(self, op: str, **args: Any) -> Any:
+        return self.call(op, **args)
+
+    def call_with_meta(self, op: str, **args: Any) -> tuple[Any, dict[str, Any]]:
         if self._responses is None:
             self._calls.append((op, dict(args)))
             raise _ProbeStop
@@ -88,7 +94,8 @@ class _BatchSession:
                 str(error.get("message", "batched op failed")),
                 data=error.get("data"),
             )
-        return item.get("result")
+        meta = item.get("meta")
+        return item.get("result"), meta if isinstance(meta, dict) else {}
 
 
 class Session:
@@ -341,6 +348,9 @@ class Session:
         )
         if not isinstance(replies, list) or len(replies) != len(targets):
             raise GdarError("daemon returned an invalid batch response")
+        warning = _batch_meta_warning(replies)
+        if warning is not None:
+            self.stderr(warning)
 
         lines: list[str] = []
         for target, reply in zip(targets, replies, strict=True):
@@ -412,7 +422,7 @@ class Session:
                 data, mask = text_bytes(text), None
             scope = self.config.get_str("search.in")
             if scope == "raw":
-                payload = self.call(
+                payload, response_meta = self.call_with_meta(
                     "search_raw",
                     data=data,
                     mask=mask,
@@ -422,7 +432,7 @@ class Session:
                     offset=0,
                 )
             else:
-                payload = self.call(
+                payload, response_meta = self.call_with_meta(
                     "search",
                     data=data,
                     mask=mask,
@@ -433,7 +443,7 @@ class Session:
                     scope=scope,
                 )
             hits = [{"addr": int(hit), "size": 0} for hit in payload.get("hits", [])]
-            meta = payload.get("meta") or {}
+            meta = response_meta or payload.get("meta") or {}
             return hits, {
                 "total": int(meta.get("shown", len(hits))),
                 "shown": len(hits),
@@ -553,6 +563,20 @@ class Session:
             return method(op, allow_writes=not self.readonly, **args)
         return self.client.call(op, allow_writes=not self.readonly, **args), {}
 
+    def call_assembler(self, op: str, **args: Any) -> Any:
+        """Assembler ops may need tens of seconds for the first SLEIGH init."""
+        if not hasattr(self.client, "timeout"):
+            return self.call(op, **args)
+        wanted = float(self.config.get_int("ghidra.assemble.timeout"))
+        original = float(self.client.timeout)
+        if wanted <= original:
+            return self.call(op, **args)
+        self.client.timeout = wanted
+        try:
+            return self.call(op, **args)
+        finally:
+            self.client.timeout = original
+
     def commit_write_cache(self) -> None:
         if not self.write_cache:
             return
@@ -578,6 +602,28 @@ class Session:
 
     def json(self, value: Any) -> list[str]:
         return [dumps(value)]
+
+
+def _batch_meta_warning(replies: list[Any]) -> str | None:
+    """Summarize per-item truncation metadata returned by a batch request."""
+    truncated = []
+    for reply in replies:
+        if not isinstance(reply, dict):
+            continue
+        meta = reply.get("meta")
+        if isinstance(meta, dict) and meta.get("truncated"):
+            truncated.append(meta)
+    if not truncated:
+        return None
+    details = []
+    for meta in truncated[:3]:
+        shown = meta.get("shown", "?")
+        limit = meta.get("limit", "?")
+        offset = meta.get("offset", 0)
+        details.append(f"shown {shown} at offset {offset} (limit {limit})")
+    if len(truncated) > 3:
+        details.append(f"and {len(truncated) - 3} more")
+    return f"WARN: {len(truncated)} batched item(s) truncated: " + "; ".join(details)
 
 
 def _parse_iterator(spec: str) -> tuple[str, str | None]:

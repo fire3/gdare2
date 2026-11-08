@@ -34,7 +34,7 @@ def _search_pattern(session, statement):
 def _search_assembly(session, statement):
     if not statement.args.strip():
         raise UsageError("/a needs assembly text")
-    payload = session.call("assemble", ea=session.seek, text=statement.args)
+    payload = session.call_assembler("assemble", ea=session.seek, text=statement.args)
     return _search(session, statement, bytes(payload["bytes"]), None)
 
 
@@ -165,31 +165,25 @@ def _execute(
     lower = int(session.config.get_int("search.from")) or None
     upper = int(session.config.get_int("search.to")) or None
     scope = scope or session.config.get_str("search.in")
-    if scope == "raw":
-        payload = session.call(
-            "search_raw",
-            data=data,
-            mask=mask,
-            from_addr=lower,
-            to_addr=upper,
-            cursor=int(cursor),
-            forward=forward,
-            limit=DEFAULT_LIMIT,
-            offset=0,
-        )
-    else:
-        payload = session.call(
-            "search",
-            data=data,
-            mask=mask,
-            from_addr=lower,
-            to_addr=upper,
-            cursor=int(cursor),
-            forward=forward,
-            limit=DEFAULT_LIMIT,
-            offset=0,
-            scope=scope,
-        )
+    op = "search_raw" if scope == "raw" else "search"
+    args = {
+        "data": data,
+        "mask": mask,
+        "from_addr": lower,
+        "to_addr": upper,
+        "cursor": int(cursor),
+        "forward": forward,
+        "limit": DEFAULT_LIMIT,
+        "offset": 0,
+    }
+    if op == "search":
+        args["scope"] = scope
+    payload, response_meta = session.call_with_meta(op, **args)
+    if not isinstance(payload, dict):
+        payload = {"hits": payload}
+    meta = response_meta or payload.get("meta") or {}
+    if meta:
+        payload["meta"] = meta
     hits = [int(hit) for hit in payload.get("hits", [])]
     if hits:
         session.last_result = hits[0]

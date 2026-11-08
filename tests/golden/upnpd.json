@@ -1,0 +1,2799 @@
+{
+  "meta": {
+    "captured_at": "2026-11-08T13:39:53Z",
+    "gdare2_version": "0.1.0",
+    "ghidra_version": "12.2",
+    "language": "ARM:LE:32:v8",
+    "r2_version": "radare2 6.2.5 +38342 abi:158 @ linux-x86_64",
+    "schema": 1,
+    "target": "../vulfirm/OverFlow/R6700v3/upnpd",
+    "target_sha256": "5b44698596a30f36d83eafc653fe6c251365cce0d438b0eb8f11c455bf52baca"
+  },
+  "r2": {
+    "base": 32768,
+    "bytes": "00b0a0e300e0a0e304109de40d20a0e104202de504002de510c09fe504c02de5",
+    "entry": 48744,
+    "functions": [
+      {
+        "addr": 45804,
+        "name": "sym.imp.device_set_access_control_mode",
+        "size": 12
+      },
+      {
+        "addr": 45816,
+        "name": "sym.imp.SSL_get_fd",
+        "size": 12
+      },
+      {
+        "addr": 45828,
+        "name": "sym.imp.__aeabi_i2f",
+        "size": 12
+      },
+      {
+        "addr": 45840,
+        "name": "sym.imp.abDisableLanEthernetPort",
+        "size": 12
+      },
+      {
+        "addr": 45852,
+        "name": "sym.imp.get_bdg_dev",
+        "size": 12
+      },
+      {
+        "addr": 45864,
+        "name": "sym.imp.bind",
+        "size": 12
+      },
+      {
+        "addr": 45876,
+        "name": "sym.imp.soap_getUnattachedDevByMode",
+        "size": 12
+      },
+      {
+        "addr": 45888,
+        "name": "sym.imp.getMacByString",
+        "size": 12
+      },
+      {
+        "addr": 45900,
+        "name": "sym.imp.addSamainNvramDeviceValue",
+        "size": 12
+      },
+      {
+        "addr": 45912,
+        "name": "sym.imp.json_set_device_value",
+        "size": 12
+      },
+      {
+        "addr": 45924,
+        "name": "sym.imp.itoa",
+        "size": 12
+      },
+      {
+        "addr": 45948,
+        "name": "sym.imp.gethostbyname",
+        "size": 12
+      },
+      {
+        "addr": 45960,
+        "name": "sym.imp.MD5Init",
+        "size": 12
+      },
+      {
+        "addr": 45972,
+        "name": "sym.imp.ERR_print_errors_fp",
+        "size": 12
+      },
+      {
+        "addr": 45984,
+        "name": "sym.imp.acosNvramConfig_invmatch",
+        "size": 12
+      },
+      {
+        "addr": 45996,
+        "name": "sym.imp.isLanSubnet",
+        "size": 12
+      },
+      {
+        "addr": 46008,
+        "name": "sym.imp.calloc",
+        "size": 12
+      },
+      {
+        "addr": 46020,
+        "name": "sym.imp.agApi_natEnable",
+        "size": 12
+      },
+      {
+        "addr": 46032,
+        "name": "sym.imp.strtok_r",
+        "size": 12
+      },
+      {
+        "addr": 46044,
+        "name": "sym.imp.__errno_location",
+        "size": 12
+      },
+      {
+        "addr": 46056,
+        "name": "sym.imp.agApi_NatIsEnabled",
+        "size": 12
+      },
+      {
+        "addr": 46068,
+        "name": "sym.imp.inet_aton",
+        "size": 12
+      },
+      {
+        "addr": 46080,
+        "name": "sym.imp.route_del",
+        "size": 12
+      },
+      {
+        "addr": 46092,
+        "name": "sym.imp.open",
+        "size": 12
+      },
+      {
+        "addr": 46104,
+        "name": "sym.imp.daemon",
+        "size": 12
+      },
+      {
+        "addr": 46116,
+        "name": "sym.imp.acosNvramConfig_match",
+        "size": 12
+      },
+      {
+        "addr": 46128,
+        "name": "sym.imp.strlcpy",
+        "size": 12
+      },
+      {
+        "addr": 46140,
+        "name": "sym.imp.fwrite",
+        "size": 12
+      },
+      {
+        "addr": 46152,
+        "name": "sym.imp.__ctype_b_loc",
+        "size": 12
+      },
+      {
+        "addr": 46164,
+        "name": "sym.imp.toupper",
+        "size": 12
+      },
+      {
+        "addr": 46176,
+        "name": "sym.imp.system",
+        "size": 12
+      },
+      {
+        "addr": 46188,
+        "name": "sym.imp.dhcp_lease_release",
+        "size": 12
+      },
+      {
+        "addr": 46200,
+        "name": "sym.imp.__aeabi_dmul",
+        "size": 12
+      },
+      {
+        "addr": 46212,
+        "name": "sym.imp.isSecWanSubnet",
+        "size": 12
+      },
+      {
+        "addr": 46224,
+        "name": "sym.imp.memcpy",
+        "size": 12
+      },
+      {
+        "addr": 46236,
+        "name": "sym.imp.isValidNetworkAddr",
+        "size": 12
+      },
+      {
+        "addr": 46248,
+        "name": "sym.imp.getStatsFromFile",
+        "size": 12
+      },
+      {
+        "addr": 46260,
+        "name": "sym.imp.agApi_natRuleDel",
+        "size": 12
+      },
+      {
+        "addr": 46272,
+        "name": "sym.imp.circleParentalEnable",
+        "size": 12
+      },
+      {
+        "addr": 46284,
+        "name": "sym.imp.sleep",
+        "size": 12
+      },
+      {
+        "addr": 46296,
+        "name": "sym.imp.realloc",
+        "size": 12
+      },
+      {
+        "addr": 46308,
+        "name": "sym.imp.send",
+        "size": 12
+      },
+      {
+        "addr": 46320,
+        "name": "sym.imp.agApi_natLanHook",
+        "size": 12
+      },
+      {
+        "addr": 46332,
+        "name": "sym.imp.__aeabi_fdiv",
+        "size": 12
+      },
+      {
+        "addr": 46344,
+        "name": "sym.imp.setNewProtoMTU",
+        "size": 12
+      },
+      {
+        "addr": 46356,
+        "name": "sym.imp.get_sta_dev",
+        "size": 12
+      },
+      {
+        "addr": 46368,
+        "name": "sym.imp.OPENSSL_add_all_algorithms_noconf",
+        "size": 12
+      },
+      {
+        "addr": 46380,
+        "name": "sym.imp.strcat",
+        "size": 12
+      },
+      {
+        "addr": 46392,
+        "name": "sym.imp.feof",
+        "size": 12
+      },
+      {
+        "addr": 46404,
+        "name": "sym.imp.remove",
+        "size": 12
+      },
+      {
+        "addr": 46416,
+        "name": "sym.imp.SSL_load_error_strings",
+        "size": 12
+      },
+      {
+        "addr": 46428,
+        "name": "sym.imp.encrypt",
+        "size": 12
+      },
+      {
+        "addr": 46440,
+        "name": "sym.imp.bd_read_sn",
+        "size": 12
+      },
+      {
+        "addr": 46452,
+        "name": "sym.imp.strToLower",
+        "size": 12
+      },
+      {
+        "addr": 46464,
+        "name": "sym.imp.strcasecmp",
+        "size": 12
+      },
+      {
+        "addr": 46476,
+        "name": "sym.imp.strtoul",
+        "size": 12
+      },
+      {
+        "addr": 46488,
+        "name": "sym.imp.malloc",
+        "size": 12
+      },
+      {
+        "addr": 46500,
+        "name": "sym.imp.get_if_stats",
+        "size": 12
+      },
+      {
+        "addr": 46512,
+        "name": "sym.imp.acosNvramConfig_set",
+        "size": 12
+      },
+      {
+        "addr": 46524,
+        "name": "sym.imp.strrchr",
+        "size": 12
+      },
+      {
+        "addr": 46536,
+        "name": "sym.imp.strncmp",
+        "size": 12
+      },
+      {
+        "addr": 46548,
+        "name": "sym.imp.SSL_CTX_check_private_key",
+        "size": 12
+      },
+      {
+        "addr": 46560,
+        "name": "sym.imp.__uClibc_main",
+        "size": 12
+      },
+      {
+        "addr": 46572,
+        "name": "sym.imp.stristr",
+        "size": 12
+      },
+      {
+        "addr": 46584,
+        "name": "sym.imp.agApi_natUnhook",
+        "size": 12
+      },
+      {
+        "addr": 46596,
+        "name": "sym.imp.setkey",
+        "size": 12
+      },
+      {
+        "addr": 46608,
+        "name": "sym.imp.ioctl",
+        "size": 12
+      },
+      {
+        "addr": 46620,
+        "name": "sym.imp.get_firmware_update_folder",
+        "size": 12
+      },
+      {
+        "addr": 46632,
+        "name": "sym.imp.MD5Update",
+        "size": 12
+      },
+      {
+        "addr": 46644,
+        "name": "sym.imp.acosNvramConfig_read",
+        "size": 12
+      },
+      {
+        "addr": 46656,
+        "name": "sym.imp.recv",
+        "size": 12
+      },
+      {
+        "addr": 46668,
+        "name": "sym.imp.strlen",
+        "size": 12
+      },
+      {
+        "addr": 46680,
+        "name": "sym.imp.agApi_feature_set",
+        "size": 12
+      },
+      {
+        "addr": 46692,
+        "name": "sym.imp.setNvramDeviceValue",
+        "size": 12
+      },
+      {
+        "addr": 46704,
+        "name": "sym.imp.stat",
+        "size": 12
+      },
+      {
+        "addr": 46716,
+        "name": "sym.imp.SSL_free",
+        "size": 12
+      },
+      {
+        "addr": 46728,
+        "name": "sym.imp.sendto",
+        "size": 12
+      },
+      {
+        "addr": 46740,
+        "name": "sym.imp.fcntl",
+        "size": 12
+      },
+      {
+        "addr": 46752,
+        "name": "sym.imp.lseek",
+        "size": 12
+      },
+      {
+        "addr": 46764,
+        "name": "sym.imp.agApi_setDeviceListenPort",
+        "size": 12
+      },
+      {
+        "addr": 46776,
+        "name": "sym.imp.snprintf",
+        "size": 12
+      },
+      {
+        "addr": 46788,
+        "name": "sym.imp.inet_ntoa_b",
+        "size": 12
+      },
+      {
+        "addr": 46800,
+        "name": "sym.imp.ether_atoe",
+        "size": 12
+      },
+      {
+        "addr": 46812,
+        "name": "sym.imp.__aeabi_fmul",
+        "size": 12
+      },
+      {
+        "addr": 46824,
+        "name": "sym.imp.dil_readDevIdTable",
+        "size": 12
+      },
+      {
+        "addr": 46836,
+        "name": "sym.imp.route_add",
+        "size": 12
+      },
+      {
+        "addr": 46848,
+        "name": "sym.imp.read",
+        "size": 12
+      },
+      {
+        "addr": 46860,
+        "name": "sym.imp.sys_uptime",
+        "size": 12
+      },
+      {
+        "addr": 46872,
+        "name": "sym.imp.sync_essential_values",
+        "size": 12
+      },
+      {
+        "addr": 46884,
+        "name": "sym.imp.islower",
+        "size": 12
+      },
+      {
+        "addr": 46896,
+        "name": "sym.imp.localtime_r",
+        "size": 12
+      },
+      {
+        "addr": 46908,
+        "name": "sym.imp.getDeviceModelByPriority",
+        "size": 12
+      },
+      {
+        "addr": 46920,
+        "name": "sym.imp.connectWithTimeout",
+        "size": 12
+      },
+      {
+        "addr": 46932,
+        "name": "sym.imp.select",
+        "size": 12
+      },
+      {
+        "addr": 46944,
+        "name": "sym.imp.strncasecmp",
+        "size": 12
+      },
+      {
+        "addr": 46956,
+        "name": "sym.imp.access",
+        "size": 12
+      },
+      {
+        "addr": 46968,
+        "name": "sym.imp.__assert",
+        "size": 12
+      },
+      {
+        "addr": 46980,
+        "name": "sym.imp.sendDataToDevIdApi",
+        "size": 12
+      },
+      {
+        "addr": 46992,
+        "name": "sym.imp.getpid",
+        "size": 12
+      },
+      {
+        "addr": 47004,
+        "name": "sym.imp.wait_for_ppp_to_terminate",
+        "size": 12
+      },
+      {
+        "addr": 47016,
+        "name": "sym.imp.ra_record_time",
+        "size": 12
+      },
+      {
+        "addr": 47028,
+        "name": "sym.imp.__aeabi_ddiv",
+        "size": 12
+      },
+      {
+        "addr": 47040,
+        "name": "sym.imp.update_device_info_to_armor_portal",
+        "size": 12
+      },
+      {
+        "addr": 47052,
+        "name": "sym.imp.sigprocmask",
+        "size": 12
+      },
+      {
+        "addr": 47064,
+        "name": "sym.imp.SSL_CTX_new",
+        "size": 12
+      },
+      {
+        "addr": 47076,
+        "name": "sym.imp.mmap",
+        "size": 12
+      },
+      {
+        "addr": 47088,
+        "name": "sym.imp.strsep",
+        "size": 12
+      },
+      {
+        "addr": 47100,
+        "name": "sym.imp.pclose",
+        "size": 12
+      },
+      {
+        "addr": 47112,
+        "name": "sym.imp.fclose",
+        "size": 12
+      },
+      {
+        "addr": 47124,
+        "name": "sym.imp.create_upgrade_file",
+        "size": 12
+      },
+      {
+        "addr": 47136,
+        "name": "sym.imp.setsockopt",
+        "size": 12
+      },
+      {
+        "addr": 47148,
+        "name": "sym.imp.fread",
+        "size": 12
+      },
+      {
+        "addr": 47160,
+        "name": "sym.imp.MD5Final",
+        "size": 12
+      },
+      {
+        "addr": 47172,
+        "name": "sym.imp.strToUpper",
+        "size": 12
+      },
+      {
+        "addr": 47184,
+        "name": "sym.imp.SSL_read",
+        "size": 12
+      },
+      {
+        "addr": 47196,
+        "name": "sym.imp.strncat",
+        "size": 12
+      },
+      {
+        "addr": 47208,
+        "name": "sym.imp.fopen",
+        "size": 12
+      },
+      {
+        "addr": 47220,
+        "name": "sym.imp.SSL_set_fd",
+        "size": 12
+      },
+      {
+        "addr": 47232,
+        "name": "sym.imp.__aeabi_dadd",
+        "size": 12
+      },
+      {
+        "addr": 47244,
+        "name": "sym.imp.SSL_pending",
+        "size": 12
+      },
+      {
+        "addr": 47256,
+        "name": "sym.imp.del_ac_mac_entry",
+        "size": 12
+      },
+      {
+        "addr": 47268,
+        "name": "sym.imp.time",
+        "size": 12
+      },
+      {
+        "addr": 47280,
+        "name": "sym.imp.disableCTF",
+        "size": 12
+      },
+      {
+        "addr": 47292,
+        "name": "sym.imp.isValidIpAddr",
+        "size": 12
+      },
+      {
+        "addr": 47304,
+        "name": "sym.imp.acosNvramConfig_save",
+        "size": 12
+      },
+      {
+        "addr": 47316,
+        "name": "sym.imp.vprintf",
+        "size": 12
+      },
+      {
+        "addr": 47328,
+        "name": "sym.imp.write",
+        "size": 12
+      },
+      {
+        "addr": 47340,
+        "name": "sym.imp.json_commit",
+        "size": 12
+      },
+      {
+        "addr": 47352,
+        "name": "sym.imp.json_exit",
+        "size": 12
+      },
+      {
+        "addr": 47364,
+        "name": "sym.imp.get_eth_link_status",
+        "size": 12
+      },
+      {
+        "addr": 47376,
+        "name": "sym.imp.close",
+        "size": 12
+      },
+      {
+        "addr": 47388,
+        "name": "sym.imp.fputc",
+        "size": 12
+      },
+      {
+        "addr": 47400,
+        "name": "sym.imp.__aeabi_ui2f",
+        "size": 12
+      },
+      {
+        "addr": 47412,
+        "name": "sym.imp.is_china_specific_support",
+        "size": 12
+      },
+      {
+        "addr": 47424,
+        "name": "sym.imp.__aeabi_f2iz",
+        "size": 12
+      },
+      {
+        "addr": 47436,
+        "name": "sym.imp.dhcp_lease_renew",
+        "size": 12
+      },
+      {
+        "addr": 47448,
+        "name": "sym.imp.shmget",
+        "size": 12
+      },
+      {
+        "addr": 47460,
+        "name": "sym.imp.__aeabi_uidiv",
+        "size": 12
+      },
+      {
+        "addr": 47472,
+        "name": "sym.imp.device_access_control",
+        "size": 12
+      },
+      {
+        "addr": 47484,
+        "name": "sym.imp.fgets",
+        "size": 12
+      },
+      {
+        "addr": 47496,
+        "name": "sym.imp.enableCTF",
+        "size": 12
+      },
+      {
+        "addr": 47508,
+        "name": "sym.imp.sscanf",
+        "size": 12
+      },
+      {
+        "addr": 47520,
+        "name": "sym.imp.shared_set_ra_reboot_reason",
+        "size": 12
+      },
+      {
+        "addr": 47532,
+        "name": "sym.imp.abLanIpWorkaround",
+        "size": 12
+      },
+      {
+        "addr": 47544,
+        "name": "sym.imp.strncpy",
+        "size": 12
+      },
+      {
+        "addr": 47556,
+        "name": "sym.imp.SSLv23_client_method",
+        "size": 12
+      },
+      {
+        "addr": 47568,
+        "name": "sym.imp.getDeviceNameByPriority",
+        "size": 12
+      },
+      {
+        "addr": 47580,
+        "name": "sym.imp.hd_cksum",
+        "size": 12
+      },
+      {
+        "addr": 47592,
+        "name": "sym.imp.shmat",
+        "size": 12
+      },
+      {
+        "addr": 47604,
+        "name": "sym.imp.__aeabi_d2uiz",
+        "size": 12
+      },
+      {
+        "addr": 47616,
+        "name": "sym.imp.sigaddset",
+        "size": 12
+      },
+      {
+        "addr": 47628,
+        "name": "sym.imp.atof",
+        "size": 12
+      },
+      {
+        "addr": 47640,
+        "name": "sym.imp._eval",
+        "size": 12
+      },
+      {
+        "addr": 47652,
+        "name": "sym.imp.fputs",
+        "size": 12
+      },
+      {
+        "addr": 47664,
+        "name": "sym.imp.dnsRedirect_configAccessCtrl",
+        "size": 12
+      },
+      {
+        "addr": 47676,
+        "name": "sym.imp.__aeabi_i2d",
+        "size": 12
+      },
+      {
+        "addr": 47688,
+        "name": "sym.imp.SSL_CTX_use_PrivateKey_file",
+        "size": 12
+      },
+      {
+        "addr": 47700,
+        "name": "sym.imp.SSL_library_init",
+        "size": 12
+      },
+      {
+        "addr": 47712,
+        "name": "sym.imp.unlink",
+        "size": 12
+      },
+      {
+        "addr": 47724,
+        "name": "sym.imp.SSL_CTX_use_certificate_file",
+        "size": 12
+      },
+      {
+        "addr": 47736,
+        "name": "sym.imp.agApi_blankstate_set",
+        "size": 12
+      },
+      {
+        "addr": 47748,
+        "name": "sym.imp.memset",
+        "size": 12
+      },
+      {
+        "addr": 47760,
+        "name": "sym.imp.save_ac_mac_list",
+        "size": 12
+      },
+      {
+        "addr": 47772,
+        "name": "sym.imp.inet_ntoa",
+        "size": 12
+      },
+      {
+        "addr": 47784,
+        "name": "sym.imp.load_ac_mac_list",
+        "size": 12
+      },
+      {
+        "addr": 47796,
+        "name": "sym.imp.soap_getDeviceName",
+        "size": 12
+      },
+      {
+        "addr": 47808,
+        "name": "sym.imp.srandom",
+        "size": 12
+      },
+      {
+        "addr": 47820,
+        "name": "sym.imp.qsort",
+        "size": 12
+      },
+      {
+        "addr": 47832,
+        "name": "sym.imp.perror",
+        "size": 12
+      },
+      {
+        "addr": 47844,
+        "name": "sym.imp.reconfig_wlan",
+        "size": 12
+      },
+      {
+        "addr": 47856,
+        "name": "sym.imp.SSL_CTX_set_cipher_list",
+        "size": 12
+      },
+      {
+        "addr": 47868,
+        "name": "sym.imp.munmap",
+        "size": 12
+      },
+      {
+        "addr": 47880,
+        "name": "sym.imp.relocate_content",
+        "size": 12
+      },
+      {
+        "addr": 47892,
+        "name": "sym.imp.SSL_new",
+        "size": 12
+      },
+      {
+        "addr": 47904,
+        "name": "sym.imp.getTokens",
+        "size": 12
+      },
+      {
+        "addr": 47916,
+        "name": "sym.imp.SSL_write",
+        "size": 12
+      },
+      {
+        "addr": 47928,
+        "name": "sym.imp.fprintf",
+        "size": 12
+      },
+      {
+        "addr": 47940,
+        "name": "sym.imp.__aeabi_f2d",
+        "size": 12
+      },
+      {
+        "addr": 47952,
+        "name": "sym.imp.json_add_device",
+        "size": 12
+      },
+      {
+        "addr": 47964,
+        "name": "sym.imp.ambitWriteLog",
+        "size": 12
+      },
+      {
+        "addr": 47976,
+        "name": "sym.imp.inet_addr",
+        "size": 12
+      },
+      {
+        "addr": 47988,
+        "name": "sym.imp.openDNSParentalEnable",
+        "size": 12
+      },
+      {
+        "addr": 48000,
+        "name": "sym.imp.abort",
+        "size": 12
+      },
+      {
+        "addr": 48012,
+        "name": "sym.imp.memcmp",
+        "size": 12
+      },
+      {
+        "addr": 48024,
+        "name": "sym.imp.recvfrom",
+        "size": 12
+      },
+      {
+        "addr": 48036,
+        "name": "sym.imp.agApi_natHook",
+        "size": 12
+      },
+      {
+        "addr": 48048,
+        "name": "sym.imp.sigemptyset",
+        "size": 12
+      },
+      {
+        "addr": 48060,
+        "name": "sym.imp.sprintf",
+        "size": 12
+      },
+      {
+        "addr": 48072,
+        "name": "sym.imp.soap_getDeviceListByMode",
+        "size": 12
+      },
+      {
+        "addr": 48084,
+        "name": "sym.imp.strlwr",
+        "size": 12
+      },
+      {
+        "addr": 48096,
+        "name": "sym.imp.getNvramDevice",
+        "size": 12
+      },
+      {
+        "addr": 48108,
+        "name": "sym.imp.set_mac_connType",
+        "size": 12
+      },
+      {
+        "addr": 48120,
+        "name": "sym.imp.socket",
+        "size": 12
+      },
+      {
+        "addr": 48132,
+        "name": "sym.imp.fseek",
+        "size": 12
+      },
+      {
+        "addr": 48144,
+        "name": "sym.imp.rand",
+        "size": 12
+      },
+      {
+        "addr": 48156,
+        "name": "sym.imp.acosNvramConfig_get",
+        "size": 12
+      },
+      {
+        "addr": 48168,
+        "name": "sym.imp.strlcat",
+        "size": 12
+      },
+      {
+        "addr": 48180,
+        "name": "sym.imp.json_init",
+        "size": 12
+      },
+      {
+        "addr": 48192,
+        "name": "sym.imp.mtd_write",
+        "size": 12
+      },
+      {
+        "addr": 48204,
+        "name": "sym.imp.__aeabi_ui2d",
+        "size": 12
+      },
+      {
+        "addr": 48216,
+        "name": "sym.imp.SSL_accept",
+        "size": 12
+      },
+      {
+        "addr": 48228,
+        "name": "sym.imp.exit",
+        "size": 12
+      },
+      {
+        "addr": 48240,
+        "name": "sym.imp.get_mac_devName",
+        "size": 12
+      },
+      {
+        "addr": 48252,
+        "name": "sym.imp.check_duplicate_mac",
+        "size": 12
+      },
+      {
+        "addr": 48264,
+        "name": "sym.imp.stricmp",
+        "size": 12
+      },
+      {
+        "addr": 48276,
+        "name": "sym.imp.strstr",
+        "size": 12
+      },
+      {
+        "addr": 48288,
+        "name": "sym.imp.strcmp",
+        "size": 12
+      },
+      {
+        "addr": 48300,
+        "name": "sym.imp.__aeabi_idivmod",
+        "size": 12
+      },
+      {
+        "addr": 48312,
+        "name": "sym.imp.removeAllDevIdNodes",
+        "size": 12
+      },
+      {
+        "addr": 48324,
+        "name": "sym.imp.index",
+        "size": 12
+      },
+      {
+        "addr": 48336,
+        "name": "sym.imp.ftell",
+        "size": 12
+      },
+      {
+        "addr": 48348,
+        "name": "sym.imp.accept",
+        "size": 12
+      },
+      {
+        "addr": 48360,
+        "name": "sym.imp.free",
+        "size": 12
+      },
+      {
+        "addr": 48372,
+        "name": "sym.imp.atoi",
+        "size": 12
+      },
+      {
+        "addr": 48384,
+        "name": "sym.imp.isValidNetmask",
+        "size": 12
+      },
+      {
+        "addr": 48396,
+        "name": "sym.imp.strchr",
+        "size": 12
+      },
+      {
+        "addr": 48408,
+        "name": "sym.imp.get_mac_status",
+        "size": 12
+      },
+      {
+        "addr": 48420,
+        "name": "sym.imp.__aeabi_d2f",
+        "size": 12
+      },
+      {
+        "addr": 48432,
+        "name": "sym.imp.strtoll",
+        "size": 12
+      },
+      {
+        "addr": 48444,
+        "name": "sym.imp.fsync",
+        "size": 12
+      },
+      {
+        "addr": 48456,
+        "name": "sym.imp.SSL_CTX_ctrl",
+        "size": 12
+      },
+      {
+        "addr": 48468,
+        "name": "sym.imp.listen",
+        "size": 12
+      },
+      {
+        "addr": 48480,
+        "name": "sym.imp.printf",
+        "size": 12
+      },
+      {
+        "addr": 48492,
+        "name": "sym.imp.popen",
+        "size": 12
+      },
+      {
+        "addr": 48504,
+        "name": "sym.imp.set_mac_devName",
+        "size": 12
+      },
+      {
+        "addr": 48516,
+        "name": "sym.imp.get_wan_link_status",
+        "size": 12
+      },
+      {
+        "addr": 48528,
+        "name": "sym.imp.puts",
+        "size": 12
+      },
+      {
+        "addr": 48540,
+        "name": "sym.imp.fscanf",
+        "size": 12
+      },
+      {
+        "addr": 48552,
+        "name": "sym.imp.agApi_natRuleAddForUpnp",
+        "size": 12
+      },
+      {
+        "addr": 48564,
+        "name": "sym.imp.bpaloginGetConnectionStatus",
+        "size": 12
+      },
+      {
+        "addr": 48576,
+        "name": "sym.imp.signal",
+        "size": 12
+      },
+      {
+        "addr": 48588,
+        "name": "sym.imp.pppoe_add_wan_default_route",
+        "size": 12
+      },
+      {
+        "addr": 48600,
+        "name": "sym.imp.reboot",
+        "size": 12
+      },
+      {
+        "addr": 48612,
+        "name": "sym.imp.calculate_checksum",
+        "size": 12
+      },
+      {
+        "addr": 48624,
+        "name": "sym.imp.SSL_get_error",
+        "size": 12
+      },
+      {
+        "addr": 48636,
+        "name": "sym.imp.send_ra_fw_upgrade_analytics",
+        "size": 12
+      },
+      {
+        "addr": 48648,
+        "name": "sym.imp.SSL_CTX_free",
+        "size": 12
+      },
+      {
+        "addr": 48660,
+        "name": "sym.imp.set_mac_status",
+        "size": 12
+      },
+      {
+        "addr": 48672,
+        "name": "sym.imp.remove_running_modules",
+        "size": 12
+      },
+      {
+        "addr": 48684,
+        "name": "sym.imp.SSLv23_server_method",
+        "size": 12
+      },
+      {
+        "addr": 48696,
+        "name": "sym.imp.strcpy",
+        "size": 12
+      },
+      {
+        "addr": 48708,
+        "name": "sym.imp.agApi_natDisable",
+        "size": 12
+      },
+      {
+        "addr": 48720,
+        "name": "sym.imp.kill",
+        "size": 12
+      },
+      {
+        "addr": 48744,
+        "name": "entry0",
+        "size": 44
+      },
+      {
+        "addr": 250768,
+        "name": "sym._fini",
+        "size": 16
+      },
+      {
+        "addr": 152168,
+        "name": "main",
+        "size": 452
+      },
+      {
+        "addr": 45768,
+        "name": "sym._init",
+        "size": 16
+      },
+      {
+        "addr": 194192,
+        "name": "sym.config_access_control",
+        "size": 40
+      },
+      {
+        "addr": 194236,
+        "name": "sym.deviceAccessControlInit",
+        "size": 68
+      },
+      {
+        "addr": 194188,
+        "name": "sym.deviceAccessControlSetMode",
+        "size": 4
+      },
+      {
+        "addr": 203860,
+        "name": "sym.soap_saveAttachedDevStatus",
+        "size": 332
+      },
+      {
+        "addr": 48872,
+        "name": "entry.init0",
+        "size": 64
+      },
+      {
+        "addr": 48804,
+        "name": "entry.fini0",
+        "size": 56
+      },
+      {
+        "addr": 48732,
+        "name": "loc.imp.__deregister_frame_info",
+        "size": 12
+      },
+      {
+        "addr": 45936,
+        "name": "loc.imp.__register_frame_info",
+        "size": 12
+      },
+      {
+        "addr": 49936,
+        "name": "fcn.0000c310",
+        "size": 64
+      },
+      {
+        "addr": 53960,
+        "name": "fcn.0000d2c8",
+        "size": 164
+      },
+      {
+        "addr": 54564,
+        "name": "fcn.0000d524",
+        "size": 248
+      },
+      {
+        "addr": 54824,
+        "name": "fcn.0000d628",
+        "size": 444
+      },
+      {
+        "addr": 108324,
+        "name": "fcn.0001a724",
+        "size": 348
+      },
+      {
+        "addr": 59752,
+        "name": "fcn.0000e968",
+        "size": 648
+      },
+      {
+        "addr": 60424,
+        "name": "fcn.0000ec08",
+        "size": 428
+      },
+      {
+        "addr": 162328,
+        "name": "fcn.00027a18",
+        "size": 592
+      },
+      {
+        "addr": 50004,
+        "name": "fcn.0000c354",
+        "size": 2920
+      },
+      {
+        "addr": 67272,
+        "name": "fcn.000106c8",
+        "size": 236
+      },
+      {
+        "addr": 75000,
+        "name": "fcn.000124f8",
+        "size": 252
+      },
+      {
+        "addr": 154116,
+        "name": "fcn.00025a04",
+        "size": 92
+      },
+      {
+        "addr": 154248,
+        "name": "fcn.00025a88",
+        "size": 144
+      },
+      {
+        "addr": 58792,
+        "name": "fcn.0000e5a8",
+        "size": 524
+      },
+      {
+        "addr": 160684,
+        "name": "sub.strcpy",
+        "size": 16
+      },
+      {
+        "addr": 48956,
+        "name": "fcn.0000bf3c",
+        "size": 92
+      },
+      {
+        "addr": 49076,
+        "name": "fcn.0000bfb4",
+        "size": 12
+      },
+      {
+        "addr": 89448,
+        "name": "fcn.00015d68",
+        "size": 80
+      },
+      {
+        "addr": 91436,
+        "name": "fcn.0001652c",
+        "size": 220
+      },
+      {
+        "addr": 93292,
+        "name": "fcn.00016c6c",
+        "size": 60
+      },
+      {
+        "addr": 96416,
+        "name": "fcn.000178a0",
+        "size": 972
+      },
+      {
+        "addr": 80432,
+        "name": "fcn.00013a30",
+        "size": 304
+      },
+      {
+        "addr": 98596,
+        "name": "fcn.00018124",
+        "size": 48
+      },
+      {
+        "addr": 98704,
+        "name": "fcn.00018190",
+        "size": 356
+      },
+      {
+        "addr": 98332,
+        "name": "fcn.0001801c",
+        "size": 220
+      },
+      {
+        "addr": 100136,
+        "name": "fcn.00018728",
+        "size": 260
+      },
+      {
+        "addr": 99500,
+        "name": "fcn.000184ac",
+        "size": 456
+      },
+      {
+        "addr": 99956,
+        "name": "fcn.00018674",
+        "size": 68
+      },
+      {
+        "addr": 194496,
+        "name": "fcn.0002f7c0",
+        "size": 340
+      },
+      {
+        "addr": 197232,
+        "name": "fcn.00030270",
+        "size": 2152
+      },
+      {
+        "addr": 97540,
+        "name": "fcn.00017d04",
+        "size": 740
+      },
+      {
+        "addr": 99116,
+        "name": "fcn.0001832c",
+        "size": 328
+      },
+      {
+        "addr": 100436,
+        "name": "fcn.00018854",
+        "size": 1548
+      },
+      {
+        "addr": 102660,
+        "name": "fcn.00019104",
+        "size": 192
+      },
+      {
+        "addr": 102852,
+        "name": "fcn.000191c4",
+        "size": 1536
+      },
+      {
+        "addr": 104488,
+        "name": "fcn.00019828",
+        "size": 428
+      },
+      {
+        "addr": 104968,
+        "name": "fcn.00019a08",
+        "size": 392
+      },
+      {
+        "addr": 54136,
+        "name": "fcn.0000d378",
+        "size": 400
+      },
+      {
+        "addr": 109588,
+        "name": "fcn.0001ac14",
+        "size": 184
+      },
+      {
+        "addr": 109444,
+        "name": "fcn.0001ab84",
+        "size": 124
+      },
+      {
+        "addr": 109772,
+        "name": "fcn.0001accc",
+        "size": 40
+      },
+      {
+        "addr": 109812,
+        "name": "fcn.0001acf4",
+        "size": 1052
+      },
+      {
+        "addr": 123504,
+        "name": "fcn.0001e270",
+        "size": 996
+      },
+      {
+        "addr": 164108,
+        "name": "fcn.0002810c",
+        "size": 280
+      },
+      {
+        "addr": 143016,
+        "name": "fcn.00022ea8",
+        "size": 620
+      },
+      {
+        "addr": 164428,
+        "name": "fcn.0002824c",
+        "size": 336
+      },
+      {
+        "addr": 110948,
+        "name": "fcn.0001b164",
+        "size": 528
+      },
+      {
+        "addr": 108844,
+        "name": "fcn.0001a92c",
+        "size": 236
+      },
+      {
+        "addr": 123156,
+        "name": "fcn.0001e114",
+        "size": 100
+      },
+      {
+        "addr": 109108,
+        "name": "fcn.0001aa34",
+        "size": 336
+      },
+      {
+        "addr": 111528,
+        "name": "fcn.0001b3a8",
+        "size": 600
+      },
+      {
+        "addr": 163988,
+        "name": "fcn.00028094",
+        "size": 108
+      },
+      {
+        "addr": 108692,
+        "name": "fcn.0001a894",
+        "size": 136
+      },
+      {
+        "addr": 148052,
+        "name": "fcn.00024254",
+        "size": 240
+      },
+      {
+        "addr": 147724,
+        "name": "fcn.0002410c",
+        "size": 316
+      },
+      {
+        "addr": 147060,
+        "name": "fcn.00023e74",
+        "size": 148
+      },
+      {
+        "addr": 146232,
+        "name": "fcn.00023b38",
+        "size": 484
+      },
+      {
+        "addr": 143680,
+        "name": "fcn.00023140",
+        "size": 824
+      },
+      {
+        "addr": 115956,
+        "name": "fcn.0001c4f4",
+        "size": 740
+      },
+      {
+        "addr": 147284,
+        "name": "fcn.00023f54",
+        "size": 148
+      },
+      {
+        "addr": 145924,
+        "name": "fcn.00023a04",
+        "size": 292
+      },
+      {
+        "addr": 147508,
+        "name": "fcn.00024034",
+        "size": 140
+      },
+      {
+        "addr": 145708,
+        "name": "fcn.0002392c",
+        "size": 216
+      },
+      {
+        "addr": 147656,
+        "name": "fcn.000240c8",
+        "size": 964
+      },
+      {
+        "addr": 147440,
+        "name": "fcn.00023ff0",
+        "size": 60
+      },
+      {
+        "addr": 147216,
+        "name": "fcn.00023f10",
+        "size": 420
+      },
+      {
+        "addr": 150052,
+        "name": "fcn.00024a24",
+        "size": 1372
+      },
+      {
+        "addr": 148300,
+        "name": "fcn.0002434c",
+        "size": 224
+      },
+      {
+        "addr": 49652,
+        "name": "fcn.0000c1f4",
+        "size": 128
+      },
+      {
+        "addr": 131020,
+        "name": "fcn.0001ffcc",
+        "size": 200
+      },
+      {
+        "addr": 127640,
+        "name": "fcn.0001f298",
+        "size": 44
+      },
+      {
+        "addr": 134472,
+        "name": "fcn.00020d48",
+        "size": 56
+      },
+      {
+        "addr": 134272,
+        "name": "fcn.00020c80",
+        "size": 84
+      },
+      {
+        "addr": 146968,
+        "name": "fcn.00023e18",
+        "size": 24
+      },
+      {
+        "addr": 146804,
+        "name": "fcn.00023d74",
+        "size": 48
+      },
+      {
+        "addr": 146996,
+        "name": "fcn.00023e34",
+        "size": 28
+      },
+      {
+        "addr": 49336,
+        "name": "fcn.0000c0b8",
+        "size": 80
+      },
+      {
+        "addr": 117900,
+        "name": "fcn.0001cc8c",
+        "size": 92
+      },
+      {
+        "addr": 116860,
+        "name": "fcn.0001c87c",
+        "size": 952
+      },
+      {
+        "addr": 53068,
+        "name": "fcn.0000cf4c",
+        "size": 848
+      },
+      {
+        "addr": 49416,
+        "name": "fcn.0000c108",
+        "size": 76
+      },
+      {
+        "addr": 119536,
+        "name": "fcn.0001d2f0",
+        "size": 92
+      },
+      {
+        "addr": 118460,
+        "name": "fcn.0001cebc",
+        "size": 288
+      },
+      {
+        "addr": 118000,
+        "name": "fcn.0001ccf0",
+        "size": 408
+      },
+      {
+        "addr": 118780,
+        "name": "fcn.0001cffc",
+        "size": 700
+      },
+      {
+        "addr": 122452,
+        "name": "fcn.0001de54",
+        "size": 652
+      },
+      {
+        "addr": 119636,
+        "name": "fcn.0001d354",
+        "size": 2720
+      },
+      {
+        "addr": 130008,
+        "name": "fcn.0001fbd8",
+        "size": 68
+      },
+      {
+        "addr": 131720,
+        "name": "fcn.00020288",
+        "size": 92
+      },
+      {
+        "addr": 131404,
+        "name": "fcn.0002014c",
+        "size": 280
+      },
+      {
+        "addr": 131252,
+        "name": "fcn.000200b4",
+        "size": 136
+      },
+      {
+        "addr": 131820,
+        "name": "fcn.000202ec",
+        "size": 232
+      },
+      {
+        "addr": 128568,
+        "name": "fcn.0001f638",
+        "size": 1292
+      },
+      {
+        "addr": 124576,
+        "name": "fcn.0001e6a0",
+        "size": 1180
+      },
+      {
+        "addr": 49780,
+        "name": "fcn.0000c274",
+        "size": 136
+      },
+      {
+        "addr": 128092,
+        "name": "fcn.0001f45c",
+        "size": 476
+      },
+      {
+        "addr": 123264,
+        "name": "fcn.0001e180",
+        "size": 220
+      },
+      {
+        "addr": 134532,
+        "name": "fcn.00020d84",
+        "size": 248
+      },
+      {
+        "addr": 130084,
+        "name": "fcn.0001fc24",
+        "size": 180
+      },
+      {
+        "addr": 132064,
+        "name": "fcn.000203e0",
+        "size": 1416
+      },
+      {
+        "addr": 130596,
+        "name": "fcn.0001fe24",
+        "size": 140
+      },
+      {
+        "addr": 133560,
+        "name": "fcn.000209b8",
+        "size": 664
+      },
+      {
+        "addr": 130884,
+        "name": "fcn.0001ff44",
+        "size": 124
+      },
+      {
+        "addr": 125824,
+        "name": "fcn.0001eb80",
+        "size": 860
+      },
+      {
+        "addr": 126768,
+        "name": "fcn.0001ef30",
+        "size": 788
+      },
+      {
+        "addr": 130748,
+        "name": "fcn.0001febc",
+        "size": 124
+      },
+      {
+        "addr": 130444,
+        "name": "fcn.0001fd8c",
+        "size": 140
+      },
+      {
+        "addr": 130292,
+        "name": "fcn.0001fcf4",
+        "size": 140
+      },
+      {
+        "addr": 127692,
+        "name": "fcn.0001f2cc",
+        "size": 348
+      },
+      {
+        "addr": 134372,
+        "name": "fcn.00020ce4",
+        "size": 84
+      },
+      {
+        "addr": 139448,
+        "name": "fcn.000220b8",
+        "size": 228
+      },
+      {
+        "addr": 141132,
+        "name": "fcn.0002274c",
+        "size": 392
+      },
+      {
+        "addr": 139700,
+        "name": "fcn.000221b4",
+        "size": 220
+      },
+      {
+        "addr": 140364,
+        "name": "fcn.0002244c",
+        "size": 332
+      },
+      {
+        "addr": 140724,
+        "name": "fcn.000225b4",
+        "size": 164
+      },
+      {
+        "addr": 141584,
+        "name": "fcn.00022910",
+        "size": 152
+      },
+      {
+        "addr": 139956,
+        "name": "fcn.000222b4",
+        "size": 156
+      },
+      {
+        "addr": 247684,
+        "name": "fcn.0003c784",
+        "size": 2796
+      },
+      {
+        "addr": 142936,
+        "name": "fcn.00022e58",
+        "size": 72
+      },
+      {
+        "addr": 137708,
+        "name": "fcn.000219ec",
+        "size": 572
+      },
+      {
+        "addr": 138348,
+        "name": "fcn.00021c6c",
+        "size": 696
+      },
+      {
+        "addr": 134872,
+        "name": "fcn.00020ed8",
+        "size": 2608
+      },
+      {
+        "addr": 139116,
+        "name": "fcn.00021f6c",
+        "size": 300
+      },
+      {
+        "addr": 142144,
+        "name": "fcn.00022b40",
+        "size": 728
+      },
+      {
+        "addr": 144788,
+        "name": "sub.sprintf",
+        "size": 20
+      },
+      {
+        "addr": 144584,
+        "name": "fcn.000234c8",
+        "size": 4
+      },
+      {
+        "addr": 146908,
+        "name": "fcn.00023ddc",
+        "size": 28
+      },
+      {
+        "addr": 146940,
+        "name": "fcn.00023dfc",
+        "size": 24
+      },
+      {
+        "addr": 147028,
+        "name": "fcn.00023e54",
+        "size": 28
+      },
+      {
+        "addr": 145292,
+        "name": "fcn.0002378c",
+        "size": 228
+      },
+      {
+        "addr": 144588,
+        "name": "fcn.000234cc",
+        "size": 176
+      },
+      {
+        "addr": 144812,
+        "name": "fcn.000235ac",
+        "size": 440
+      },
+      {
+        "addr": 149712,
+        "name": "fcn.000248d0",
+        "size": 328
+      },
+      {
+        "addr": 148532,
+        "name": "fcn.00024434",
+        "size": 604
+      },
+      {
+        "addr": 149152,
+        "name": "fcn.000246a0",
+        "size": 544
+      },
+      {
+        "addr": 151604,
+        "name": "fcn.00025034",
+        "size": 496
+      },
+      {
+        "addr": 55292,
+        "name": "fcn.0000d7fc",
+        "size": 3284
+      },
+      {
+        "addr": 60888,
+        "name": "fcn.0000edd8",
+        "size": 376
+      },
+      {
+        "addr": 112176,
+        "name": "fcn.0001b630",
+        "size": 3608
+      },
+      {
+        "addr": 152708,
+        "name": "fcn.00025484",
+        "size": 64
+      },
+      {
+        "addr": 153424,
+        "name": "fcn.00025750",
+        "size": 200
+      },
+      {
+        "addr": 152964,
+        "name": "fcn.00025584",
+        "size": 448
+      },
+      {
+        "addr": 154776,
+        "name": "fcn.00025c98",
+        "size": 500
+      },
+      {
+        "addr": 155896,
+        "name": "fcn.000260f8",
+        "size": 300
+      },
+      {
+        "addr": 153648,
+        "name": "fcn.00025830",
+        "size": 436
+      },
+      {
+        "addr": 189468,
+        "name": "fcn.0002e41c",
+        "size": 412
+      },
+      {
+        "addr": 156212,
+        "name": "fcn.00026234",
+        "size": 184
+      },
+      {
+        "addr": 160420,
+        "name": "fcn.000272a4",
+        "size": 156
+      },
+      {
+        "addr": 161260,
+        "name": "fcn.000275ec",
+        "size": 160
+      },
+      {
+        "addr": 154408,
+        "name": "fcn.00025b28",
+        "size": 364
+      },
+      {
+        "addr": 166904,
+        "name": "fcn.00028bf8",
+        "size": 768
+      },
+      {
+        "addr": 96348,
+        "name": "fcn.0001785c",
+        "size": 68
+      },
+      {
+        "addr": 160700,
+        "name": "fcn.000273bc",
+        "size": 92
+      },
+      {
+        "addr": 155284,
+        "name": "fcn.00025e94",
+        "size": 604
+      },
+      {
+        "addr": 161116,
+        "name": "fcn.0002755c",
+        "size": 136
+      },
+      {
+        "addr": 166188,
+        "name": "fcn.0002892c",
+        "size": 104
+      },
+      {
+        "addr": 164804,
+        "name": "fcn.000283c4",
+        "size": 56
+      },
+      {
+        "addr": 161428,
+        "name": "fcn.00027694",
+        "size": 244
+      },
+      {
+        "addr": 164860,
+        "name": "fcn.000283fc",
+        "size": 40
+      },
+      {
+        "addr": 49916,
+        "name": "fcn.0000c2fc",
+        "size": 20
+      },
+      {
+        "addr": 186892,
+        "name": "fcn.0002da0c",
+        "size": 176
+      },
+      {
+        "addr": 163136,
+        "name": "fcn.00027d40",
+        "size": 272
+      },
+      {
+        "addr": 162992,
+        "name": "fcn.00027cb0",
+        "size": 144
+      },
+      {
+        "addr": 189920,
+        "name": "fcn.0002e5e0",
+        "size": 152
+      },
+      {
+        "addr": 185056,
+        "name": "fcn.0002d2e0",
+        "size": 84
+      },
+      {
+        "addr": 190084,
+        "name": "fcn.0002e684",
+        "size": 316
+      },
+      {
+        "addr": 191724,
+        "name": "fcn.0002ecec",
+        "size": 148
+      },
+      {
+        "addr": 184276,
+        "name": "fcn.0002cfd4",
+        "size": 368
+      },
+      {
+        "addr": 182076,
+        "name": "fcn.0002c73c",
+        "size": 80
+      },
+      {
+        "addr": 164904,
+        "name": "fcn.00028428",
+        "size": 152
+      },
+      {
+        "addr": 98664,
+        "name": "fcn.00018168",
+        "size": 40
+      },
+      {
+        "addr": 194864,
+        "name": "fcn.0002f930",
+        "size": 452
+      },
+      {
+        "addr": 194316,
+        "name": "fcn.0002f70c",
+        "size": 180
+      },
+      {
+        "addr": 195360,
+        "name": "fcn.0002fb20",
+        "size": 1760
+      },
+      {
+        "addr": 184672,
+        "name": "fcn.0002d160",
+        "size": 324
+      },
+      {
+        "addr": 202064,
+        "name": "fcn.00031550",
+        "size": 588
+      },
+      {
+        "addr": 200224,
+        "name": "fcn.00030e20",
+        "size": 1724
+      },
+      {
+        "addr": 163408,
+        "name": "fcn.00027e50",
+        "size": 260
+      },
+      {
+        "addr": 167712,
+        "name": "fcn.00028f20",
+        "size": 280
+      },
+      {
+        "addr": 161108,
+        "name": "fcn.00027554",
+        "size": 4
+      },
+      {
+        "addr": 160668,
+        "name": "sub.strcpy_2739c",
+        "size": 16
+      },
+      {
+        "addr": 165060,
+        "name": "fcn.000284c4",
+        "size": 136
+      },
+      {
+        "addr": 165196,
+        "name": "fcn.0002854c",
+        "size": 100
+      },
+      {
+        "addr": 161112,
+        "name": "fcn.00027558",
+        "size": 4
+      },
+      {
+        "addr": 160888,
+        "name": "fcn.00027478",
+        "size": 96
+      },
+      {
+        "addr": 160592,
+        "name": "fcn.00027350",
+        "size": 76
+      },
+      {
+        "addr": 160984,
+        "name": "fcn.000274d8",
+        "size": 120
+      },
+      {
+        "addr": 166344,
+        "name": "fcn.000289c8",
+        "size": 508
+      },
+      {
+        "addr": 177956,
+        "name": "fcn.0002b724",
+        "size": 456
+      },
+      {
+        "addr": 161692,
+        "name": "fcn.0002779c",
+        "size": 212
+      },
+      {
+        "addr": 161928,
+        "name": "fcn.00027888",
+        "size": 364
+      },
+      {
+        "addr": 199572,
+        "name": "fcn.00030b94",
+        "size": 328
+      },
+      {
+        "addr": 177068,
+        "name": "fcn.0002b3ac",
+        "size": 820
+      },
+      {
+        "addr": 176516,
+        "name": "fcn.0002b184",
+        "size": 512
+      },
+      {
+        "addr": 174008,
+        "name": "fcn.0002a7b8",
+        "size": 400
+      },
+      {
+        "addr": 182848,
+        "name": "fcn.0002ca40",
+        "size": 468
+      },
+      {
+        "addr": 182244,
+        "name": "fcn.0002c7e4",
+        "size": 40
+      },
+      {
+        "addr": 168004,
+        "name": "fcn.00029044",
+        "size": 216
+      },
+      {
+        "addr": 172992,
+        "name": "fcn.0002a3c0",
+        "size": 512
+      },
+      {
+        "addr": 179840,
+        "name": "fcn.0002be80",
+        "size": 964
+      },
+      {
+        "addr": 179304,
+        "name": "fcn.0002bc68",
+        "size": 476
+      },
+      {
+        "addr": 178812,
+        "name": "fcn.0002ba7c",
+        "size": 428
+      },
+      {
+        "addr": 169760,
+        "name": "fcn.00029720",
+        "size": 724
+      },
+      {
+        "addr": 202708,
+        "name": "fcn.000317d4",
+        "size": 1080
+      },
+      {
+        "addr": 178444,
+        "name": "fcn.0002b90c",
+        "size": 340
+      },
+      {
+        "addr": 174452,
+        "name": "fcn.0002a974",
+        "size": 780
+      },
+      {
+        "addr": 166292,
+        "name": "fcn.00028994",
+        "size": 44
+      },
+      {
+        "addr": 187068,
+        "name": "fcn.0002dabc",
+        "size": 1368
+      },
+      {
+        "addr": 175408,
+        "name": "fcn.0002ad30",
+        "size": 1052
+      },
+      {
+        "addr": 170996,
+        "name": "fcn.00029bf4",
+        "size": 440
+      },
+      {
+        "addr": 173564,
+        "name": "fcn.0002a5fc",
+        "size": 400
+      },
+      {
+        "addr": 182644,
+        "name": "fcn.0002c974",
+        "size": 180
+      },
+      {
+        "addr": 168256,
+        "name": "fcn.00029140",
+        "size": 1372
+      },
+      {
+        "addr": 165296,
+        "name": "fcn.000285b0",
+        "size": 292
+      },
+      {
+        "addr": 165608,
+        "name": "fcn.000286e8",
+        "size": 528
+      },
+      {
+        "addr": 183388,
+        "name": "fcn.0002cc5c",
+        "size": 820
+      },
+      {
+        "addr": 171496,
+        "name": "fcn.00029de8",
+        "size": 440
+      },
+      {
+        "addr": 185148,
+        "name": "fcn.0002d33c",
+        "size": 308
+      },
+      {
+        "addr": 185480,
+        "name": "fcn.0002d488",
+        "size": 576
+      },
+      {
+        "addr": 172496,
+        "name": "fcn.0002a1d0",
+        "size": 452
+      },
+      {
+        "addr": 171996,
+        "name": "fcn.00029fdc",
+        "size": 440
+      },
+      {
+        "addr": 170536,
+        "name": "fcn.00029a28",
+        "size": 420
+      },
+      {
+        "addr": 188996,
+        "name": "fcn.0002e244",
+        "size": 432
+      },
+      {
+        "addr": 188488,
+        "name": "fcn.0002e048",
+        "size": 472
+      },
+      {
+        "addr": 182284,
+        "name": "fcn.0002c80c",
+        "size": 316
+      },
+      {
+        "addr": 156400,
+        "name": "fcn.000262f0",
+        "size": 3744
+      },
+      {
+        "addr": 204196,
+        "name": "fcn.00031da4",
+        "size": 31360
+      },
+      {
+        "addr": 186112,
+        "name": "fcn.0002d700",
+        "size": 684
+      },
+      {
+        "addr": 181012,
+        "name": "fcn.0002c314",
+        "size": 980
+      },
+      {
+        "addr": 191872,
+        "name": "fcn.0002ed80",
+        "size": 708
+      },
+      {
+        "addr": 190908,
+        "name": "fcn.0002e9bc",
+        "size": 448
+      },
+      {
+        "addr": 190668,
+        "name": "fcn.0002e8cc",
+        "size": 236
+      },
+      {
+        "addr": 182156,
+        "name": "fcn.0002c78c",
+        "size": 84
+      },
+      {
+        "addr": 190408,
+        "name": "fcn.0002e7c8",
+        "size": 252
+      },
+      {
+        "addr": 191372,
+        "name": "fcn.0002eb8c",
+        "size": 344
+      },
+      {
+        "addr": 235556,
+        "name": "fcn.00039824",
+        "size": 11860
+      },
+      {
+        "addr": 45784,
+        "name": "fcn.0000b2d8",
+        "size": 16
+      },
+      {
+        "addr": 65164,
+        "name": "fcn.0000fe8c",
+        "size": 28
+      }
+    ],
+    "info": {
+      "arch": "arm",
+      "baddr": 32768,
+      "binsz": 526854,
+      "bintype": "elf",
+      "bits": 32,
+      "endian": "little"
+    },
+    "pd": [
+      {
+        "addr": 48744,
+        "bytes": "00b0a0e3",
+        "disasm": "mov fp, 0",
+        "size": 4
+      },
+      {
+        "addr": 48748,
+        "bytes": "00e0a0e3",
+        "disasm": "mov lr, 0",
+        "size": 4
+      },
+      {
+        "addr": 48752,
+        "bytes": "04109de4",
+        "disasm": "pop {r1}",
+        "size": 4
+      },
+      {
+        "addr": 48756,
+        "bytes": "0d20a0e1",
+        "disasm": "mov r2, sp",
+        "size": 4
+      },
+      {
+        "addr": 48760,
+        "bytes": "04202de5",
+        "disasm": "str r2, [sp, -4]!",
+        "size": 4
+      },
+      {
+        "addr": 48764,
+        "bytes": "04002de5",
+        "disasm": "str r0, [sp, -4]!",
+        "size": 4
+      },
+      {
+        "addr": 48768,
+        "bytes": "10c09fe5",
+        "disasm": "ldr ip, sym._fini",
+        "size": 4
+      },
+      {
+        "addr": 48772,
+        "bytes": "04c02de5",
+        "disasm": "str ip, [sp, -4]!",
+        "size": 4
+      }
+    ],
+    "pd_back": [
+      {
+        "addr": 48712,
+        "bytes": "47ca8ce2",
+        "size": 4,
+        "symbol": "",
+        "text": "add ip, ip, 0x47000"
+      },
+      {
+        "addr": 48720,
+        "bytes": "00c68fe2",
+        "size": 4,
+        "symbol": "",
+        "text": "add ip, pc, 0, 12"
+      },
+      {
+        "addr": 48724,
+        "bytes": "47ca8ce2",
+        "size": 4,
+        "symbol": "",
+        "text": "add ip, ip, 0x47000"
+      },
+      {
+        "addr": 48732,
+        "bytes": "00c68fe2",
+        "size": 4,
+        "symbol": "",
+        "text": "add ip, pc, 0, 12"
+      },
+      {
+        "addr": 48736,
+        "bytes": "47ca8ce2",
+        "size": 4,
+        "symbol": "",
+        "text": "add ip, ip, 0x47000"
+      }
+    ],
+    "pdi": [
+      {
+        "addr": 48744,
+        "bytes": "00b0a0e3",
+        "size": 4,
+        "symbol": "",
+        "text": "mov fp, 0"
+      },
+      {
+        "addr": 48748,
+        "bytes": "00e0a0e3",
+        "size": 4,
+        "symbol": "",
+        "text": "mov lr, 0"
+      },
+      {
+        "addr": 48752,
+        "bytes": "04109de4",
+        "size": 4,
+        "symbol": "",
+        "text": "pop {r1}"
+      },
+      {
+        "addr": 48756,
+        "bytes": "0d20a0e1",
+        "size": 4,
+        "symbol": "",
+        "text": "mov r2, sp"
+      },
+      {
+        "addr": 48760,
+        "bytes": "04202de5",
+        "size": 4,
+        "symbol": "",
+        "text": "str r2, [sp, -4]!"
+      },
+      {
+        "addr": 48764,
+        "bytes": "04002de5",
+        "size": 4,
+        "symbol": "",
+        "text": "str r0, [sp, -4]!"
+      },
+      {
+        "addr": 48768,
+        "bytes": "10c09fe5",
+        "size": 4,
+        "symbol": "",
+        "text": "ldr ip, [pc, 0x10]"
+      },
+      {
+        "addr": 48772,
+        "bytes": "04c02de5",
+        "size": 4,
+        "symbol": "",
+        "text": "str ip, [sp, -4]!"
+      }
+    ],
+    "pdl_lines": [
+      "4",
+      "4",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ],
+    "sections": [
+      {
+        "name": "",
+        "perm": "----",
+        "size": 0,
+        "vaddr": 0
+      },
+      {
+        "name": ".interp",
+        "perm": "-r--",
+        "size": 20,
+        "vaddr": 33012
+      },
+      {
+        "name": ".hash",
+        "perm": "-r--",
+        "size": 2152,
+        "vaddr": 33032
+      },
+      {
+        "name": ".dynsym",
+        "perm": "-r--",
+        "size": 4368,
+        "vaddr": 35184
+      },
+      {
+        "name": ".dynstr",
+        "perm": "-r--",
+        "size": 3660,
+        "vaddr": 39552
+      },
+      {
+        "name": ".gnu.version",
+        "perm": "-r--",
+        "size": 546,
+        "vaddr": 43212
+      },
+      {
+        "name": ".gnu.version_r",
+        "perm": "-r--",
+        "size": 32,
+        "vaddr": 43760
+      },
+      {
+        "name": ".rel.dyn",
+        "perm": "-r--",
+        "size": 16,
+        "vaddr": 43792
+      },
+      {
+        "name": ".rel.plt",
+        "perm": "-r--",
+        "size": 1960,
+        "vaddr": 43808
+      },
+      {
+        "name": ".init",
+        "perm": "-r-x",
+        "size": 16,
+        "vaddr": 45768
+      },
+      {
+        "name": ".plt",
+        "perm": "-r-x",
+        "size": 2960,
+        "vaddr": 45784
+      },
+      {
+        "name": ".text",
+        "perm": "-r-x",
+        "size": 202024,
+        "vaddr": 48744
+      },
+      {
+        "name": ".fini",
+        "perm": "-r-x",
+        "size": 16,
+        "vaddr": 250768
+      },
+      {
+        "name": ".rodata",
+        "perm": "-r--",
+        "size": 56508,
+        "vaddr": 250784
+      },
+      {
+        "name": ".eh_frame",
+        "perm": "-r--",
+        "size": 4,
+        "vaddr": 307292
+      },
+      {
+        "name": ".init_array",
+        "perm": "-rw-",
+        "size": 4,
+        "vaddr": 340064
+      },
+      {
+        "name": ".fini_array",
+        "perm": "-rw-",
+        "size": 4,
+        "vaddr": 340068
+      },
+      {
+        "name": ".jcr",
+        "perm": "-rw-",
+        "size": 4,
+        "vaddr": 340072
+      },
+      {
+        "name": ".dynamic",
+        "perm": "-rw-",
+        "size": 320,
+        "vaddr": 340076
+      },
+      {
+        "name": ".got",
+        "perm": "-rw-",
+        "size": 992,
+        "vaddr": 340396
+      },
+      {
+        "name": ".data",
+        "perm": "-rw-",
+        "size": 250680,
+        "vaddr": 341388
+      },
+      {
+        "name": ".bss",
+        "perm": "-rw-",
+        "size": 0,
+        "vaddr": 592068
+      },
+      {
+        "name": ".comment",
+        "perm": "----",
+        "size": 77,
+        "vaddr": 0
+      },
+      {
+        "name": ".ARM.attributes",
+        "perm": "----",
+        "size": 43,
+        "vaddr": 0
+      },
+      {
+        "name": ".shstrtab",
+        "perm": "----",
+        "size": 202,
+        "vaddr": 0
+      }
+    ]
+  }
+}

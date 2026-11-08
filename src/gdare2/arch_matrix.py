@@ -19,11 +19,15 @@ ARCH_MATRIX = (
     {"name": "ppc-le", "arch": "ppcle", "bits": "32", "endian": "little", "language": "PowerPC:LE:32:default"},
     {"name": "ppc64-be", "arch": "ppc64", "bits": "64", "endian": "big", "language": "PowerPC:BE:64:default"},
     {"name": "ppc64-le", "arch": "ppc64le", "bits": "64", "endian": "little", "language": "PowerPC:LE:64:default"},
-    {"name": "riscv32", "arch": "riscv32", "bits": "32", "endian": "little", "language": "RISCV:LE:32:default"},
-    {"name": "riscv64", "arch": "riscv64", "bits": "64", "endian": "little", "language": "RISCV:LE:64:default"},
+    {"name": "riscv32", "arch": "riscv32", "bits": "32", "endian": "little", "language": "RISCV:LE:32:default", "bytes": "13000000"},
+    {"name": "riscv64", "arch": "riscv64", "bits": "64", "endian": "little", "language": "RISCV:LE:64:default", "bytes": "13000000"},
     {"name": "m68k", "arch": "m68k", "bits": "32", "endian": "big", "language": "68000:BE:32:default"},
     {"name": "sparc", "arch": "sparc", "bits": "32", "endian": "big", "language": "sparc:BE:32:default"},
     {"name": "sparc64", "arch": "sparc64", "bits": "64", "endian": "big", "language": "sparc:BE:64:default"},
+    {"name": "sh2a", "arch": "sh2a", "bits": "32", "endian": "big", "language": "SuperH:BE:32:SH-2A"},
+    {"name": "sh2", "arch": "sh2", "bits": "32", "endian": "big", "language": "SuperH:BE:32:SH-2"},
 )
 
+# Default decode probe: X86 NOPs plus RET.  Entries may override it when the
+# pattern is not a valid instruction for that architecture.
 RAW_BYTES = bytes.fromhex("90909090c3")

@@ -43,7 +43,14 @@ def batch(ctx, ops: list[dict], total: int | None = None) -> OpResult:
             continue
         try:
             value = invoke(ctx, spec["op"], dict(args), allow_writes=ctx.allow_writes)
-            results.append({"ok": True, "result": value})
+            item: dict = {"ok": True}
+            if isinstance(value, OpResult):
+                item["result"] = value.value
+                if value.meta:
+                    item["meta"] = value.meta
+            else:
+                item["result"] = value
+            results.append(item)
         except Exception as exc:
             results.append(as_error(exc))
             errors += 1

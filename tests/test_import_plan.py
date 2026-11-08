@@ -28,6 +28,9 @@ from gdare2d.import_plan import resolve_alias
         ("m68k", "68000:BE:32:default"),
         ("riscv32", "RISCV:LE:32:default"),
         ("riscv64", "RISCV:LE:64:default"),
+        ("sh1", "SuperH:BE:32:SH-1"),
+        ("sh2", "SuperH:BE:32:SH-2"),
+        ("sh2a", "SuperH:BE:32:SH-2A"),
     ],
 )
 def test_alias_defaults(arch, expected):
@@ -48,6 +51,8 @@ def test_explicit_16_bit_x86():
         ("arm", {"bits": "16"}),
         ("aarch64", {"bits": "32"}),
         ("sparc", {"bits": "16"}),
+        ("sh2a", {"endian": "little"}),
+        ("sh2a", {"bits": "64"}),
     ],
 )
 def test_unsupported_combinations(arch, kwargs):

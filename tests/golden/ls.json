@@ -1,0 +1,1730 @@
+{
+  "meta": {
+    "captured_at": "2026-11-08T13:38:00Z",
+    "gdare2_version": "0.1.0",
+    "ghidra_version": "12.2",
+    "language": "x86:LE:64:default",
+    "r2_version": "radare2 6.2.5 +38342 abi:158 @ linux-x86_64",
+    "schema": 1,
+    "target": "/bin/ls",
+    "target_sha256": "833d6f9cf3ede2225d80eaa159ef78a141c92842a691179aec37d182cc808a5c"
+  },
+  "r2": {
+    "base": 0,
+    "bytes": "31ed4989d15e4889e24883e4f050544531c031c9488d3d85e4ffffff15170802",
+    "entry": 26464,
+    "functions": [
+      {
+        "addr": 16432,
+        "name": "sym.imp.__ctype_toupper_loc",
+        "size": 6
+      },
+      {
+        "addr": 16448,
+        "name": "sym.imp.getenv",
+        "size": 6
+      },
+      {
+        "addr": 16464,
+        "name": "sym.imp.cap_to_text",
+        "size": 6
+      },
+      {
+        "addr": 16480,
+        "name": "sym.imp.fgetfilecon",
+        "size": 6
+      },
+      {
+        "addr": 16496,
+        "name": "sym.imp.sigprocmask",
+        "size": 6
+      },
+      {
+        "addr": 16512,
+        "name": "sym.imp.__snprintf_chk",
+        "size": 6
+      },
+      {
+        "addr": 16528,
+        "name": "sym.imp.raise",
+        "size": 6
+      },
+      {
+        "addr": 16544,
+        "name": "sym.imp.__vfprintf_chk",
+        "size": 6
+      },
+      {
+        "addr": 16560,
+        "name": "sym.imp.abort",
+        "size": 6
+      },
+      {
+        "addr": 16576,
+        "name": "sym.imp.__errno_location",
+        "size": 6
+      },
+      {
+        "addr": 16592,
+        "name": "sym.imp.getfilecon_raw",
+        "size": 6
+      },
+      {
+        "addr": 16608,
+        "name": "sym.imp.strncmp",
+        "size": 6
+      },
+      {
+        "addr": 16624,
+        "name": "sym.imp.localtime_r",
+        "size": 6
+      },
+      {
+        "addr": 16640,
+        "name": "sym.imp._exit",
+        "size": 6
+      },
+      {
+        "addr": 16656,
+        "name": "sym.imp.strcpy",
+        "size": 6
+      },
+      {
+        "addr": 16672,
+        "name": "sym.imp.__fpending",
+        "size": 6
+      },
+      {
+        "addr": 16688,
+        "name": "sym.imp.flistxattr",
+        "size": 6
+      },
+      {
+        "addr": 16704,
+        "name": "sym.imp.isatty",
+        "size": 6
+      },
+      {
+        "addr": 16720,
+        "name": "sym.imp.sigaction",
+        "size": 6
+      },
+      {
+        "addr": 16736,
+        "name": "sym.imp.iswcntrl",
+        "size": 6
+      },
+      {
+        "addr": 16752,
+        "name": "sym.imp.localeconv",
+        "size": 6
+      },
+      {
+        "addr": 16768,
+        "name": "sym.imp.faccessat",
+        "size": 6
+      },
+      {
+        "addr": 16784,
+        "name": "sym.imp.readlink",
+        "size": 6
+      },
+      {
+        "addr": 16800,
+        "name": "sym.imp.fcntl",
+        "size": 6
+      },
+      {
+        "addr": 16816,
+        "name": "sym.imp.clock_gettime",
+        "size": 6
+      },
+      {
+        "addr": 16832,
+        "name": "sym.imp.setenv",
+        "size": 6
+      },
+      {
+        "addr": 16848,
+        "name": "sym.imp.textdomain",
+        "size": 6
+      },
+      {
+        "addr": 16864,
+        "name": "sym.imp.fclose",
+        "size": 6
+      },
+      {
+        "addr": 16880,
+        "name": "sym.imp.opendir",
+        "size": 6
+      },
+      {
+        "addr": 16896,
+        "name": "sym.imp.getpwuid",
+        "size": 6
+      },
+      {
+        "addr": 16912,
+        "name": "sym.imp.bindtextdomain",
+        "size": 6
+      },
+      {
+        "addr": 16928,
+        "name": "sym.imp.dcgettext",
+        "size": 6
+      },
+      {
+        "addr": 16944,
+        "name": "sym.imp.__ctype_get_mb_cur_max",
+        "size": 6
+      },
+      {
+        "addr": 16960,
+        "name": "sym.imp.strlen",
+        "size": 6
+      },
+      {
+        "addr": 16976,
+        "name": "sym.imp.__stack_chk_fail",
+        "size": 6
+      },
+      {
+        "addr": 16992,
+        "name": "sym.imp.getopt_long",
+        "size": 6
+      },
+      {
+        "addr": 17008,
+        "name": "sym.imp.freecon",
+        "size": 6
+      },
+      {
+        "addr": 17024,
+        "name": "sym.imp.strchr",
+        "size": 6
+      },
+      {
+        "addr": 17040,
+        "name": "sym.imp.getgrgid",
+        "size": 6
+      },
+      {
+        "addr": 17056,
+        "name": "sym.imp.snprintf",
+        "size": 6
+      },
+      {
+        "addr": 17072,
+        "name": "sym.imp.__overflow",
+        "size": 6
+      },
+      {
+        "addr": 17088,
+        "name": "sym.imp.strrchr",
+        "size": 6
+      },
+      {
+        "addr": 17104,
+        "name": "sym.imp.gmtime_r",
+        "size": 6
+      },
+      {
+        "addr": 17120,
+        "name": "sym.imp.lseek",
+        "size": 6
+      },
+      {
+        "addr": 17136,
+        "name": "sym.imp.__assert_fail",
+        "size": 6
+      },
+      {
+        "addr": 17152,
+        "name": "sym.imp.fnmatch",
+        "size": 6
+      },
+      {
+        "addr": 17168,
+        "name": "sym.imp.memset",
+        "size": 6
+      },
+      {
+        "addr": 17184,
+        "name": "sym.imp.ioctl",
+        "size": 6
+      },
+      {
+        "addr": 17200,
+        "name": "sym.imp.strnlen",
+        "size": 6
+      },
+      {
+        "addr": 17216,
+        "name": "sym.imp.getcwd",
+        "size": 6
+      },
+      {
+        "addr": 17232,
+        "name": "sym.imp.mbrtoc32",
+        "size": 6
+      },
+      {
+        "addr": 17248,
+        "name": "sym.imp.strspn",
+        "size": 6
+      },
+      {
+        "addr": 17264,
+        "name": "sym.imp.closedir",
+        "size": 6
+      },
+      {
+        "addr": 17280,
+        "name": "sym.imp.memcmp",
+        "size": 6
+      },
+      {
+        "addr": 17296,
+        "name": "sym.imp._setjmp",
+        "size": 6
+      },
+      {
+        "addr": 17312,
+        "name": "sym.imp.fputs_unlocked",
+        "size": 6
+      },
+      {
+        "addr": 17328,
+        "name": "sym.imp.rawmemchr",
+        "size": 6
+      },
+      {
+        "addr": 17344,
+        "name": "sym.imp.calloc",
+        "size": 6
+      },
+      {
+        "addr": 17360,
+        "name": "sym.imp.signal",
+        "size": 6
+      },
+      {
+        "addr": 17376,
+        "name": "sym.imp.dirfd",
+        "size": 6
+      },
+      {
+        "addr": 17392,
+        "name": "sym.imp.fputc_unlocked",
+        "size": 6
+      },
+      {
+        "addr": 17408,
+        "name": "sym.imp.getpwnam",
+        "size": 6
+      },
+      {
+        "addr": 17424,
+        "name": "sym.imp.__memcpy_chk",
+        "size": 6
+      },
+      {
+        "addr": 17440,
+        "name": "sym.imp.sigemptyset",
+        "size": 6
+      },
+      {
+        "addr": 17456,
+        "name": "sym.imp.stat",
+        "size": 6
+      },
+      {
+        "addr": 17472,
+        "name": "sym.imp.memcpy",
+        "size": 6
+      },
+      {
+        "addr": 17488,
+        "name": "sym.imp.lgetfilecon_raw",
+        "size": 6
+      },
+      {
+        "addr": 17504,
+        "name": "sym.imp.getgrnam",
+        "size": 6
+      },
+      {
+        "addr": 17520,
+        "name": "sym.imp.__isoc23_strtoumax",
+        "size": 6
+      },
+      {
+        "addr": 17536,
+        "name": "sym.imp.tzset",
+        "size": 6
+      },
+      {
+        "addr": 17552,
+        "name": "sym.imp.fileno",
+        "size": 6
+      },
+      {
+        "addr": 17568,
+        "name": "sym.imp.tcgetpgrp",
+        "size": 6
+      },
+      {
+        "addr": 17584,
+        "name": "sym.imp.readdir",
+        "size": 6
+      },
+      {
+        "addr": 17600,
+        "name": "sym.imp.strerror_r",
+        "size": 6
+      },
+      {
+        "addr": 17616,
+        "name": "sym.imp.wcwidth",
+        "size": 6
+      },
+      {
+        "addr": 17632,
+        "name": "sym.imp.fflush",
+        "size": 6
+      },
+      {
+        "addr": 17648,
+        "name": "sym.imp.nl_langinfo",
+        "size": 6
+      },
+      {
+        "addr": 17664,
+        "name": "sym.imp.strcoll",
+        "size": 6
+      },
+      {
+        "addr": 17680,
+        "name": "sym.imp.mktime",
+        "size": 6
+      },
+      {
+        "addr": 17696,
+        "name": "sym.imp.__freading",
+        "size": 6
+      },
+      {
+        "addr": 17712,
+        "name": "sym.imp.fgetxattr",
+        "size": 6
+      },
+      {
+        "addr": 17728,
+        "name": "sym.imp.fwrite_unlocked",
+        "size": 6
+      },
+      {
+        "addr": 17744,
+        "name": "sym.imp.realloc",
+        "size": 6
+      },
+      {
+        "addr": 17760,
+        "name": "sym.imp.setlocale",
+        "size": 6
+      },
+      {
+        "addr": 17776,
+        "name": "sym.imp.__printf_chk",
+        "size": 6
+      },
+      {
+        "addr": 17792,
+        "name": "sym.imp.statx",
+        "size": 6
+      },
+      {
+        "addr": 17808,
+        "name": "sym.imp.timegm",
+        "size": 6
+      },
+      {
+        "addr": 17824,
+        "name": "sym.imp.strftime",
+        "size": 6
+      },
+      {
+        "addr": 17840,
+        "name": "sym.imp.mempcpy",
+        "size": 6
+      },
+      {
+        "addr": 17856,
+        "name": "sym.imp.memmove",
+        "size": 6
+      },
+      {
+        "addr": 17872,
+        "name": "sym.imp.fseeko",
+        "size": 6
+      },
+      {
+        "addr": 17888,
+        "name": "sym.imp.cap_get_file",
+        "size": 6
+      },
+      {
+        "addr": 17904,
+        "name": "sym.imp.unsetenv",
+        "size": 6
+      },
+      {
+        "addr": 17920,
+        "name": "sym.imp.cap_free",
+        "size": 6
+      },
+      {
+        "addr": 17936,
+        "name": "sym.imp.__cxa_atexit",
+        "size": 6
+      },
+      {
+        "addr": 17952,
+        "name": "sym.imp.gethostname",
+        "size": 6
+      },
+      {
+        "addr": 17968,
+        "name": "sym.imp.sigismember",
+        "size": 6
+      },
+      {
+        "addr": 17984,
+        "name": "sym.imp.exit",
+        "size": 6
+      },
+      {
+        "addr": 18000,
+        "name": "sym.imp.fwrite",
+        "size": 6
+      },
+      {
+        "addr": 18016,
+        "name": "sym.imp.__fprintf_chk",
+        "size": 6
+      },
+      {
+        "addr": 18032,
+        "name": "sym.imp.getfilecon",
+        "size": 6
+      },
+      {
+        "addr": 18048,
+        "name": "sym.imp.fflush_unlocked",
+        "size": 6
+      },
+      {
+        "addr": 18064,
+        "name": "sym.imp.mbsinit",
+        "size": 6
+      },
+      {
+        "addr": 18080,
+        "name": "sym.imp.lgetfilecon",
+        "size": 6
+      },
+      {
+        "addr": 18096,
+        "name": "sym.imp.iswprint",
+        "size": 6
+      },
+      {
+        "addr": 18112,
+        "name": "sym.imp.fgetfilecon_raw",
+        "size": 6
+      },
+      {
+        "addr": 18128,
+        "name": "sym.imp.sigaddset",
+        "size": 6
+      },
+      {
+        "addr": 18144,
+        "name": "sym.imp.__ctype_tolower_loc",
+        "size": 6
+      },
+      {
+        "addr": 18160,
+        "name": "sym.imp.__ctype_b_loc",
+        "size": 6
+      },
+      {
+        "addr": 18176,
+        "name": "sym.imp.__sprintf_chk",
+        "size": 6
+      },
+      {
+        "addr": 18192,
+        "name": "sym.imp.free",
+        "size": 6
+      },
+      {
+        "addr": 18200,
+        "name": "sym.imp.strcmp",
+        "size": 6
+      },
+      {
+        "addr": 18216,
+        "name": "sym.imp.__cxa_finalize",
+        "size": 6
+      },
+      {
+        "addr": 18208,
+        "name": "sym.imp.malloc",
+        "size": 6
+      },
+      {
+        "addr": 26464,
+        "name": "entry0",
+        "size": 33
+      },
+      {
+        "addr": 19159,
+        "name": "sym.error_at_line",
+        "size": 166
+      },
+      {
+        "addr": 18738,
+        "name": "sym.error",
+        "size": 176
+      },
+      {
+        "addr": 19456,
+        "name": "main",
+        "size": 8193
+      },
+      {
+        "addr": 26688,
+        "name": "entry.init0",
+        "size": 137
+      },
+      {
+        "addr": 26624,
+        "name": "entry.fini0",
+        "size": 57
+      },
+      {
+        "addr": 26512,
+        "name": "fcn.00006790",
+        "size": 41
+      },
+      {
+        "addr": 18364,
+        "name": "fcn.000047bc",
+        "size": 129
+      },
+      {
+        "addr": 18602,
+        "name": "fcn.000048aa",
+        "size": 37
+      },
+      {
+        "addr": 70256,
+        "name": "fcn.00011270",
+        "size": 12
+      },
+      {
+        "addr": 18639,
+        "name": "fcn.000048cf",
+        "size": 245
+      },
+      {
+        "addr": 18914,
+        "name": "fcn.000049e2",
+        "size": 245
+      },
+      {
+        "addr": 91232,
+        "name": "fcn.00016460",
+        "size": 183
+      },
+      {
+        "addr": 109792,
+        "name": "sub.__cxa_atexit",
+        "size": 14
+      },
+      {
+        "addr": 98656,
+        "name": "fcn.00018160",
+        "size": 21
+      },
+      {
+        "addr": 98624,
+        "name": "fcn.00018140",
+        "size": 21
+      },
+      {
+        "addr": 98560,
+        "name": "fcn.00018100",
+        "size": 58
+      },
+      {
+        "addr": 106688,
+        "name": "fcn.0001a0c0",
+        "size": 54
+      },
+      {
+        "addr": 98688,
+        "name": "fcn.00018180",
+        "size": 57
+      },
+      {
+        "addr": 70656,
+        "name": "fcn.00011400",
+        "size": 121
+      },
+      {
+        "addr": 73264,
+        "name": "fcn.00011e30",
+        "size": 247
+      },
+      {
+        "addr": 70832,
+        "name": "fcn.000114b0",
+        "size": 134
+      },
+      {
+        "addr": 71264,
+        "name": "fcn.00011660",
+        "size": 271
+      },
+      {
+        "addr": 90560,
+        "name": "fcn.000161c0",
+        "size": 35
+      },
+      {
+        "addr": 90416,
+        "name": "fcn.00016130",
+        "size": 144
+      },
+      {
+        "addr": 102544,
+        "name": "fcn.00019090",
+        "size": 151
+      },
+      {
+        "addr": 26816,
+        "name": "fcn.000068c0",
+        "size": 59
+      },
+      {
+        "addr": 105728,
+        "name": "fcn.00019d00",
+        "size": 28
+      },
+      {
+        "addr": 106944,
+        "name": "fcn.0001a1c0",
+        "size": 61
+      },
+      {
+        "addr": 109744,
+        "name": "fcn.0001acb0",
+        "size": 48
+      },
+      {
+        "addr": 34752,
+        "name": "fcn.000087c0",
+        "size": 229
+      },
+      {
+        "addr": 51840,
+        "name": "fcn.0000ca80",
+        "size": 4605
+      },
+      {
+        "addr": 56448,
+        "name": "fcn.0000dc80",
+        "size": 1753
+      },
+      {
+        "addr": 71936,
+        "name": "fcn.00011900",
+        "size": 9
+      },
+      {
+        "addr": 73712,
+        "name": "fcn.00011ff0",
+        "size": 271
+      },
+      {
+        "addr": 61904,
+        "name": "fcn.0000f1d0",
+        "size": 205
+      },
+      {
+        "addr": 28240,
+        "name": "fcn.00006e50",
+        "size": 44
+      },
+      {
+        "addr": 78992,
+        "name": "fcn.00013490",
+        "size": 459
+      },
+      {
+        "addr": 28128,
+        "name": "fcn.00006de0",
+        "size": 100
+      },
+      {
+        "addr": 101408,
+        "name": "fcn.00018c20",
+        "size": 28
+      },
+      {
+        "addr": 107008,
+        "name": "fcn.0001a200",
+        "size": 304
+      },
+      {
+        "addr": 27872,
+        "name": "fcn.00006ce0",
+        "size": 38
+      },
+      {
+        "addr": 91424,
+        "name": "fcn.00016520",
+        "size": 82
+      },
+      {
+        "addr": 109680,
+        "name": "fcn.0001ac70",
+        "size": 60
+      },
+      {
+        "addr": 82240,
+        "name": "sub.nl_langinfo",
+        "size": 9
+      },
+      {
+        "addr": 109072,
+        "name": "fcn.0001aa10",
+        "size": 95
+      },
+      {
+        "addr": 105264,
+        "name": "fcn.00019b30",
+        "size": 244
+      },
+      {
+        "addr": 75056,
+        "name": "fcn.00012530",
+        "size": 404
+      },
+      {
+        "addr": 61056,
+        "name": "fcn.0000ee80",
+        "size": 288
+      },
+      {
+        "addr": 29120,
+        "name": "fcn.000071c0",
+        "size": 104
+      },
+      {
+        "addr": 31120,
+        "name": "fcn.00007990",
+        "size": 153
+      },
+      {
+        "addr": 30688,
+        "name": "fcn.000077e0",
+        "size": 417
+      },
+      {
+        "addr": 107840,
+        "name": "fcn.0001a540",
+        "size": 1219
+      },
+      {
+        "addr": 106880,
+        "name": "fcn.0001a180",
+        "size": 60
+      },
+      {
+        "addr": 62400,
+        "name": "fcn.0000f3c0",
+        "size": 147
+      },
+      {
+        "addr": 26912,
+        "name": "fcn.00006920",
+        "size": 657
+      },
+      {
+        "addr": 30320,
+        "name": "fcn.00007670",
+        "size": 221
+      },
+      {
+        "addr": 36400,
+        "name": "fcn.00008e30",
+        "size": 18668
+      },
+      {
+        "addr": 50768,
+        "name": "fcn.0000c650",
+        "size": 1502
+      },
+      {
+        "addr": 107360,
+        "name": "fcn.0001a360",
+        "size": 266
+      },
+      {
+        "addr": 28288,
+        "name": "fcn.00006e80",
+        "size": 820
+      },
+      {
+        "addr": 38192,
+        "name": "fcn.00009530",
+        "size": 508
+      },
+      {
+        "addr": 61440,
+        "name": "fcn.0000f000",
+        "size": 136
+      },
+      {
+        "addr": 101376,
+        "name": "fcn.00018c00",
+        "size": 23
+      },
+      {
+        "addr": 99504,
+        "name": "fcn.000184b0",
+        "size": 80228
+      },
+      {
+        "addr": 98064,
+        "name": "fcn.00017f10",
+        "size": 79182
+      },
+      {
+        "addr": 58208,
+        "name": "fcn.0000e360",
+        "size": 2348
+      },
+      {
+        "addr": 107632,
+        "name": "fcn.0001a470",
+        "size": 88384
+      },
+      {
+        "addr": 80896,
+        "name": "fcn.00013c00",
+        "size": 416
+      },
+      {
+        "addr": 81312,
+        "name": "fcn.00013da0",
+        "size": 39
+      },
+      {
+        "addr": 105984,
+        "name": "fcn.00019e00",
+        "size": 36
+      },
+      {
+        "addr": 99728,
+        "name": "fcn.00018590",
+        "size": 80441
+      },
+      {
+        "addr": 98848,
+        "name": "fcn.00018220",
+        "size": 119
+      },
+      {
+        "addr": 91744,
+        "name": "fcn.00016660",
+        "size": 78682
+      },
+      {
+        "addr": 80688,
+        "name": "fcn.00013b30",
+        "size": 61506
+      },
+      {
+        "addr": 31280,
+        "name": "fcn.00007a30",
+        "size": 1305
+      },
+      {
+        "addr": 27584,
+        "name": "fcn.00006bc0",
+        "size": 257
+      },
+      {
+        "addr": 75648,
+        "name": "fcn.00012780",
+        "size": 3330
+      },
+      {
+        "addr": 32592,
+        "name": "fcn.00007f50",
+        "size": 152
+      },
+      {
+        "addr": 80576,
+        "name": "fcn.00013ac0",
+        "size": 112
+      },
+      {
+        "addr": 32752,
+        "name": "fcn.00007ff0",
+        "size": 455
+      },
+      {
+        "addr": 106288,
+        "name": "fcn.00019f30",
+        "size": 229
+      },
+      {
+        "addr": 106032,
+        "name": "fcn.00019e30",
+        "size": 36
+      },
+      {
+        "addr": 69760,
+        "name": "fcn.00011080",
+        "size": 462
+      },
+      {
+        "addr": 70224,
+        "name": "fcn.00011250",
+        "size": 26
+      },
+      {
+        "addr": 79456,
+        "name": "fcn.00013660",
+        "size": 149
+      },
+      {
+        "addr": 65584,
+        "name": "sub.freecon",
+        "size": 33
+      },
+      {
+        "addr": 82128,
+        "name": "fcn.000140d0",
+        "size": 868
+      },
+      {
+        "addr": 30080,
+        "name": "sub.fwrite_unlocked",
+        "size": 27
+      },
+      {
+        "addr": 62208,
+        "name": "fcn.0000f300",
+        "size": 136
+      },
+      {
+        "addr": 68208,
+        "name": "fcn.00010a70",
+        "size": 28
+      },
+      {
+        "addr": 62352,
+        "name": "fcn.0000f390",
+        "size": 37
+      },
+      {
+        "addr": 29888,
+        "name": "fcn.000074c0",
+        "size": 186
+      },
+      {
+        "addr": 90656,
+        "name": "fcn.00016220",
+        "size": 359
+      },
+      {
+        "addr": 44496,
+        "name": "fcn.0000add0",
+        "size": 1028
+      },
+      {
+        "addr": 34416,
+        "name": "fcn.00008670",
+        "size": 248
+      },
+      {
+        "addr": 67808,
+        "name": "fcn.000108e0",
+        "size": 379
+      },
+      {
+        "addr": 68192,
+        "name": "fcn.00010a60",
+        "size": 12
+      },
+      {
+        "addr": 45536,
+        "name": "fcn.0000b1e0",
+        "size": 1595
+      },
+      {
+        "addr": 37568,
+        "name": "fcn.000092c0",
+        "size": 164
+      },
+      {
+        "addr": 79888,
+        "name": "fcn.00013810",
+        "size": 149
+      },
+      {
+        "addr": 103344,
+        "name": "fcn.000193b0",
+        "size": 165
+      },
+      {
+        "addr": 90288,
+        "name": "fcn.000160b0",
+        "size": 30
+      },
+      {
+        "addr": 82304,
+        "name": "fcn.00014180",
+        "size": 7973
+      },
+      {
+        "addr": 80320,
+        "name": "fcn.000139c0",
+        "size": 251
+      },
+      {
+        "addr": 70272,
+        "name": "sub.clock_gettime",
+        "size": 14
+      },
+      {
+        "addr": 49760,
+        "name": "fcn.0000c260",
+        "size": 562
+      },
+      {
+        "addr": 33216,
+        "name": "fcn.000081c0",
+        "size": 664
+      },
+      {
+        "addr": 47136,
+        "name": "fcn.0000b820",
+        "size": 2622
+      },
+      {
+        "addr": 30112,
+        "name": "fcn.000075a0",
+        "size": 193
+      },
+      {
+        "addr": 62560,
+        "name": "fcn.0000f460",
+        "size": 2418
+      },
+      {
+        "addr": 27920,
+        "name": "fcn.00006d10",
+        "size": 193
+      },
+      {
+        "addr": 29232,
+        "name": "fcn.00007230",
+        "size": 426
+      },
+      {
+        "addr": 30576,
+        "name": "fcn.00007770",
+        "size": 97
+      },
+      {
+        "addr": 65696,
+        "name": "fcn.000100a0",
+        "size": 1665
+      },
+      {
+        "addr": 67376,
+        "name": "fcn.00010730",
+        "size": 22
+      },
+      {
+        "addr": 65216,
+        "name": "fcn.0000fec0",
+        "size": 131
+      },
+      {
+        "addr": 65632,
+        "name": "fcn.00010060",
+        "size": 58
+      },
+      {
+        "addr": 60624,
+        "name": "fcn.0000ecd0",
+        "size": 411
+      },
+      {
+        "addr": 60560,
+        "name": "fcn.0000ec90",
+        "size": 51
+      },
+      {
+        "addr": 34672,
+        "name": "fcn.00008770",
+        "size": 72
+      },
+      {
+        "addr": 100560,
+        "name": "fcn.000188d0",
+        "size": 81272
+      },
+      {
+        "addr": 74944,
+        "name": "fcn.000124c0",
+        "size": 105
+      },
+      {
+        "addr": 61584,
+        "name": "fcn.0000f090",
+        "size": 312
+      },
+      {
+        "addr": 70368,
+        "name": "fcn.000112e0",
+        "size": 103
+      },
+      {
+        "addr": 70480,
+        "name": "fcn.00011350",
+        "size": 173
+      },
+      {
+        "addr": 67712,
+        "name": "fcn.00010880",
+        "size": 87
+      },
+      {
+        "addr": 75616,
+        "name": "fcn.00012760",
+        "size": 25
+      },
+      {
+        "addr": 67568,
+        "name": "fcn.000107f0",
+        "size": 134
+      },
+      {
+        "addr": 109168,
+        "name": "fcn.0001aa70",
+        "size": 94
+      },
+      {
+        "addr": 109264,
+        "name": "fcn.0001aad0",
+        "size": 139
+      },
+      {
+        "addr": 100272,
+        "name": "fcn.000187b0",
+        "size": 133
+      },
+      {
+        "addr": 65360,
+        "name": "fcn.0000ff50",
+        "size": 217
+      },
+      {
+        "addr": 101952,
+        "name": "fcn.00018e40",
+        "size": 117
+      },
+      {
+        "addr": 72528,
+        "name": "fcn.00011b50",
+        "size": 53324
+      },
+      {
+        "addr": 68480,
+        "name": "fcn.00010b80",
+        "size": 218
+      },
+      {
+        "addr": 68704,
+        "name": "fcn.00010c60",
+        "size": 1042
+      },
+      {
+        "addr": 102256,
+        "name": "fcn.00018f70",
+        "size": 144
+      },
+      {
+        "addr": 102208,
+        "name": "fcn.00018f40",
+        "size": 9
+      },
+      {
+        "addr": 71536,
+        "name": "fcn.00011770",
+        "size": 52571
+      },
+      {
+        "addr": 70976,
+        "name": "fcn.00011540",
+        "size": 51932
+      },
+      {
+        "addr": 73984,
+        "name": "fcn.00012100",
+        "size": 55016
+      },
+      {
+        "addr": 74368,
+        "name": "fcn.00012280",
+        "size": 55581
+      },
+      {
+        "addr": 109600,
+        "name": "fcn.0001ac20",
+        "size": 70
+      },
+      {
+        "addr": 103056,
+        "name": "fcn.00019290",
+        "size": 247
+      },
+      {
+        "addr": 103312,
+        "name": "fcn.00019390",
+        "size": 22
+      },
+      {
+        "addr": 103520,
+        "name": "fcn.00019460",
+        "size": 297
+      },
+      {
+        "addr": 91520,
+        "name": "fcn.00016580",
+        "size": 218
+      },
+      {
+        "addr": 105792,
+        "name": "fcn.00019d40",
+        "size": 28
+      },
+      {
+        "addr": 102704,
+        "name": "fcn.00019130",
+        "size": 287
+      },
+      {
+        "addr": 102400,
+        "name": "fcn.00019000",
+        "size": 142
+      },
+      {
+        "addr": 103840,
+        "name": "fcn.000195a0",
+        "size": 1220
+      },
+      {
+        "addr": 106752,
+        "name": "fcn.0001a100",
+        "size": 54
+      },
+      {
+        "addr": 109408,
+        "name": "fcn.0001ab60",
+        "size": 62
+      },
+      {
+        "addr": 109472,
+        "name": "fcn.0001aba0",
+        "size": 114
+      }
+    ],
+    "info": {
+      "arch": "x86",
+      "baddr": 0,
+      "binsz": 156710,
+      "bintype": "elf",
+      "bits": 64,
+      "endian": "little"
+    },
+    "pd": [
+      {
+        "addr": 26464,
+        "bytes": "31ed",
+        "disasm": "xor ebp, ebp",
+        "size": 2
+      },
+      {
+        "addr": 26466,
+        "bytes": "4989d1",
+        "disasm": "mov r9, rdx",
+        "size": 3
+      },
+      {
+        "addr": 26469,
+        "bytes": "5e",
+        "disasm": "pop rsi",
+        "size": 1
+      },
+      {
+        "addr": 26470,
+        "bytes": "4889e2",
+        "disasm": "mov rdx, rsp",
+        "size": 3
+      },
+      {
+        "addr": 26473,
+        "bytes": "4883e4f0",
+        "disasm": "and rsp, 0xfffffffffffffff0",
+        "size": 4
+      },
+      {
+        "addr": 26477,
+        "bytes": "50",
+        "disasm": "push rax",
+        "size": 1
+      },
+      {
+        "addr": 26478,
+        "bytes": "54",
+        "disasm": "push rsp",
+        "size": 1
+      },
+      {
+        "addr": 26479,
+        "bytes": "4531c0",
+        "disasm": "xor r8d, r8d",
+        "size": 3
+      }
+    ],
+    "pd_back": [
+      {
+        "addr": 26431,
+        "bytes": "e87c3a0100",
+        "size": 5,
+        "symbol": "",
+        "text": "call fcn.0001a1c0"
+      },
+      {
+        "addr": 26436,
+        "bytes": "e807dbffff",
+        "size": 5,
+        "symbol": "",
+        "text": "call sym.imp.__stack_chk_fail ; void __stack_chk_fail(void)"
+      },
+      {
+        "addr": 26441,
+        "bytes": "4c8b05500b..",
+        "size": 6,
+        "symbol": "",
+        "text": "mov r8, qword [obj.optarg]  ; [0x272a0:8]=0 ; int64_t arg5"
+      },
+      {
+        "addr": 26448,
+        "bytes": "8b742440",
+        "size": 4,
+        "symbol": "",
+        "text": "mov esi, dword [var_40h]  ; int64_t arg2"
+      },
+      {
+        "addr": 26452,
+        "bytes": "4c89f1",
+        "size": 3,
+        "symbol": "",
+        "text": "mov rcx, r14  ; int64_t arg4"
+      },
+      {
+        "addr": 26455,
+        "bytes": "31d2",
+        "size": 2,
+        "symbol": "",
+        "text": "xor edx, edx  ; int64_t arg3"
+      },
+      {
+        "addr": 26457,
+        "bytes": "89c7",
+        "size": 2,
+        "symbol": "",
+        "text": "mov edi, eax  ; uint64_t arg1"
+      },
+      {
+        "addr": 26459,
+        "bytes": "e8103d0100",
+        "size": 5,
+        "symbol": "",
+        "text": "call fcn.0001a470"
+      }
+    ],
+    "pdi": [
+      {
+        "addr": 26464,
+        "bytes": "31ed",
+        "size": 2,
+        "symbol": "",
+        "text": "xor ebp, ebp"
+      },
+      {
+        "addr": 26466,
+        "bytes": "4989d1",
+        "size": 3,
+        "symbol": "",
+        "text": "mov r9, rdx"
+      },
+      {
+        "addr": 26469,
+        "bytes": "5e",
+        "size": 1,
+        "symbol": "",
+        "text": "pop rsi"
+      },
+      {
+        "addr": 26470,
+        "bytes": "4889e2",
+        "size": 3,
+        "symbol": "",
+        "text": "mov rdx, rsp"
+      },
+      {
+        "addr": 26473,
+        "bytes": "4883e4f0",
+        "size": 4,
+        "symbol": "",
+        "text": "and rsp, 0xfffffffffffffff0"
+      },
+      {
+        "addr": 26477,
+        "bytes": "50",
+        "size": 1,
+        "symbol": "",
+        "text": "push rax"
+      },
+      {
+        "addr": 26478,
+        "bytes": "54",
+        "size": 1,
+        "symbol": "",
+        "text": "push rsp"
+      },
+      {
+        "addr": 26479,
+        "bytes": "4531c0",
+        "size": 3,
+        "symbol": "",
+        "text": "xor r8d, r8d"
+      }
+    ],
+    "pdl_lines": [
+      "2",
+      "3",
+      "1",
+      "1",
+      "1",
+      "0",
+      "0",
+      "0"
+    ],
+    "sections": [
+      {
+        "name": "",
+        "perm": "----",
+        "size": 0,
+        "vaddr": 0
+      },
+      {
+        "name": ".note.gnu.property",
+        "perm": "-r--",
+        "size": 32,
+        "vaddr": 848
+      },
+      {
+        "name": ".note.gnu.build-id",
+        "perm": "-r--",
+        "size": 36,
+        "vaddr": 880
+      },
+      {
+        "name": ".interp",
+        "perm": "-r--",
+        "size": 28,
+        "vaddr": 916
+      },
+      {
+        "name": ".gnu.hash",
+        "perm": "-r--",
+        "size": 176,
+        "vaddr": 944
+      },
+      {
+        "name": ".dynsym",
+        "perm": "-r--",
+        "size": 3312,
+        "vaddr": 1120
+      },
+      {
+        "name": ".dynstr",
+        "perm": "-r--",
+        "size": 1618,
+        "vaddr": 4432
+      },
+      {
+        "name": ".gnu.version",
+        "perm": "-r--",
+        "size": 276,
+        "vaddr": 6050
+      },
+      {
+        "name": ".gnu.version_r",
+        "perm": "-r--",
+        "size": 224,
+        "vaddr": 6328
+      },
+      {
+        "name": ".rela.dyn",
+        "perm": "-r--",
+        "size": 5160,
+        "vaddr": 6552
+      },
+      {
+        "name": ".rela.plt",
+        "perm": "-r--",
+        "size": 2640,
+        "vaddr": 11712
+      },
+      {
+        "name": ".init",
+        "perm": "-r-x",
+        "size": 23,
+        "vaddr": 16384
+      },
+      {
+        "name": ".plt",
+        "perm": "-r-x",
+        "size": 1776,
+        "vaddr": 16416
+      },
+      {
+        "name": ".plt.got",
+        "perm": "-r-x",
+        "size": 32,
+        "vaddr": 18192
+      },
+      {
+        "name": ".text",
+        "perm": "-r-x",
+        "size": 91566,
+        "vaddr": 18240
+      },
+      {
+        "name": ".fini",
+        "perm": "-r-x",
+        "size": 9,
+        "vaddr": 109808
+      },
+      {
+        "name": ".rodata",
+        "perm": "-r--",
+        "size": 21384,
+        "vaddr": 110592
+      },
+      {
+        "name": ".eh_frame_hdr",
+        "perm": "-r--",
+        "size": 2676,
+        "vaddr": 131976
+      },
+      {
+        "name": ".eh_frame",
+        "perm": "-r--",
+        "size": 14104,
+        "vaddr": 134656
+      },
+      {
+        "name": ".note.ABI-tag",
+        "perm": "-r--",
+        "size": 32,
+        "vaddr": 148760
+      },
+      {
+        "name": ".init_array",
+        "perm": "-rw-",
+        "size": 8,
+        "vaddr": 155568
+      },
+      {
+        "name": ".fini_array",
+        "perm": "-rw-",
+        "size": 8,
+        "vaddr": 155576
+      },
+      {
+        "name": ".data.rel.ro",
+        "perm": "-rw-",
+        "size": 2616,
+        "vaddr": 155584
+      },
+      {
+        "name": ".dynamic",
+        "perm": "-rw-",
+        "size": 528,
+        "vaddr": 158200
+      },
+      {
+        "name": ".got",
+        "perm": "-rw-",
+        "size": 1000,
+        "vaddr": 158728
+      },
+      {
+        "name": ".data",
+        "perm": "-rw-",
+        "size": 640,
+        "vaddr": 159744
+      },
+      {
+        "name": ".bss",
+        "perm": "-rw-",
+        "size": 0,
+        "vaddr": 160384
+      },
+      {
+        "name": ".gnu_debugaltlink",
+        "perm": "----",
+        "size": 73,
+        "vaddr": 0
+      },
+      {
+        "name": ".gnu_debuglink",
+        "perm": "----",
+        "size": 52,
+        "vaddr": 0
+      },
+      {
+        "name": ".shstrtab",
+        "perm": "----",
+        "size": 294,
+        "vaddr": 0
+      }
+    ]
+  }
+}

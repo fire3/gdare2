@@ -94,6 +94,7 @@ EXIT_CODES: dict[str, int] = {
     "GHIDRA_ERROR": 1,
     "NOT_READY": 3,
     "ANALYZING": 3,
+    "CONNECTION": 3,
     "TIMEOUT": 4,
     "LOCKED": 3,
     "UNKNOWN_OP": 1,

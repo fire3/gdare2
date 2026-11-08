@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import one raw binary per architecture and verify the Ghidra language."""
+"""Import one raw binary per architecture; verify language, fields and decoding."""
 
 from __future__ import annotations
 
@@ -39,13 +39,13 @@ def run_matrix(project_dir: Path, project_name: str, *, keep: bool) -> list[dict
 
     project_dir.mkdir(parents=True, exist_ok=True)
     source = project_dir / "arch-matrix.bin"
-    source.write_bytes(RAW_BYTES)
     results: list[dict] = []
     with pyghidra.open_project(project_dir, project_name, create=True) as project:
         for entry in ARCH_MATRIX:
             program_path = f"/{entry['name']}"
             record = {"name": entry["name"], "expected": entry["language"]}
             try:
+                source.write_bytes(bytes.fromhex(entry.get("bytes", "")) or RAW_BYTES)
                 data = project.getProjectData()
                 existing = data.getFile(program_path)
                 if existing is not None:
@@ -61,12 +61,31 @@ def run_matrix(project_dir: Path, project_name: str, *, keep: bool) -> list[dict
                     load_results.save(pyghidra.task_monitor())
                 with pyghidra.program_context(project, program_path) as program:
                     actual = str(program.getLanguageID())
+                    language = program.getLanguage()
+                    bits = int(language.getLanguageDescription().getSize())
+                    big_endian = bool(language.isBigEndian())
+                    image_base = int(program.getImageBase().getOffset())
+                    _disassemble_if_needed(pyghidra, program)
+                    instruction = program.getListing().getInstructionAt(
+                        program.getMinAddress()
+                    )
+                    pd_text = str(instruction) if instruction is not None else ""
+                    info_ok = (
+                        actual == entry["language"]
+                        and bits == int(entry["bits"])
+                        and big_endian == (entry["endian"] == "big")
+                    )
+                    pd_ok = bool(pd_text)
                     record.update(
                         {
                             "actual": actual,
-                            "ok": actual == entry["language"],
-                            "bits": int(program.getLanguage().getLanguageDescription().getSize()),
-                            "big_endian": bool(program.getLanguage().isBigEndian()),
+                            "ok": info_ok and pd_ok,
+                            "bits": bits,
+                            "big_endian": big_endian,
+                            "image_base": image_base,
+                            "pd_ok": pd_ok,
+                            "pd": pd_text,
+                            "info_ok": info_ok,
                         }
                     )
             except Exception as exc:
@@ -75,6 +94,18 @@ def run_matrix(project_dir: Path, project_name: str, *, keep: bool) -> list[dict
     if not keep:
         shutil.rmtree(project_dir, ignore_errors=True)
     return results
+
+
+def _disassemble_if_needed(pyghidra, program) -> None:
+    """Raw imports are not auto-disassembled by the loader."""
+    listing = program.getListing()
+    if listing.getInstructionAt(program.getMinAddress()) is not None:
+        return
+    from ghidra.app.cmd.disassemble import DisassembleCommand
+
+    command = DisassembleCommand(program.getMinAddress(), None, True)
+    with pyghidra.transaction(program, "gdare2 arch matrix disassembly"):
+        command.applyTo(program, pyghidra.task_monitor())
 
 
 def main() -> int:
@@ -105,7 +136,10 @@ def main() -> int:
         for result in results:
             status = "ok" if result.get("ok") else "FAIL"
             detail = result.get("actual") or result.get("error", "")
-            print(f"{status:<4} {result['name']:<12} {detail}")
+            checks = ""
+            if "pd_ok" in result:
+                checks = f"  info={result.get('info_ok')} pd={result.get('pd_ok')}"
+            print(f"{status:<4} {result['name']:<12} {detail}{checks}")
     print(
         f"{passed}/{len(results)} configurations passed",
         file=sys.stderr if args.json else sys.stdout,

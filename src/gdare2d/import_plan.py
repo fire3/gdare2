@@ -113,6 +113,9 @@ _ALIASES = {
     "m68k": "68000",
     "sparc": "sparc",
     "sparc64": "sparc",
+    "sh1": "SuperH",
+    "sh2": "SuperH",
+    "sh2a": "SuperH",
     "sh4": "SuperH4",
 }
 
@@ -164,6 +167,12 @@ def resolve_alias(arch: str, *, bits: str | None = None, endian: str | None = No
             raise UsageError("Ghidra 12.2 provides only big-endian SPARC languages")
         _require_width(family, width, (32, 64))
         return f"sparc:BE:{width}:default"
+    if family == "SuperH":
+        if not big:
+            raise UsageError("Ghidra provides only big-endian SuperH languages")
+        _require_width(family, width, (32,))
+        variant = {"sh1": "SH-1", "sh2": "SH-2", "sh2a": "SH-2A"}[key]
+        return f"SuperH:BE:{width}:{variant}"
     if family == "SuperH4":
         raise UsageError(
             "Ghidra 12.2 has no SH-4 language; use --ghidra-language with a "
@@ -189,7 +198,7 @@ def _bits(key: str, explicit: str | None) -> int:
 
 
 # radare2's bare architecture names imply these endianness defaults.
-_DEFAULT_BIG = frozenset({"MIPS", "PowerPC", "68000", "sparc"})
+_DEFAULT_BIG = frozenset({"MIPS", "PowerPC", "68000", "sparc", "SuperH"})
 
 
 def _is_big(key: str, endian: str | None) -> bool:

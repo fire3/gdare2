@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -29,10 +30,24 @@ def env(tmp_path):
     for state_file in runtime.glob("*.json"):
         try:
             pid = int(json.loads(state_file.read_text())["pid"])
-            os.kill(pid, signal.SIGTERM)
         except (OSError, ValueError, KeyError):
             continue
-    time.sleep(0.3)
+        _stop_process(pid)
+
+
+def _stop_process(pid: int, grace: float = 10.0) -> None:
+    """Terminate a daemon and wait for exit so JVMs do not pile up."""
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except OSError:
+        return
+    deadline = time.monotonic() + grace
+    while time.monotonic() < deadline:
+        if not Path(f"/proc/{pid}").exists():
+            return
+        time.sleep(0.1)
+    with contextlib.suppress(OSError):
+        os.kill(pid, signal.SIGKILL)
 
 
 def run(env, *args, timeout=240):

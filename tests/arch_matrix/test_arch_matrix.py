@@ -43,3 +43,8 @@ def test_raw_import_matrix():
     payload = json.loads(result.stdout)
     assert len(payload) == len(ARCH_MATRIX)
     assert all(item["ok"] for item in payload), payload
+    for item in payload:
+        assert item["info_ok"], item
+        assert item["pd_ok"], item
+        assert item["pd"].strip(), item
+        assert "bits" in item and "big_endian" in item

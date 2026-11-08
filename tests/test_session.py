@@ -890,6 +890,27 @@ def test_raw_search_and_search_iterators():
     ]
 
 
+def test_search_iterator_uses_response_level_meta(capsys):
+    class SearchMetaClient(FakeClient):
+        def call_with_meta(self, op, **args):
+            value = self.call(op, **args)
+            if op == "search":
+                return value, {
+                    "shown": len(value["hits"]),
+                    "offset": 0,
+                    "limit": 2,
+                    "truncated": True,
+                    "scope": "io.maps",
+                    "forward": True,
+                }
+            return value, {}
+
+    session, _ = make_session(SearchMetaClient())
+    session.run("px 1 @@/x 9090")
+    err = capsys.readouterr().err
+    assert "iterator truncated" in err
+
+
 def test_temporary_range_operator():
     session, client = make_session()
     session.run("px @{0x1000 0x1003}")
@@ -911,3 +932,22 @@ def test_gexec_and_variable_analysis_commands():
     assert refs and refs[0].endswith("[stack]")
     assert session.run("afvW local_8") == refs
     assert "local_8 -> new_name" in session.run("an local_8 new_name")[0]
+
+
+def test_assembler_calls_extend_and_restore_client_timeout():
+    class TimeoutClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.timeout = 30.0
+            self.seen = []
+
+        def call(self, op, **args):
+            if op in ("assemble", "assemble_write"):
+                self.seen.append(self.timeout)
+            return super().call(op, **args)
+
+    session, client = make_session(TimeoutClient())
+    session.config.set("ghidra.assemble.timeout", 180)
+    assert session.run("pa NOP") == ["9090"]
+    assert client.seen == [180.0]
+    assert client.timeout == 30.0

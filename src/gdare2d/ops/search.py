@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from gdare2.errors import UnsupportedError, UsageError
+from gdare2.protocol import OpResult
 from gdare2d.context import to_addr as to_address
 from gdare2d.dispatch import op
 from gdare2d.ops._helpers import iter_items, require_program
@@ -22,7 +23,7 @@ def search_raw(
     forward: bool = True,
     limit: int = 4096,
     offset: int = 0,
-) -> dict:
+) -> OpResult:
     program = require_program(ctx)
     raw = bytes(data)
     if not raw:
@@ -64,9 +65,9 @@ def search_raw(
     else:
         hits = _scan_raw(blob, raw, mask_bytes, lower, upper, False, offset + limit + 1)
     page = hits[offset : offset + limit]
-    return {
-        "hits": page,
-        "meta": {
+    return OpResult(
+        {"hits": page},
+        {
             "shown": len(page),
             "offset": offset,
             "limit": limit,
@@ -74,7 +75,7 @@ def search_raw(
             "scope": "raw",
             "forward": bool(forward),
         },
-    }
+    )
 
 
 def _scan_raw(blob, pattern, mask, lower, upper, forward, wanted):
@@ -89,7 +90,7 @@ def _scan_raw(blob, pattern, mask, lower, upper, forward, wanted):
         else:
             if all(
                 (blob[position + index] & keep) == (value & keep)
-                for index, (value, keep) in enumerate(zip(pattern, mask))
+                for index, (value, keep) in enumerate(zip(pattern, mask, strict=True))
             ):
                 hits.append(position)
     return hits
@@ -107,7 +108,7 @@ def search(
     limit: int = 4096,
     offset: int = 0,
     scope: str = "io.maps",
-) -> dict:
+) -> OpResult:
     program = require_program(ctx)
     raw = bytes(data)
     if not raw:
@@ -150,9 +151,9 @@ def search(
                 break
 
     page = hits[offset : offset + limit]
-    return {
-        "hits": page,
-        "meta": {
+    return OpResult(
+        {"hits": page},
+        {
             "shown": len(page),
             "offset": offset,
             "limit": limit,
@@ -160,7 +161,7 @@ def search(
             "scope": scope,
             "forward": bool(forward),
         },
-    }
+    )
 
 
 def _ranges(program, from_addr, to_addr, cursor, forward: bool) -> list[tuple[int, int]]:

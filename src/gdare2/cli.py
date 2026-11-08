@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
 import threading
+import time
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from gdare2 import __version__, argv, completion, rc, registry
 from gdare2.client import Client
@@ -105,6 +107,7 @@ def main(argv_list: list[str] | None = None) -> int:
 
         if options.ephemeral:
             client.shutdown(save=not options.readonly)
+            _wait_for_daemon_exit(state)
         return 1 if session.failed else 0
     except GdarError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -116,10 +119,29 @@ def main(argv_list: list[str] | None = None) -> int:
         if heartbeat_stop is not None:
             heartbeat_stop.set()
         if client is not None and lease is not None:
-            try:
+            with contextlib.suppress(GdarError):
                 client.call("session_close", lease=lease)
-            except GdarError:
-                pass
+
+
+def _wait_for_daemon_exit(state: dict, timeout: float = 60.0) -> None:
+    """Give an ephemeral daemon time to flush and remove its project."""
+    pid = int(state.get("pid") or 0)
+    deadline = time.monotonic() + timeout
+    while pid and time.monotonic() < deadline:
+        if not _process_running(pid):
+            return
+        time.sleep(0.1)
+
+
+def _process_running(pid: int) -> bool:
+    """Treat a zombie child as stopped; the CLI is usually its parent."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="ascii", errors="replace")
+    except OSError:
+        return registry.pid_alive(pid)
+    _, _, rest = stat.rpartition(")")
+    fields = rest.split()
+    return bool(fields) and fields[0] not in {"Z", "X", "x"}
 
 
 def _command_lines(options: argv.Options) -> list[str]:
