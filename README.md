@@ -14,8 +14,8 @@ r2 风格命令，同时保留一个常驻 daemon，让后续命令可以秒级�
 - **真实 Ghidra 回归测试**：离线单测、真实 Ghidra 集成测试与 22 配置架构矩阵、r2 parity 分层运行。
 
 当前已完成 M0–M5 核心能力与体验项（rc、补全、搜索、flags、脚本、汇编、
-parity 黄金文件、22 配置架构矩阵、batch meta）。下一步为 M6 GUI 桥。状态见
-[docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
+parity 黄金文件、22 配置架构矩阵、batch meta）。v1 已完成；不支持 Ghidra
+GUI 附着。状态见 [docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 ## 架构
@@ -30,7 +30,7 @@ gdare2 CLI  ──loopback HTTP/JSON──▶  gdare2d (PyGhidra daemon)
 ```
 
 - 一个目标 + 一组导入选项对应一个 daemon；同一程序会被复用。
-- Ghidra 项目锁是独占的：daemon 打开项目时，Ghidra GUI 不能同时可写打开同一项目。
+- Ghidra 项目锁是独占的：daemon 打开项目时，Ghidra GUI 不能同时打开同一项目；本项目不支持 GUI 附着，需要 GUI 时先关闭 daemon。
 - 多个 CLI 可以共享同一个 daemon；写能力按请求区分，不会因为一个客户端带 `-w` 而提权。
 
 ## 环境要求

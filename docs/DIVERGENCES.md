@@ -165,7 +165,7 @@ Ghidra 可能把 typedef 展开或保留为 `TypeDef`，r2 的 `t` 列表格式�
 - `-w`；
 - `e ghidra.flags.write=true`。
 
-否则只影响当前客户端，不会出现在 Ghidra GUI/其他客户端。
+否则只影响当前客户端，重开项目后也不会持久化。
 
 ### 7.2 删除符号
 
@@ -266,7 +266,7 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 - `k`、`m`、`o`、`=`、`#`；
 - `pdg`、`pdd`、`pdk`、`pds`；
 - `ih`、`iH`、`ir`、`ic`、`id`（按 Ghidra 能力）；
-- GUI 同步（v1）。
+- GUI 附着/实时同步（已取消，明确不做）。
 
 ## 13. 已知的“看起来像 bug”
 
@@ -274,11 +274,11 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 |---|---|
 | 第一次命令很慢 | JVM/Ghidra 项目加载与首次分析 |
 | 第二次命令仍慢 | daemon 未复用/项目被重开/分析未完成 |
-| Ghidra GUI 打不开项目 | daemon 持有项目锁 |
+| Ghidra GUI 打不开项目 | daemon 持有项目锁；本项目不支持 GUI 附着，先关闭 daemon |
 | `pd` 在数据区停止 | Ghidra 不伪造指令 |
 | `afv` 出现 `other` | Ghidra storage 分类与 r2 不同 |
 | `pa` 报 unsupported | 该语言没有 SLEIGH assembler |
-| `f` 改名后 GUI 看不到 | 未 `-w` 或 `e ghidra.flags.write=false` |
+| `f` 改名后重开项目看不到 | 未 `-w` 或 `e ghidra.flags.write=false` |
 | `u` 在只读会话失败 | undo 也是修改，默认只读 |
 | `u` 后反汇编未恢复 | 只回滚字节，不回滚分析元数据 |
 

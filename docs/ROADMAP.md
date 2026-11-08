@@ -1,26 +1,27 @@
 # gdare2 后续推进路线（细化）
 
-> 本文把 `PROGRESS.md` 的“下一轮”拆到可执行任务级，作为 M5 收尾与 M6 的
-> 实施依据。设计契约仍以 `DESIGN.md` 为准；命令映射以 `COMMANDS.md` 为准。
+> 本文把 `PROGRESS.md` 的“下一轮”拆到可执行任务级，作为 v1 收尾与
+> 后续维护的实施依据。设计契约仍以 `DESIGN.md` 为准；命令映射以 `COMMANDS.md` 为准。
 > 任何条目完成后，必须同步更新 `PROGRESS.md` 的验收记录与 `COMMANDS.md` 的
 > 实现状态。
 
 - 更新时间：2026-11-08
-- 当前基线：M0–M4 核心完成，M5 进行中，M6 未开始
-- 目标：先完成可验证的 v1，再启动 M6 GUI 桥
+- 当前基线：M0–M5 完成，v1 收尾完成（Phase A–C 全部关闭）
+- 目标：维护已完成的 v1；不做 Ghidra GUI 附着（2026-11-08 决定）
 
 ## 0. 验证基线（2026-11-08 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `131 passed`，0.10s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `22 passed`，381.73s |
-| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，7.32s |
+| 离线 | `.venv/bin/python -m pytest -q` | `169 passed`，0.29s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `22 passed`，425.39s |
+| r2 parity | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m parity` | `12 passed`，117.91s |
+| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，8.44s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 
-结论：核心读写链路稳定；当前主要缺口集中在 **一致性缺陷、v1 命令面收尾、
-parity 黄金文件、GUI 桥** 四类。
+结论：核心读写链路稳定；v1 的 Phase A–C 已全部关闭。Ghidra GUI 附着明确
+不做，daemon 独占项目是唯一运行形态。
 
 ## 1. 完成定义（Definition of Done）
 
@@ -31,15 +32,8 @@ parity 黄金文件、GUI 桥** 四类。
 - `/bin/ls` 与 ARM32 样本的结构化 parity 黄金文件可重复通过；
 - 架构矩阵覆盖设计目标配置，并验证 `pd 1`、`iI` 字段；
 - 离线测试、真实 Ghidra 测试、parity、架构矩阵四层全绿；
-- README、DESIGN、COMMANDS、DEV、PROGRESS、ROADMAP 状态一致。
-
-### 1.2 M6 完成
-
-- Ghidra GUI 打开程序后，`gdare2 --attach gui:<endpoint>` 可执行
-  `pd/afl/axt/pdc`；
-- 不移动 GUI 光标、不破坏 GUI 项目所有权；
-- 写入只在显式 `-w` 下发生，并在 GUI 中可见；
-- 线程模型、失败回退和项目锁行为有文档与手工验收记录。
+- README、DESIGN、COMMANDS、DEV、PROGRESS、ROADMAP 状态一致；
+- 明确不支持 Ghidra GUI 附着；daemon 独占项目，GUI 与 daemon 不同时打开同一项目。
 
 ## 2. 代码审查发现
 
@@ -168,8 +162,7 @@ C15（batch 子 op meta）与 `pdi` 的 flag 列视觉细化转入 Phase C/B1。
 返回文件偏移；`afr` 是删除+重建函数的近似重分析；`an` 对纯 decompiler
 生成的局部变量可能只能重命名已有 Function 变量/参数。
 
-剩余 Phase B：无。下一步进入 Phase C（parity、架构矩阵增强、batch meta）
-与 M6。
+剩余 Phase B：无。下一步进入 Phase C（parity、架构矩阵增强、batch meta）。
 
 ### 2.7 Phase C 完成（2026-11-08）
 
@@ -202,6 +195,13 @@ C15（batch 子 op meta）与 `pdi` 的 flag 列视觉细化转入 Phase C/B1。
 逐项一致，只比较导入名集合与数量区间。
 
 **Phase C 剩余项：无。**
+
+### 2.8 GUI 附着不做（2026-11-08）
+
+项目明确不支持在 Ghidra GUI 打开程序时附着：headless daemon 已覆盖全部分析
+能力，GUI 附着只影响工作流，却需要自行解决 Ghidra 项目锁、GUI 线程模型与
+事务/undo 冲突。运行约定是 daemon 独占项目；需要 GUI 时先关闭 daemon
+（`.gclose` 或 `--kill`），再在 GUI 中打开项目。
 
 ## 3. 分阶段推进
 
@@ -318,34 +318,9 @@ uv run gdare2 -qc 'pd 5~+call:0[1]' /bin/ls
 uv run gdare2 -j -qc 'afl' /bin/ls | jq .
 ```
 
-### Phase D：M6 GUI 桥（2–4 周，v2）
-
-1. **D1 可行性原型（2–3 天）**
-   - 在 Ghidra 的 PyGhidra console 中运行桥接器；
-   - 验证从 Python 线程访问 `Program` 的线程约束；
-   - 记录 `PluginTool`/`ProgramManager` 获取当前程序的路径；
-   - 产出 `docs/GUI-BRIDGE.md`（原型结论、线程模型、失败模式）。
-2. **D2 桥接器设计**
-   - 复用 op 实现：构造一个 `Context` 代理，把调用调度到 Ghidra 任务线程/EDT；
-   - 明确项目所有权：GUI 持有项目，桥只读打开视图或共享 `Program`；
-   - 写入：显式 `-w` + transaction；默认只读；不移动 GUI 光标；
-   - 失败回退：桥不可用时退回 headless daemon，不静默伪装。
-3. **D3 协议与发现**
-   - 注册表新增 `kind: "gui"` 与 endpoint；
-   - `gdare2 --attach gui:<endpoint>`；`--attach auto` 的歧义处理；
-   - `/health` 增加 `kind` 字段。
-4. **D4 MVP 命令**
-   - 只读：`pd/pdf/px/p8/afl/afi/axt/pdc/afv/iI`；
-   - 写入：`wx/w0/CC/Cp/afn`（受 `-w`）；
-   - 每次调用前后检查 GUI 是否关闭/程序是否切换。
-5. **D5 验收**
-   - GUI 打开 `/bin/ls`，另开终端执行 `gdare2 --attach gui:... -qc 'pd 5; aflc'`；
-   - 光标不动、GUI 不冻结、写入在 GUI 中可见；
-   - 关闭 GUI 后客户端收到明确错误，不挂起。
-
 ## 4. 建议执行顺序（可直接拆 commit）
 
-> Phase A 与 Phase B 已在 2026-11-08 完成。以下保留为后续提交顺序参考。
+> Phase A–C 已在 2026-11-08 完成。以下保留为提交历史参考。
 
 1. `fix: unify instance id fingerprint`（A1）
 2. `fix: architecture alias endianness`（A2）
@@ -381,7 +356,6 @@ uv run gdare2 -j -qc 'afl' /bin/ls | jq .
 | 手工 daemon/instance-id 不一致 | A | 单一指纹函数 + 集成测试 |
 | `--listen` 误用 | A/B | 默认 loopback；显式开启；文档警告 |
 | 分析/反编译超时 | A | TaskMonitor 超时 + 错误码 `TIMEOUT` |
-| GUI 线程/项目锁 | D | 原型先行；失败回退 headless；不阻塞 v1 |
 | 写入污染共享项目 | A/B | 默认只读；transaction；`--readonly`；临时项目测试 |
 | 文档再次漂移 | 全程 | 每个 commit 同步 PROGRESS/COMMANDS；ROADMAP 作为唯一任务清单 |
 

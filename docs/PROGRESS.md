@@ -14,7 +14,6 @@
 | M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/t-`、`tp/tpv/tpx`、`afs`、`C/CC/Cp` 已可用；复杂 C++ 类型与结构体值格式化仍受 Ghidra 限制 |
 | M4 写入 | 完成（v1 范围） | `wx/w/w0/wf/wd`、`wa/wa*/wa+`、`wi`、`w6d/w6e`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用 |
 | M5 兼容/体验 | 完成 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、`.gexec`、parity 黄金文件、22 配置架构矩阵、batch meta 已完成 |
-| M6 GUI 桥 | 待开始 | Ghidra GUI 附着；方案与验收见 `ROADMAP.md` Phase D |
 
 ## 验证基线（2026-11-08 实测）
 
@@ -103,7 +102,7 @@ parity 的已知限制：`pdl` 输出布局与 r2 不同，只比较行数；向
 可能随解码器不同，只校验地址序列；函数数量不要求逐项一致，只比较导入名集合与
 数量区间。
 
-Phase C 剩余项已清零；下一步进入 M6（Phase D GUI 桥）。
+Phase C 剩余项已清零；v1 阶段全部完成。
 
 ## 已修复问题对照（原审查清单）
 
@@ -297,11 +296,11 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 ## 下一轮
 
 详细任务、文件、测试与验收见 **[ROADMAP.md](ROADMAP.md)**。v1 的 Phase A–C
-已全部完成；下一轮进入 M6（Phase D）：
+已全部完成。明确不支持 Ghidra GUI 打开时附着；daemon 独占项目是唯一运行形态。
 
-1. 在 PyGhidra console 中做 GUI 桥可行性原型，记录线程模型与失败模式；
-2. 产出 `docs/GUI-BRIDGE.md`；
-3. 设计 `Context` 代理，把 op 调度到 Ghidra 任务线程/EDT。
+没有必须推进的下一阶段。可选维护项：
 
-v1 的可选后续：`--assembler=rasm2` 回退、`f` flag 视觉列、真实 ELF 架构矩阵
-（当前矩阵只覆盖裸二进制）。M6 详见 `ROADMAP.md` Phase D。
+1. `--assembler=rasm2` 回退（当前明确报 `BAD_ARGS`）；
+2. `f` flag 视觉列（在 `pdi` 的 symbol 列之外增加 flag 列）；
+3. 真实 ELF 架构矩阵（当前矩阵只覆盖裸二进制）；
+4. ARM32 样本的独立 `-m real_ghidra` 用例。

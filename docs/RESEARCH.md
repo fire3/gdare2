@@ -19,8 +19,9 @@
    内存、符号、类型、注释、搜索、反编译、汇编、事务/撤销都有对应 API。
 6. **反编译与反汇编文本不可能与 r2/IDA 完全一致。** 输出“形状”可以高度兼容，
    但助记符风格、自动命名、类型恢复结果必然不同；只能在渲染层做规范化。
-7. **GUI 附着应作为第二阶段。** 可行路径是 Ghidra 插件或 PyGhidra 控制台内启动
-   一个桥接 RPC；但它需要处理 GUI 线程模型和项目所有权，不能阻塞 headless v1。
+7. **GUI 附着已决策不做。** 技术上可在 Ghidra 插件或 PyGhidra 控制台内启动
+   桥接 RPC，但需要处理 GUI 线程模型、项目所有权和事务/undo 冲突；headless
+   daemon 已覆盖全部分析能力，因此不实现（2026-11-08 决定）。
 
 ## 2. 参考实现：idare2
 
@@ -401,7 +402,7 @@ gdare2 CLI  ──HTTP/JSON──▶  gdare2d (PyGhidra + Ghidra)  ──▶ Pro
 - 客户端无 JVM 依赖，可远程；
 - 与 idare2 的“结构化 op”模型一致；
 - 可做批处理、交互式、事件、长任务；
-- 后续 GUI 桥可复用同一协议。
+- 协议与 backend 抽象保持独立，便于后续扩展。
 
 缺点：
 
@@ -427,7 +428,7 @@ Ghidra GUI (插件/PyGhidra console) ──RPC──▶ gdare2 CLI
 - 项目已被 GUI 持有，外部 daemon 无法同时打开；
 - 需要处理光标/事务/undo 与用户操作冲突。
 
-定位：v2 增强；v1 不实现，但协议与 backend 抽象要为它留接口。
+定位：已决策不做（2026-11-08）；daemon 独占项目。
 
 ## 7. 现有本地参考
 
@@ -450,7 +451,7 @@ Ghidra GUI (插件/PyGhidra console) ──RPC──▶ gdare2 CLI
 3. 通信使用 loopback HTTP + JSON-RPC + bearer token；状态文件用于发现 daemon。
 4. 默认按目标路径自动拉起 daemon；支持 `--attach`、`--no-spawn`、`--ephemeral`。
 5. 默认只读；`-w` 才允许 transaction 提交和 `program.save()`。
-6. v1 只做 headless；GUI 桥在 M6 以后实现，复用相同 op 协议。
+6. 只做 headless；不支持 Ghidra GUI 附着，daemon 独占项目。
 7. 反汇编/反编译输出以“r2 形状”为目标，不承诺逐字节一致；用 parity 测试锁定差异。
 
 ## 9. P0 实测结论（2026-11-07）

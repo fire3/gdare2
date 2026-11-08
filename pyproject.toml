@@ -35,12 +35,11 @@ packages = ["src/gdare2", "src/gdare2d"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -m 'not real_ghidra and not parity and not arch_matrix and not gui'"
+addopts = "-ra -m 'not real_ghidra and not parity and not arch_matrix'"
 markers = [
     "real_ghidra: requires Ghidra + PyGhidra",
     "parity: requires radare2",
     "arch_matrix: imports one raw binary per architecture",
-    "gui: requires a running Ghidra GUI bridge",
 ]
 
 [tool.ruff]

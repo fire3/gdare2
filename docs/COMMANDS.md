@@ -432,7 +432,6 @@
 | Phase A | **已完成**（loader 参数校验、`pdi` 独立布局、`pdj` 字段集决策） |
 | Phase B | **已完成**（含 `izz`、`/p`、`/a`、raw search、`@@/x`、`@@s`、`@{from to}`、`.gexec`、`afr`/`afvR`/`afvW`/`an`、`ghidra.analysis.wait`） |
 | Phase C（parity） | **已完成**（`tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 黄金文件、22 配置矩阵 `pd 1`/`iI` 断言、batch 子 op meta 透传） |
-| Phase D（M6） | Ghidra GUI 桥、`--attach gui:<endpoint>`、GUI 内写入 |
 
 ### 14.3 已知语义差异
 

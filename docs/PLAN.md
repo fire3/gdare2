@@ -4,7 +4,7 @@
 > 不以“代码写完”为完成标准。
 
 - 更新时间：2026-11-08
-- 当前进度：M0–M4 核心完成，M5 进行中，M6 未开始
+- 当前进度：M0–M5 与 v1 完成
 - 任务级细化与缺陷清单：见 [ROADMAP.md](ROADMAP.md)
 
 ## 0. 实施原则
@@ -27,8 +27,7 @@
 | M2 分析/图 | `a*`、基本块、图、batch `@@` | 1–2 周 | 函数级分析可用 |
 | M3 反编译/类型 | `pdc/afv/t*/C*` | 1–2 周 | 反编译工作流 |
 | M4 写入 | `wx/wf/u/U/wc+/w` | 1 周 | 可修改项目 |
-| M5 兼容/体验 | parity、补全、rc、架构矩阵 | 2 周 | v1 候选 |
-| M6 GUI 桥 | Ghidra 插件附着 | 2–4 周 | 类 idare2 GUI 体验 |
+| M5 兼容/体验 | parity、补全、rc、架构矩阵 | 2 周 | v1 |
 
 时间只是量级，不是承诺；以验收结果为准。
 
@@ -238,7 +237,7 @@ gdare2 -w -qc 'e io.cache=true; wx 9090; wc+' /tmp/target
 
 ## 8. M5 兼容与体验（2 周）
 
-> 当前状态：**已完成**（2026-11-08）。Phase A–C 全部收尾；下一步为 M6。
+> 当前状态：**已完成**（2026-11-08）。Phase A–C 全部收尾。
 > 任务级记录见 ROADMAP §2.5–§2.7。
 
 ### 8.1 已完成
@@ -294,58 +293,7 @@ uv run gdare2 -j -qc 'afl' target | jq .
 - 架构矩阵全部通过；
 - 未实现命令明确报 `NOT_SUPPORTED`，不静默回退。
 
-## 9. M6 GUI 桥（2–4 周，v2）
-
-### 目标
-
-让 `gdare2 --attach` 附着到 Ghidra GUI 中已打开的程序，体验接近 idare2 的 GUI 附着。
-
-### 候选方案
-
-**方案 1：Java Ghidra 扩展**
-
-- 用 Java 写 Ghidra plugin；
-- 在 plugin 内启动 loopback HTTP server；
-- 通过 `PluginTool`/`ProgramManager` 获取当前 `Program`；
-- 所有 Ghidra 调用调度到 Ghidra 任务线程/EDT；
-- 复用 gdare2 RPC 协议，但 op 实现仍在 Python daemon 中不可复用。
-
-**方案 2：PyGhidra console 桥**
-
-- 用户在 Ghidra 的 PyGhidra console 运行 `import gdare2.bridge; gdare2.bridge.serve()`；
-- 桥接器复用 Python op 实现；
-- 需要把请求调度到安全的 Ghidra 线程；
-- 依赖 PyGhidra 插件已启用。
-
-**方案 3：Java 扩展 + 嵌入 CPython**
-
-- Java 扩展负责生命周期/GUI 线程；
-- 内部启动 PyGhidra interpreter 执行 Python op；
-- 复杂度最高，但可复用最多代码。
-
-建议先做方案 2 的原型；若线程模型不可靠，再做方案 1。
-
-### 细化阶段
-
-1. **D1 可行性原型**：在 PyGhidra console 中启动桥；验证线程模型、
-   `PluginTool`/`ProgramManager` 取程序路径、项目所有权。
-2. **D2 桥接器设计**：op 复用方式、调度到 Ghidra 线程、只读/写入策略、
-   失败回退。
-3. **D3 协议与发现**：registry `kind=gui`、`--attach gui:<endpoint>`、
-   `/health` 增加 `kind`。
-4. **D4 MVP 命令**：`pd/pdf/px/afl/afi/axt/pdc/afv/iI`，随后
-   `wx/w0/CC/Cp/afn`。
-5. **D5 验收**：GUI 不冻结、光标不动、写入可见、关闭后客户端明确报错。
-
-### 验收
-
-- Ghidra GUI 打开程序；
-- `gdare2 --attach gui:...` 能 `pd/afl/pdc`；
-- 不移动 GUI 光标；
-- 写入在 GUI 中立即出现；
-- 不破坏用户已有 undo 栈（或明确隔离）。
-
-## 10. 任务优先级（v1）
+## 9. 任务优先级（v1）
 
 ### P0（必须有）
 
@@ -376,9 +324,8 @@ uv run gdare2 -j -qc 'afl' target | jq .
 - `izz`
 - `iD`
 - `P` 会话工程
-- GUI 桥
 
-## 11. 风险燃尽
+## 10. 风险燃尽
 
 | 风险 | 触发阶段 | 验证/缓解 |
 |---|---|---|
@@ -390,20 +337,14 @@ uv run gdare2 -j -qc 'afl' target | jq .
 | 写入污染 | M4 | 默认只读；transaction；临时项目测试 |
 | daemon 生命周期 | M0 | 注册表/锁/健康检查/重试 |
 | 类型解析 | M3 | 失败明确报错 |
-| GUI 线程 | M6 | 原型先行；不阻塞 v1 |
 
-## 12. 当前可执行的下一步
+## 11. 当前可执行的下一步
 
 > 详细任务、文件、测试和验收见 [ROADMAP.md](ROADMAP.md)。
 
-1. 统一客户端/daemon 的 instance-id 指纹（ROADMAP A1）。
-2. 修正 `ppc/mips/sparc` 默认端序并补别名单测（A2）。
-3. 补 daemon 状态字段与注册表状态更新，修复 `.g/.gstatus`（A3/C4）。
-4. 落实 `-A/-AA`、`--wait`、`--listen`，给手工 `gdare2d` 合理默认值（A4/A5）。
-5. 落实 `--readonly`、分析超时、反编译超时（A6/C7/C8）。
-6. ✅ 建立 parity 基础设施与 `/bin/ls` 黄金文件（C1/C2）。
-7. ✅ 扩展架构矩阵到 `pd 1`/`iI` 断言（C4）。
-8. 实现 `f` flags 家族（B1）。
-9. 补 `t-`/`tp`/`/r`/`/p`/`/a` 等命令面（B3/B4）。
-10. ✅ 记录性能基线并审查错误码/退出码（C6）。
-11. 完成 v1 后再启动 M6 GUI 桥原型（Phase D）。
+v1 的 Phase A–C 已全部完成，没有必须推进的下一阶段。可选维护项：
+
+1. `--assembler=rasm2` 回退（当前明确报 `BAD_ARGS`）；
+2. `f` flag 视觉列（在 `pdi` 的 symbol 列之外增加 flag 列）；
+3. 真实 ELF 架构矩阵（当前矩阵只覆盖裸二进制）；
+4. ARM32 样本的独立 `-m real_ghidra` 用例。

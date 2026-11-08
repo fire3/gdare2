@@ -105,19 +105,17 @@ docs/             # 本设计文档
 | T3 集成 | `tests/integration/` | PyGhidra | `pytest -m real_ghidra` |
 | T4 parity | `tests/parity/` | PyGhidra + r2 | `pytest -m parity` |
 | T5 架构矩阵 | `tests/arch_matrix/` | PyGhidra + 语言模块 | `pytest -m arch_matrix` |
-| T6 GUI | 手工/集成 | Ghidra GUI + 插件 | M6 |
 
 `pyproject.toml` 默认：
 
 ```toml
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -m 'not real_ghidra and not parity and not arch_matrix and not gui'"
+addopts = "-ra -m 'not real_ghidra and not parity and not arch_matrix'"
 markers = [
   "real_ghidra: requires Ghidra + PyGhidra",
   "parity: requires radare2",
   "arch_matrix: imports one raw binary per architecture",
-  "gui: requires a running Ghidra GUI bridge",
 ]
 ```
 
@@ -274,7 +272,7 @@ ARM32 样本路径可用 `GDARE2_ARM_TARGET` 覆盖。
 ### 7.1 Ghidra / PyGhidra
 
 - **Python 3.14 可能装不上 JPype**；用 3.13/3.12。
-- **项目独占**：daemon 打开项目后，GUI 不能打开同一项目。
+- **项目独占**：daemon 打开项目后，GUI 不能打开同一项目；项目不支持 GUI 附着，需要 GUI 时先关闭 daemon。
 - **`open_project()` 是可写打开**，会建锁；不要试图删锁文件。
 - JVM 只能启动一次；daemon 内不要反复 `pyghidra.start()`。
 - `Program` 不是线程安全的；所有访问走单线程 executor。

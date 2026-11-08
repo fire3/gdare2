@@ -5,7 +5,7 @@
 - 版本：0.1（立项设计）
 - 日期：2026-11-07（实现状态更新：2026-11-08）
 - 基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、radare2 6.2.5、idare2 0.1
-- 状态：M0–M5 已实现（Phase A–C 完成），下一步 M6；本文保留为架构契约
+- 状态：M0–M5 与 v1 已完成（Phase A–C 关闭）；不支持 GUI 附着；本文保留为架构契约
 
 > 实现状态、已知缺口与后续顺序见 [PROGRESS.md](PROGRESS.md) 与
 > [ROADMAP.md](ROADMAP.md)。本文描述的是目标设计；当实现与设计不一致时，
@@ -24,7 +24,7 @@
    Ghidra `Program`，不引入 r2 的 `r_anal`。
 4. **交互可用**：首次启动后保持 daemon，后续命令秒级响应；REPL、历史、Tab 补全。
 5. **脚本可用**：`-qc`、`-j`、退出码、stdin/stdout 行为稳定。
-6. **可附着/可共享**：多个 CLI 客户端共享同一个 daemon；为未来 GUI 桥预留协议。
+6. **可附着/可共享**：多个 CLI 客户端共享同一个 daemon；不支持 GUI 附着。
 7. **可验证**：纯客户端单测、fake backend 协议测试、真实 Ghidra 集成测试、
    r2 输出 parity、架构矩阵测试。
 
@@ -37,7 +37,7 @@
 | ESIL / `ae` / `ar` | 依赖 r2 自有 VM，Ghidra 无对应语义 |
 | zignatures / FLIRT | 用 Ghidra FunctionID/BSim 表达更自然，不做 r2 兼容层 |
 | r2 二进制工程 `.prj` | 改用 JSON session/project 配置 |
-| Ghidra GUI 实时同步（v1） | 项目独占；GUI 桥放到 M6 |
+| Ghidra GUI 附着/实时同步 | 明确不做；daemon 独占项目，GUI 与 daemon 不同时打开同一项目 |
 | 完整 C++ 类型/模板恢复 | Ghidra 与 r2 的类型模型不同，只做常用 C 类型 |
 | 所有 r2 命令 | 未实现命令必须明确报错，禁止静默回退 |
 
@@ -86,7 +86,7 @@ GUI 的当前地址属于 UI，不应被 CLI 修改。
 
 - `s 0x401000` 只改 `Session.seek`；
 - 每个 op 显式接收地址参数；
-- 可选 `e ghidra.follow_gui=true` 在 GUI 桥阶段实现，默认关闭。
+- 不提供 GUI 跟随/同步，daemon 与 GUI 不同时打开同一项目。
 
 ### 2.4 为什么渲染在客户端
 
@@ -139,11 +139,13 @@ daemon 对每个请求做第二次门控，并可用 `gdare2d --readonly` 强制
 
 **例外**：反编译 C 文本、Ghidra 原生反汇编文本是后端产物；客户端只做缩进/着色/分页。
 
-### ADR-6：v1 headless，GUI 桥后置
+### ADR-6：不做 GUI 附着
 
-**决定**：v1 只支持 daemon 独占项目；GUI 附着通过 M6 的 Ghidra/PyGhidra 插件桥实现。
+**决定**：只支持 daemon 独占项目，不支持在 Ghidra GUI 打开程序时附着。
 
-**理由**：GUI 线程模型和项目所有权复杂，不能阻塞核心命令面。
+**理由**：headless daemon 已覆盖全部分析能力；GUI 附着只影响工作流，却需要
+自行解决 Ghidra 项目锁（项目独占）、GUI 线程模型与事务/undo 冲突。需要 GUI
+时先关闭 daemon，再在 GUI 中打开项目。
 
 ### ADR-7：复用 idare2 纯客户端层
 
@@ -980,7 +982,6 @@ daemon 专有选项：
 daemon 状态前缀：
 
 - `[0x00401000|busy]>`：分析中；
-- `[0x00401000|gui]>`：未来 GUI 桥；
 - `[0x00401000|ro]>`：只读可省略，默认就是只读。
 
 ### 16.5 扩展命令
@@ -1107,15 +1108,6 @@ fake backend + fake Ghidra 对象：
 
 每个配置断言：导入成功、语言 ID 正确、`pd 1` 非空、`iI` 字段正确。
 
-### T6 GUI 桥
-
-M6 后：在 Ghidra GUI 中安装插件，验证：
-
-- `gdare2 --attach` 能读当前程序；
-- 不移动 GUI 光标；
-- 写入后 GUI 立即可见；
-- 事务不破坏用户撤销栈。
-
 ---
 
 ## 19. 目录结构
@@ -1178,7 +1170,7 @@ gdare2/
 
 | 风险 | 影响 | 对策 |
 |---|---|---|
-| Ghidra 项目锁与 GUI 冲突 | 无法同时使用 | v1 明确只支持 daemon；GUI 桥 M6；文档醒目提示 |
+| Ghidra 项目锁与 GUI 冲突 | 无法同时使用 | 明确不支持 GUI 附着；文档提示先关闭 daemon 再用 GUI |
 | Python 3.14 无 JPype 轮子 | 无法安装 | 固定 3.12/3.13；启动时检查 |
 | 自动分析太慢/卡死 | 首次体验差 | `-n`、`--analysis-timeout`、`TaskMonitor` 取消、状态轮询 |
 | Ghidra 反汇编文本与 r2 差异 | parity 失败 | 只比较结构；规范化；记录版本 |
@@ -1187,7 +1179,6 @@ gdare2/
 | 写入污染项目 | 数据损坏 | 默认只读；transaction rollback；备份/临时项目选项 |
 | daemon stale/端口冲突 | 连接失败 | 注册表健康检查、文件锁、重试、`--kill` |
 | 大项目列表/搜索 OOM | 客户端卡死 | 分页、上限、流式/批量、超时 |
-| GUI 桥线程不安全 | 崩溃 | M6 单独设计；Ghidra 任务/EDT 调度 |
 | 类型解析复杂 | `td/tu` 不完整 | 只用 CParser/DataTypeParser；不支持明确报错 |
 | 汇编语法差异 | `pa/wa` 失败 | 明确错误；可选 rasm2 回退（显式） |
 
@@ -1203,7 +1194,6 @@ gdare2/
 | M3 反编译/类型 | `pdc`、`afv`、`t*`、`C*` | 反编译 C 输出；类型列表/结构/函数签名可用 |
 | M4 写入 | `wx/wf/wd/w0`、`u/U`、`io.cache`、`w` | `-w` 写入后重开项目可见；只读拒绝；undo 可用 |
 | M5 兼容与体验 | `~`/`|`/`>` 完整、`j`、REPL、补全、rc、parity、架构矩阵 | r2 结构 parity 通过；22 配置矩阵通过 |
-| M6 GUI 桥 | Ghidra/PyGhidra 插件、`--attach gui`、光标/事务安全 | 附着 GUI 读写不破坏用户操作 |
 
 ---
 
@@ -1215,9 +1205,8 @@ gdare2/
    多程序用多个实例或 `--program` 切换（切换需要重新打开项目，成本高）。
 3. **只读会话是否允许 `u/U`？** 建议不允许，因为 undo 修改程序状态。
 4. **`aa` 是否允许自动触发分析？** 建议只在未分析时触发；已分析时 no-op。
-5. **GUI 桥用 Java 插件还是 PyGhidra console 脚本？** M6 前做原型。
-6. **是否支持远程 daemon？** 协议已支持，v1 只绑定 loopback；远程需要 TLS/SSH 方案。
-7. **反编译缓存是否跨请求保留？** 建议先不缓存，M5 再评估内存占用。
+5. **是否支持远程 daemon？** 协议已支持，v1 只绑定 loopback；远程需要 TLS/SSH 方案。
+6. **反编译缓存是否跨请求保留？** 建议先不缓存，M5 再评估内存占用。
 
 ---
 
