@@ -12,7 +12,7 @@
 | M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；剩黄金文件与架构矩阵 |
 | M3 反编译/类型 | 进行中 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`C/CC/Cp` 已可用；C 声明解析与签名写入待补 |
 | M4 写入 | 基本完成 | `wx/w/w0/wf/wd`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用；`wa/wi` 等 P2 未做 |
-| M5 兼容/体验 | 进行中 | rc、readline 历史/Tab 补全、`-I/-i` 顺序已可用；parity、架构矩阵待补 |
+| M5 兼容/体验 | 进行中 | rc、readline 历史/Tab 补全、`-I/-i` 顺序、20 配置架构矩阵已可用；parity 待补 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着 |
 
 ## P0 验收
@@ -113,7 +113,14 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - `/j`、`/xj`、`/wj`、`/v*j` JSON 输出与 `-j` 默认映射；
 - `search.from`/`search.to` 范围配置；`search.in=raw` 明确报不支持。
 
-当前测试：离线 `67 passed`；真实 Ghidra `14 passed`。
+第十轮（架构矩阵）新增：
+
+- `src/gdare2/arch_matrix.py`：20 个裸二进制架构/位宽/端序配置；
+- `tools/arch_matrix.py`：一次 JVM 内批量导入并校验 Ghidra 语言 ID，支持 `--json`；
+- `pytest -m arch_matrix`：先校验别名映射，再运行完整 20 配置导入矩阵；
+- 修正 `sh4` 别名：Ghidra 12.2 无 SH-4 语言，改为明确报错并建议 `--ghidra-language`。
+
+当前测试：离线 `67 passed`；真实 Ghidra `14 passed`；架构矩阵 `2 passed`。
 
 验收命令：
 
@@ -138,12 +145,14 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -N -qc 'e scr.color' /b
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -L
 .venv/bin/python -m pytest -q
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 ```
 
 ## 已知缺口
 
 - `afB` 当前 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
-- `/bin/ls` 与 ARM32 样本的结构化黄金文件、架构矩阵尚未补齐；
+- `/bin/ls` 与 ARM32 样本的结构化 parity 黄金文件尚未补齐（架构矩阵已覆盖 20 配置）；
 - batch 还没有返回统一 `meta`（总数/截断）信息；
 - `td` C 声明解析、`tc` C 声明输出、`tf-`/签名写入与类型应用尚未实现；
 - 搜索 `/r`、`/p`、`/a`、`cmd.hit` 与 `search.in=raw` 尚未实现；`wa/wa*/wi/w6` 等 P2 写入命令尚未实现；
@@ -156,4 +165,4 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 2. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
 3. 完善 batch 分页 `meta` 与错误码一致性；
 4. 继续 M3：`td/tc`、函数签名写入与类型应用；
-5. 继续 M5：r2 结构化 parity 黄金文件、架构矩阵与 batch 分页 `meta`；可选补 `wa/wi`。
+5. 继续 M5：r2 结构化 parity 黄金文件与 batch 分页 `meta`；可选补 `wa/wi`。

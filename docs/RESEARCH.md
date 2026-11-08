@@ -345,7 +345,7 @@ Ghidra 反编译器是与 Ghidra 一起分发的独立进程，PyGhidra 会自�
 | m68k | `68000:BE:32:default` |
 | sparc 32 | `sparc:BE:32:default` |
 | sparc 64 | `sparc:BE:64:default` |
-| sh4 | `SuperH4:LE:32:default` / `SuperH4:BE:32:default` |
+| sh4 | Ghidra 12.2 无 SH-4；请用 `--ghidra-language SuperH:BE:32:SH-*` |
 
 设计上允许 `-a` 使用 r2 风格别名，同时提供 `--ghidra-language` 精确覆盖。
 运行时还应查询 `DefaultLanguageService`，对别名做模糊解析并给出候选列表。

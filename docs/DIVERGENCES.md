@@ -63,7 +63,13 @@ gdare2 对裸二进制要求 `-a/-b/--endian` 或 `--ghidra-language`；缺失�
 `-a arm` 会映射到 Ghidra `ARM:LE:32:v7`（或用户指定的 v8/Cortex），不是 r2 的
 `arm` 插件名。需要精确控制时用 `--ghidra-language`。
 
-### 3.3 加载基址
+### 3.3 SuperH 别名
+
+`sh4` 别名在 Ghidra 12.2 中没有对应的 `SuperH4` 语言：内置 SuperH 模块只提供
+`SuperH:BE:32:SH-1/SH-2/SH-2A`。gdare2 对 `-a sh4` 明确报错，请改用
+`--ghidra-language SuperH:BE:32:SH-2A`（或实际匹配的 SH 型号）。
+
+### 3.4 加载基址
 
 `-B` 映射到 `BinaryLoader` 的 `-baseAddr` loader arg，不修改已有程序的内存块。
 对 ELF/PE 默认忽略 `-B`；PIE 重定位需要 `--force-base`，v1 不实现，会明确警告/报错。

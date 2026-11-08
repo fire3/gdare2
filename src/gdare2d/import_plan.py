@@ -150,7 +150,10 @@ def resolve_alias(arch: str, *, bits: str | None = None, endian: str | None = No
     if family == "sparc":
         return f"sparc:{order}:{width}:default"
     if family == "SuperH4":
-        return f"SuperH4:{order}:32:default"
+        raise UsageError(
+            "Ghidra 12.2 has no SH-4 language; use --ghidra-language with a "
+            "SuperH:BE:32:SH-* ID"
+        )
     raise UsageError(f"unknown architecture alias {arch!r}")
 
 
