@@ -19,6 +19,9 @@ def env(tmp_path):
     values["GDARE2_DATA_DIR"] = str(tmp_path / "data")
     values.setdefault("GHIDRA_INSTALL_DIR", os.path.expanduser("~/ghidra/current"))
     values["XDG_RUNTIME_DIR"] = str(tmp_path / "run")
+    values["HOME"] = str(tmp_path / "home")
+    values["XDG_CONFIG_HOME"] = str(tmp_path / "config")
+    values["XDG_STATE_HOME"] = str(tmp_path / "state")
     yield values
     runtime = tmp_path / "run" / f"gdare2-{os.getuid()}"
     for state_file in runtime.glob("*.json"):
@@ -302,3 +305,25 @@ def test_write_cache_undo_redo_and_masks(env, tmp_path):
     )
     assert masked.returncode == 0, masked.stderr
     assert "90 4f" in masked.stdout
+
+
+def test_rc_loading_and_skip(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(b"\x90\xc3")
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".gdare2rc").write_text("e scr.color=7\n", encoding="utf-8")
+    config_home = tmp_path / "config"
+    config_home.mkdir()
+    values = dict(env)
+    values["HOME"] = str(home)
+    values["XDG_CONFIG_HOME"] = str(config_home)
+    base_args = ("-a", "x86", "-b", "64", "-B", "0x400000")
+
+    loaded = run(values, *base_args, "-qc", "e scr.color", str(target))
+    assert loaded.returncode == 0, loaded.stderr
+    assert loaded.stdout.strip() == "7"
+
+    skipped = run(values, *base_args, "-N", "-qc", "e scr.color", str(target))
+    assert skipped.returncode == 0, skipped.stderr
+    assert skipped.stdout.strip() == "0"

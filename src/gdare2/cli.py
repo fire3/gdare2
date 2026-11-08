@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 from typing import Iterable
 
-from gdare2 import __version__, argv, registry
+from gdare2 import __version__, argv, completion, rc, registry
 from gdare2.client import Client
 from gdare2.config import Config
 from gdare2.errors import GdarError, UsageError
@@ -21,6 +21,7 @@ def main(argv_list: list[str] | None = None) -> int:
     client = None
     lease = None
     heartbeat_stop = None
+    history_file = None
     try:
         options = argv.parse(sys.argv[1:] if argv_list is None else argv_list)
     except UsageError as exc:
@@ -65,6 +66,13 @@ def main(argv_list: list[str] | None = None) -> int:
         info["readonly"] = options.readonly
         session = Session(client, info, config, readonly=options.readonly)
         session.json_default = options.json
+
+        _run_rc(session, options)
+        for key, value in options.evals:
+            config.set(key, value)
+        if options.color is not None:
+            config.set("scr.color", options.color)
+        client.timeout = options.timeout or float(config.get_int("ghidra.timeout"))
         if options.seek:
             session.seek_to(session.eval(options.seek))
 
@@ -72,9 +80,7 @@ def main(argv_list: list[str] | None = None) -> int:
             print(f"gdare2 {__version__} - {info.get('program')} [{info.get('language')}]")
             print(f"project: {info.get('project_dir')}  pid: {state.get('pid')}")
 
-        commands = list(options.commands)
-        for script in [*options.pre_scripts, *options.post_scripts]:
-            commands.extend(_read_script(script))
+        commands = _command_lines(options)
 
         if commands:
             for command in commands:
@@ -87,6 +93,7 @@ def main(argv_list: list[str] | None = None) -> int:
                     if session.quit_requested:
                         break
         else:
+            history_file = completion.setup_readline()
             _repl(session, quiet=options.quiet)
 
         if options.ephemeral:
@@ -98,6 +105,7 @@ def main(argv_list: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         return 130
     finally:
+        completion.save_history(history_file)
         if heartbeat_stop is not None:
             heartbeat_stop.set()
         if client is not None and lease is not None:
@@ -105,6 +113,29 @@ def main(argv_list: list[str] | None = None) -> int:
                 client.call("session_close", lease=lease)
             except GdarError:
                 pass
+
+
+def _command_lines(options: argv.Options) -> list[str]:
+    commands: list[str] = []
+    for script in options.pre_scripts:
+        commands.extend(_read_script(script))
+    commands.extend(options.commands)
+    for script in options.post_scripts:
+        commands.extend(_read_script(script))
+    return commands
+
+
+def _run_rc(session: Session, options: argv.Options) -> None:
+    lines = rc.load(options.skip_rc)
+    if not lines:
+        return
+    failed, last_error = session.failed, session.last_error
+    quitting = session.quit_requested
+    for line in lines:
+        _emit(session.run(line))
+    session.failed = failed
+    session.last_error = last_error
+    session.quit_requested = quitting
 
 
 def _start_heartbeat(client: Client, lease: str, *, ttl: int = 90) -> threading.Event:

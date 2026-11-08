@@ -12,7 +12,7 @@
 | M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；剩黄金文件与架构矩阵 |
 | M3 反编译/类型 | 进行中 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`C/CC/Cp` 已可用；C 声明解析与签名写入待补 |
 | M4 写入 | 基本完成 | `wx/w/w0/wf/wd`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用；`wa/wi` 等 P2 未做 |
-| M5 兼容/体验 | 待开始 | parity、补全、rc、架构矩阵 |
+| M5 兼容/体验 | 进行中 | rc、readline 历史/Tab 补全、`-I/-i` 顺序已可用；parity、架构矩阵待补 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着 |
 
 ## P0 验收
@@ -96,7 +96,16 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - 请求侧 base64 字节解码，写入后 `.gsave` 持久化与重启后可见性验证；
 - 写入前清理写范围内的 code units，避免 Ghidra 的 instruction 冲突。
 
-当前测试：离线 `58 passed`；真实 Ghidra `12 passed`。
+第八轮（M5 体验）新增：
+
+- rc 文件：`$XDG_CONFIG_HOME/gdare2/rc`（系统）与 `~/.gdare2rc`（用户），用户后加载；
+- `-N` 跳过用户 rc，`-NN` 跳过系统与用户 rc；rc 错误不会把会话标记为失败；
+- REPL 使用 readline 历史（`$XDG_STATE_HOME/gdare2/history`）与 Tab 补全；
+- 补全覆盖命令/别名与 `e` 配置键；
+- 修正 `-I`（命令前）与 `-i`（命令后）脚本顺序；
+- rc 在 CLI `-e` 之前加载，随后由 CLI 配置覆盖，保证命令行优先级。
+
+当前测试：离线 `64 passed`；真实 Ghidra `13 passed`。
 
 验收命令：
 
@@ -114,6 +123,8 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 't~int; ts; tf~entr
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; CC demo comment; Cp demo plate; .gsave' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's 0x400000; wx 9090; px 2; u; px 2; U' /tmp/blob.bin
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 'e io.cache=true; s 0x400000; wx 4142; wc; wc+; w' /tmp/blob.bin
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'e scr.color' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -N -qc 'e scr.color' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -L
 .venv/bin/python -m pytest -q
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra
@@ -127,7 +138,6 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 - `td` C 声明解析、`tc` C 声明输出、`tf-`/签名写入与类型应用尚未实现；
 - 搜索尚未实现；`wa/wa*/wi/w6` 等 P2 写入命令尚未实现；
 - `pdi/pdl/pd -n` 与 r2 parity 黄金文件尚未补齐；
-- `-i/-I` 当前按打开后脚本处理；
 - GUI 桥未开始。
 
 ## 下一轮
@@ -136,4 +146,4 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 2. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
 3. 完善 batch 分页 `meta` 与错误码一致性；
 4. 继续 M3：`td/tc`、函数签名写入与类型应用；
-5. 完成 M4 收尾后进入 M5：parity、补全、rc 与架构矩阵；可选补 `wa/wi`。
+5. 继续 M5：r2 结构化 parity 黄金文件、架构矩阵与 batch 分页 `meta`；可选补 `wa/wi`。

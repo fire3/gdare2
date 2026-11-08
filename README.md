@@ -3,11 +3,11 @@
 `gdare2` 是一个以 Ghidra 为分析后端、命令行与输出模型尽量兼容 radare2 的逆向工具。
 
 当前完成 **P0 预研**、**M0 骨架**、**M1 只读核心**、**M2 分析/图核心**、
-**M3 反编译/类型**，并已进入 **M4 写入**：
+**M3 反编译/类型**、**M4 写入**，并已进入 **M5 体验**：
 客户端、常驻 daemon、注册表、自动拉起、批量 `@@` 迭代、函数/基本块/图、
 调用关系、地址与指令信息、函数重命名/边界调整、`pdc`/`afv`、类型视图、注释、
-session lease、只读门控、字节写入/写缓存/撤销重做与
-真实 Ghidra 回归测试均可运行。后续里程碑见 [docs/PROGRESS.md](docs/PROGRESS.md)。
+session lease、只读门控、字节写入/写缓存/撤销重做、rc 文件与 readline 补全，
+以及真实 Ghidra 回归测试均可运行。后续里程碑见 [docs/PROGRESS.md](docs/PROGRESS.md)。
 
 - 文档索引：[docs/README.md](docs/README.md)
 - 背景调研：[docs/RESEARCH.md](docs/RESEARCH.md)
