@@ -141,6 +141,21 @@ Ghidra `VariableStorage` 不直接对应 r2 的 `reg/sp/bp`：
 Ghidra 可能把 typedef 展开或保留为 `TypeDef`，r2 的 `t` 列表格式也不同。
 客户端只做渲染，不改变类型语义。
 
+### 6.3 `td` / `tc`
+
+`td` 使用 Ghidra `CParser`，支持常用 C 声明；包含 `;` 的声明必须整体引用，
+例如 `td 'struct demo { int a; };'`。解析失败返回 `BAD_ARGS`，并由事务回滚，
+不会留下半解析类型。
+
+`tc` 使用 Ghidra `DataTypeWriter` 输出 ANSI-C，而不是 r2 自己的类型数据库格式。
+同名类型可能位于不同 category，此时请使用完整路径（如 `tc /types.h/size_t`）。
+
+### 6.4 `afs` 函数签名
+
+`afs <signature>` 通过 `CParserUtils` 解析并使用 `ApplyFunctionSignatureCmd` 应用。
+签名中的函数名只在 Ghidra 默认名称（如 `FUN_...`）上生效；用户自定义名称不会被覆盖。
+参数存储由 Ghidra 调用约定和数据类型决定，可能与 r2 的寄存器/栈布局不同。
+
 ## 7. 符号与 flag
 
 ### 7.1 flag 写回
@@ -236,6 +251,10 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 ### 11.3 分页
 
 大列表默认分页/截断；`meta.truncated=true` 时必须用 `-o` 继续，不静默丢弃。
+
+`@@`/`@@@` 的目标枚举也带 `meta`：`total` 是服务端匹配总数，`shown` 是本次
+保留数量，目标超过上限时会告警。`batch` 的 `meta` 目前汇总 `total/shown/errors`，
+子 op 自己的 `meta` 暂不逐项透传。
 
 ## 12. 不支持的命令
 

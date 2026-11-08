@@ -5,6 +5,19 @@ from __future__ import annotations
 import ast
 
 
+def unquote_text(text: str) -> str:
+    stripped = text.strip()
+    if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in ("'", '"'):
+        try:
+            value = ast.literal_eval(stripped)
+        except (SyntaxError, ValueError):
+            pass
+        else:
+            if isinstance(value, str):
+                return value
+    return stripped
+
+
 def text_bytes(text: str) -> bytes:
     stripped = text.strip()
     if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in ("'", '"'):

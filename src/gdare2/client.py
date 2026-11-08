@@ -21,6 +21,16 @@ class Client:
         self._counter = 0
 
     def call(self, op: str, *, allow_writes: bool = False, **args: Any) -> Any:
+        value, _meta = self.call_with_meta(op, allow_writes=allow_writes, **args)
+        return value
+
+    def call_with_meta(
+        self,
+        op: str,
+        *,
+        allow_writes: bool = False,
+        **args: Any,
+    ) -> tuple[Any, dict[str, Any]]:
         self._counter += 1
         payload = {
             "id": f"{self.instance_id}-{self._counter}",
@@ -59,7 +69,8 @@ class Client:
                 str(error.get("message", "unknown daemon error")),
                 data=error.get("data"),
             )
-        return decode_bytes(data.get("result"))
+        meta = data.get("meta")
+        return decode_bytes(data.get("result")), meta if isinstance(meta, dict) else {}
 
     def info(self) -> dict[str, Any]:
         request = urllib.request.Request(

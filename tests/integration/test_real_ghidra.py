@@ -4,9 +4,9 @@ import json
 import os
 import re
 import signal
-import time
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -209,6 +209,62 @@ def test_types_and_function_signatures(env):
     signatures = run(env, "-qc", "tf~entry", target)
     assert signatures.returncode == 0, signatures.stderr
     assert "entry" in signatures.stdout
+
+
+def test_type_define_c_output_and_signature_write(env):
+    target = "/bin/ls"
+    info = run(env, "-j", "-qc", "iI", target)
+    assert info.returncode == 0, info.stderr
+    entry = int(json.loads(info.stdout)["entry"])
+    function = run(env, "-j", "-qc", f"afij @ 0x{entry:x}", target)
+    assert function.returncode == 0, function.stderr
+    name = json.loads(function.stdout)["name"]
+
+    type_name = "gdare2_m3_struct"
+    declaration = f"struct {type_name} {{ int field; char text[8]; }};"
+    defined = run(
+        env,
+        "-w",
+        "-qc",
+        f"td '{declaration}'; .gsave; .gclose",
+        target,
+    )
+    assert defined.returncode == 0, defined.stderr
+    assert type_name in defined.stdout
+    time.sleep(0.5)
+
+    c_output = run(env, "-qc", f"tc {type_name}", target)
+    assert c_output.returncode == 0, c_output.stderr
+    assert "struct" in c_output.stdout
+    assert "field" in c_output.stdout
+
+    function_type = "gdare2_m3_fn_type"
+    deleted = run(
+        env,
+        "-w",
+        "-qc",
+        f"td 'int {function_type}(int value);'; tf- {function_type}; .gsave; .gclose",
+        target,
+    )
+    assert deleted.returncode == 0, deleted.stderr
+    assert f"removed {function_type}" in deleted.stdout
+
+    signature = f"int {name}(int value)"
+    applied = run(
+        env,
+        "-w",
+        "-qc",
+        f"s 0x{entry:x}; afs '{signature}'; .gsave; .gclose",
+        target,
+    )
+    assert applied.returncode == 0, applied.stderr
+    time.sleep(0.5)
+
+    verify = run(env, "-j", "-qc", f"afsj @ 0x{entry:x}", target)
+    assert verify.returncode == 0, verify.stderr
+    payload = json.loads(verify.stdout)
+    assert name in payload["signature"]
+    assert payload["parameters"][0]["name"] == "value"
 
 
 def test_comments_are_gated_and_persist(env):

@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import base64
+from dataclasses import dataclass
 from typing import Any
 
 from gdare2 import PROTOCOL_VERSION
 
 BYTES_KEY = "$gdare2.b64"
+
+
+@dataclass
+class OpResult:
+    """An op result that also carries response-level metadata."""
+
+    value: Any
+    meta: dict[str, Any] | None = None
 
 
 def encode_bytes(value: Any) -> Any:

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from gdare2.cmd import command
+from gdare2.errors import UsageError
+from gdare2.escape import unquote_text
 from gdare2.jsonutil import dumps
 
 
@@ -79,4 +81,64 @@ def _signatures(session, statement):
     return [
         f"{session.format_addr(int(item['addr']))} {item['signature']}"
         for item in payload
+    ]
+
+
+@command("td", "define C types from a declaration")
+def _define_type(session, statement):
+    text = unquote_text(statement.args)
+    if not text:
+        raise UsageError("td needs a C type declaration")
+    payload = session.call("type_define", decl=text)
+    return [
+        f"{payload['name']} {payload['kind']} size={payload['length']}",
+        str(payload.get("declaration", "")).rstrip(),
+    ]
+
+
+@command("tc", "print types in C declaration format", aliases=("tcj",))
+def _type_c(session, statement):
+    name = statement.args.strip() or None
+    payload = session.call("type_c", name=name, limit=10000)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    if isinstance(payload, dict):
+        return [str(payload.get("declaration", "")).rstrip()]
+    lines = []
+    for item in payload:
+        lines.append(str(item.get("declaration", "")).rstrip())
+    return lines
+
+
+@command("tfc", "print function signatures in C format", aliases=("tfcj",))
+def _signatures_c(session, statement):
+    name = statement.args.strip() or None
+    payload = session.call("function_signatures", name=name, limit=10000)
+    session.warn_truncated("signature list", len(payload))
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    return [str(item["signature"]) for item in payload]
+
+
+@command("tf-", "delete loaded function definition types")
+def _delete_signature_type(session, statement):
+    name = statement.args.strip()
+    if not name:
+        raise UsageError("tf- needs a function type name or glob")
+    payload = session.call("type_delete", name=name, kind="function")
+    return [f"removed {name}" for name in payload.get("removed", [])]
+
+
+@command("afs", "get or set the function signature at seek", aliases=("afsj",))
+def _function_signature(session, statement):
+    text = unquote_text(statement.args)
+    if text:
+        payload = session.call("function_set_signature", ea=session.seek, signature=text)
+    else:
+        payload = session.call("function_signature", ea=session.seek)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    return [
+        f"{session.format_addr(int(payload['addr']))} {payload['signature']} "
+        f"[{payload.get('calling_convention', '')}]"
     ]

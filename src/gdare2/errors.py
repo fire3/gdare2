@@ -35,6 +35,11 @@ class UnsupportedError(GdarError):
     exit_code = 1
 
 
+class UnknownOpError(GdarError):
+    code = "UNKNOWN_OP"
+    exit_code = 1
+
+
 class ReadOnlyError(GdarError):
     code = "READONLY"
     exit_code = 1

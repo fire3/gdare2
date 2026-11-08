@@ -231,7 +231,8 @@ gdare2 --project /data/projects --project-name demo /bin/ls
 | 函数/图 | `afl`、`afi`、`af`、`afn`、`afu`、`afc`、`afC`、`afx`、`afb`、`ab`、`ao`、`ai`、`agf` |
 | xref | `axt`、`axf` |
 | 反编译/变量 | `pdc`、`afv` |
-| 类型 | `t`、`ts`、`tu`、`te`、`tt`、`tf` |
+| 类型 | `t`、`ts`、`tu`、`te`、`tt`、`tf`、`td`、`tc`、`tfc`、`tf-` |
+| 签名 | `afs`、`afsj` |
 | 注释 | `C`、`C.`、`CC`、`CC-`、`Cd`、`Cb`、`Cp`、`Cr` |
 | 分析写入 | `a8`、`ad` |
 | 字节写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U` |
@@ -239,6 +240,20 @@ gdare2 --project /data/projects --project-name demo /bin/ls
 
 大部分查询命令支持 `j` 后缀 JSON 变体；`<command>?` 查看单命令帮助。
 完整映射见 [docs/COMMANDS.md](docs/COMMANDS.md)。
+
+### 类型与签名写入
+
+```bash
+gdare2 -w -qc "td 'struct demo { int field; char text[8]; };'; tc demo; .gsave" /bin/ls
+gdare2 -qc 'tc demo; tfc~entry' /bin/ls
+gdare2 -w -qc 's entry; afs "int entry(int value)"; .gsave' /bin/ls
+gdare2 -qc 's entry; afsj' /bin/ls
+gdare2 -w -qc 'tf- unused_function_type; .gsave' /bin/ls
+```
+
+`td` 需要把包含分号的 C 声明整体引用起来，否则 `;` 会被当作 gdare2 语句分隔符。
+`tc` 输出 Ghidra `DataTypeWriter` 生成的 ANSI-C 声明；`afs` 写入签名时只重命名
+Ghidra 默认函数名，不覆盖用户自定义名称。
 
 ## 与 radare2 的差异
 

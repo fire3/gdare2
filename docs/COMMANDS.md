@@ -231,13 +231,15 @@
 | `ts <name>` | 结构布局 | `Structure` | P1 |
 | `tu <struct>` | 成员 | `StructureComponent` / `getComponents()` | P1 |
 | `te <enum>` | 枚举成员 | `Enum.getEnumEntries()` | P1 |
-| `tc [name]` | C 声明 | `ghidra.program.model.data.DataTypeWriter` 输出 ANSI-C | P2 |
-| `td <decl>` **[W]** | 解析 C 声明 | `CParserUtils` / `DataTypeParser` | P1 |
+| `tc [name]` / `tcj` | C 声明 | `DataTypeWriter` 输出 ANSI-C | P1 |
+| `td <decl>` **[W]** | 解析 C 声明 | `CParser` + `DataTypeManager.addDataType` | P1 |
 | `t- <name>` **[W]** | 删除类型 | `DataTypeManager.remove(...)` | P2 |
+| `tf- <name|glob>` **[W]** | 删除函数定义类型 | `DataTypeManager.remove(...)` + `FunctionDefinition` 过滤 | P1 |
 | `tp` / `tpv` / `tpx` | 按类型显示 | `Data` + `DataType` 布局 | P2 |
 | `tt <name> [addr]` **[W]** | 应用类型 | `Listing.createData(addr, dt)` 或 `Data.setDataType` | P2 |
 | `tt-` | 列出 typedef | `TypeDef` | P1 |
 | `tf` / `tfj` / `tfc` | 函数签名 | `Function.getSignature()` / `getPrototypeString` | P1 |
+| `afs [signature]` **[W]** | 获取/写入当前函数签名 | `CParserUtils.parseSignature` + `ApplyFunctionSignatureCmd` | P1 |
 | `tn` / `tn-` | 重命名类型 | `DataTypeManager` rename | P2 |
 | `to` / `dt` | 打开/删除类型 | **X** | X |
 
@@ -367,6 +369,11 @@
 | `memory` | `ea`, `length`, `kind` | bytes / 值列表 |
 | `strings` | `ea`, `kind`, `all` | 字符串列表/单条 |
 | `types` | `kind`, `name`, `decl`, `ea` | 类型列表/结构/成员/签名 |
+| `type_define` | `decl` | 解析并保存 C 类型声明 |
+| `type_c` | `name`, `kind`, `limit` | C 声明输出 |
+| `type_delete` | `name`, `kind` | 删除类型/函数定义类型 |
+| `function_signature` | `ea` | 当前函数签名与参数 |
+| `function_set_signature` | `ea`, `signature` | 解析并应用函数签名 |
 | `comments` | `kind`, `ea`, `text` | 注释列表/更新 |
 | `decompile` | `ea`, `timeout`, `kind` | C 文本/签名/变量 |
 | `search` | `kind`, `pattern`, `from`, `to` | 命中列表 |

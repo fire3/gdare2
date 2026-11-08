@@ -9,8 +9,8 @@
 | P0 预研 | 完成 | PyGhidra 导入/分析/反编译/持久化已验证 |
 | M0 骨架 | 完成 | 两进程链路、注册表、自动拉起、首批命令与测试 |
 | M1 只读核心 | 基本完成 | 只读命令、搜索、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
-| M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；剩黄金文件与架构矩阵 |
-| M3 反编译/类型 | 进行中 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`C/CC/Cp` 已可用；C 声明解析与签名写入待补 |
+| M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；架构矩阵已完成，剩结构化黄金文件 |
+| M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/tf-`、`afs`、`C/CC/Cp` 已可用；复杂 C++ 类型仍受 Ghidra parser 限制 |
 | M4 写入 | 基本完成 | `wx/w/w0/wf/wd`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用；`wa/wi` 等 P2 未做 |
 | M5 兼容/体验 | 进行中 | rc、readline 历史/Tab 补全、`-I/-i` 顺序、20 配置架构矩阵已可用；parity 待补 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着 |
@@ -120,7 +120,19 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - `pytest -m arch_matrix`：先校验别名映射，再运行完整 20 配置导入矩阵；
 - 修正 `sh4` 别名：Ghidra 12.2 无 SH-4 语言，改为明确报错并建议 `--ghidra-language`。
 
-当前测试：离线 `67 passed`；真实 Ghidra `14 passed`；架构矩阵 `2 passed`。
+第十一轮（M3 类型写入与 batch 元信息）新增：
+
+- `td '<C declaration>'` 通过 Ghidra `CParser` 定义 struct/union/enum/typedef/函数类型；
+- `tc/tcj [name]` 通过 `DataTypeWriter` 输出 ANSI-C 声明，支持按名称或完整路径查找类型；
+- `tfc/tfcj [name]` 输出 C 风格函数原型；`tf- <name|glob>` 删除已加载的函数定义类型；
+- `afs [signature]` 获取/写入当前函数签名，使用 `CParserUtils` + `ApplyFunctionSignatureCmd`；
+- `afs` 写签名保留用户自定义函数名，只重命名 Ghidra 默认名；参数列表可通过 `afsj` 查看；
+- `td/tc/tfc/tf-/afs` 的类型与签名写入支持 `-w` 门控、transaction、`.gsave` 与重启后验证；
+- RPC 增加 `OpResult`：`batch`/`iter_targets` 现在返回 `total/shown/truncated/errors` `meta`；
+- `@@` 迭代使用服务端目标总数；目标截断时输出明确警告，batch 失败仍保持单项错误隔离；
+- 未知 daemon op 统一返回 `UNKNOWN_OP`，不再混用 `NOT_SUPPORTED`。
+
+当前测试：离线 `69 passed`；真实 Ghidra `15 passed`；架构矩阵 `2 passed`。
 
 验收命令：
 
@@ -137,6 +149,9 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; afn de
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's 0x400000; a8 9090c3; ad 1; .gsave' /tmp/blob.bin
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pdc @ entry; afv @ entry' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 't~int; ts; tf~entry' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc "td 'struct demo { int a; };'; tc demo; .gsave" /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; afs "int entry(int value)"; afsj; .gsave' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 'tf- demo_func_type; .gsave' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; CC demo comment; Cp demo plate; .gsave' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's 0x400000; wx 9090; px 2; u; px 2; U' /tmp/blob.bin
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 'e io.cache=true; s 0x400000; wx 4142; wc; wc+; w' /tmp/blob.bin
@@ -153,8 +168,9 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 - `afB` 当前 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
 - `/bin/ls` 与 ARM32 样本的结构化 parity 黄金文件尚未补齐（架构矩阵已覆盖 20 配置）；
-- batch 还没有返回统一 `meta`（总数/截断）信息；
-- `td` C 声明解析、`tc` C 声明输出、`tf-`/签名写入与类型应用尚未实现；
+- batch 子 op 的 `meta` 只汇总错误数，尚未按单项保留子 op 自己的 `meta`；
+- `td` 支持常用 C 声明，但 C++ 模板/类、匿名复合体与复杂位域仍由 Ghidra parser 决定；
+- `tp/tpv/tpx` 类型化读取与 `t-` 通用类型删除尚未实现；
 - 搜索 `/r`、`/p`、`/a`、`cmd.hit` 与 `search.in=raw` 尚未实现；`wa/wa*/wi/w6` 等 P2 写入命令尚未实现；
 - `pdi/pdl/pd -n` 与 r2 parity 黄金文件尚未补齐；
 - GUI 桥未开始。
@@ -162,7 +178,6 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 ## 下一轮
 
 1. 建立 `/bin/ls` 与 ARM32 样本的结构化黄金文件；
-2. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
-3. 完善 batch 分页 `meta` 与错误码一致性；
-4. 继续 M3：`td/tc`、函数签名写入与类型应用；
-5. 继续 M5：r2 结构化 parity 黄金文件与 batch 分页 `meta`；可选补 `wa/wi`。
+2. 继续 M3：`tp/tpv/tpx` 类型化读取、`t-` 类型删除与更多签名/变量类型写入；
+3. 继续 M5：r2 结构化 parity 黄金文件、batch 子 op meta 透传；
+4. 可选补 `wa/wi` 等 P2 写入命令。

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import inspect
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
-from gdare2.errors import GdarError, ReadOnlyError, UnsupportedError, UsageError
+from gdare2.errors import GdarError, ReadOnlyError, UnknownOpError, UsageError
 from gdare2.protocol import error as error_payload
 from gdare2d.context import Context
 
@@ -63,7 +64,7 @@ def invoke(ctx: Context, name: str, args: dict[str, Any], *, allow_writes: bool)
     load_all()
     spec = _OPS.get(name)
     if spec is None:
-        raise UnsupportedError(f"unknown op {name!r}")
+        raise UnknownOpError(f"unknown op {name!r}")
     if spec.writes and (ctx.readonly or not allow_writes):
         raise ReadOnlyError("read-only request cannot perform a write op", data={"op": name})
     spec_error = _check_args(spec, args)

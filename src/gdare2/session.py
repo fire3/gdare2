@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
-from typing import Any, Callable
+from typing import Any
 
 from gdare2 import cmd, expr, parser, pipe
 from gdare2 import filter as grep
@@ -238,9 +239,14 @@ class Session:
         sized = statement.iterator_size is not None
         iterator_spec = statement.iterator_size if sized else statement.iterator
         kind, pattern = _parse_iterator(iterator_spec or "")
-        targets = self._iterator_targets(kind, pattern)
+        targets, target_meta = self._iterator_targets(kind, pattern)
         if not targets:
             return []
+        if target_meta.get("truncated"):
+            self.stderr(
+                f"WARN: iterator truncated at {target_meta.get('limit', MAX_BATCH_TARGETS)} "
+                f"of {target_meta.get('total', '?')} targets; narrow the iterator"
+            )
         if len(targets) > MAX_BATCH_TARGETS:
             raise UsageError(f"iterator is limited to {MAX_BATCH_TARGETS} targets")
 
@@ -268,12 +274,16 @@ class Session:
             if sized and target_size > 0 and not statement.args.strip() and "size" in args:
                 args["size"] = target_size
             operations.append({"op": op_name, "args": args})
-        replies = self.call("batch", ops=operations)
+        replies, _meta = self.call_with_meta(
+            "batch",
+            ops=operations,
+            total=int(target_meta.get("total", len(operations))),
+        )
         if not isinstance(replies, list) or len(replies) != len(targets):
             raise GdarError("daemon returned an invalid batch response")
 
         lines: list[str] = []
-        for target, reply in zip(targets, replies):
+        for target, reply in zip(targets, replies, strict=True):
             blocksize = self.blocksize
             if sized and int(target.get("size") or 0) > 0:
                 blocksize = int(target["size"])
@@ -291,14 +301,17 @@ class Session:
                 self.stderr(f"ERROR: {exc}")
         return lines
 
-    def _iterator_targets(self, kind: str, pattern: str | None) -> list[dict[str, Any]]:
+    def _iterator_targets(
+        self, kind: str, pattern: str | None
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         if kind == "=":
             text = pattern or ""
             tokens = [item for item in text.replace(",", " ").split() if item]
             if not tokens:
                 raise UsageError("@@= needs at least one address")
-            return [{"addr": self.eval(token), "size": 0} for token in tokens]
-        return self.call("iter_targets", kind=kind, ea=self.seek, pattern=pattern)
+            targets = [{"addr": self.eval(token), "size": 0} for token in tokens]
+            return targets, {"total": len(targets), "shown": len(targets), "truncated": False}
+        return self.call_with_meta("iter_targets", kind=kind, ea=self.seek, pattern=pattern)
 
     def _maybe_json(self, statement: Statement) -> Statement:
         if not self.json_default or statement.cmd.endswith("j"):
@@ -327,6 +340,9 @@ class Session:
             "te": "tej",
             "tt": "ttj",
             "tf": "tfj",
+            "tfc": "tfcj",
+            "tc": "tcj",
+            "afs": "afsj",
             "C": "Cj",
             "pdf": "pdfj",
             "axt": "axtj",
@@ -369,6 +385,12 @@ class Session:
 
     def call(self, op: str, **args: Any) -> Any:
         return self.client.call(op, allow_writes=not self.readonly, **args)
+
+    def call_with_meta(self, op: str, **args: Any) -> tuple[Any, dict[str, Any]]:
+        method = getattr(self.client, "call_with_meta", None)
+        if method is not None:
+            return method(op, allow_writes=not self.readonly, **args)
+        return self.client.call(op, allow_writes=not self.readonly, **args), {}
 
     def commit_write_cache(self) -> None:
         if not self.write_cache:

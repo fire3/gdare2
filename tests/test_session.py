@@ -174,6 +174,38 @@ class FakeClient:
                     "calling_convention": "unknown",
                 }
             ]
+        if op == "function_signature":
+            return {
+                "addr": args["ea"],
+                "name": "main",
+                "signature": "int main(void)",
+                "calling_convention": "unknown",
+                "parameters": [],
+            }
+        if op == "function_set_signature":
+            return {
+                "addr": args["ea"],
+                "name": "main",
+                "signature": args["signature"],
+                "calling_convention": "unknown",
+                "parameters": [],
+            }
+        if op == "type_define":
+            return {
+                "name": "demo_new",
+                "path": "/demo_new",
+                "kind": "struct",
+                "length": 8,
+                "declaration": "struct demo_new { int field; };",
+            }
+        if op == "type_c":
+            return {
+                "name": "demo_new",
+                "kind": "struct",
+                "declaration": "struct demo_new { int field; };",
+            }
+        if op == "type_delete":
+            return {"removed": ["demo_new"], "count": 1}
         if op == "comments":
             return [{"addr": 0x1000, "kind": "eol", "text": "hello"}]
         if op == "comment_set":
@@ -226,8 +258,8 @@ class FakeClient:
         return {"ok": False, "error": {"code": "BAD_ARGS", "message": f"no fake {op}"}}
 
 
-def make_session() -> tuple[Session, FakeClient]:
-    client = FakeClient()
+def make_session(client=None) -> tuple[Session, FakeClient]:
+    client = client or FakeClient()
     info = {
         "program": "demo",
         "arch": "x86",
@@ -406,6 +438,43 @@ def test_types_signatures_and_comments():
     session.readonly = False
     assert "updated" in session.run("CC updated @ main")[0]
     assert "deleted" in session.run("CC- @ main")[0]
+
+
+def test_type_define_c_output_and_signature_write():
+    session, client = make_session()
+    defined = session.run("td 'struct demo_new { int field; };'")[0]
+    assert "demo_new struct size=8" in defined
+    assert ("type_define", {"allow_writes": False, "decl": "struct demo_new { int field; };"}) in client.calls
+    assert "struct demo_new" in "\n".join(session.run("tc demo_new"))
+    assert "int main(void)" in session.run("tfc")[0]
+    session.readonly = False
+    assert "void demo(int x)" in session.run("s main; afs void demo(int x)")[0]
+    assert "removed demo_new" in session.run("tf- demo_new")[0]
+    assert [op for op, _ in client.calls if op.startswith(("type_", "function_set"))] == [
+        "type_define",
+        "type_c",
+        "function_set_signature",
+        "type_delete",
+    ]
+
+
+def test_iterator_meta_is_used_for_total_and_truncation(capsys):
+    class MetaClient(FakeClient):
+        def call_with_meta(self, op, **args):
+            value = self.call(op, **args)
+            if op == "iter_targets":
+                return value, {
+                    "total": 5000,
+                    "shown": len(value),
+                    "limit": 4096,
+                    "truncated": True,
+                }
+            return value, {"total": 5000, "shown": len(value), "errors": 0}
+
+    session, client = make_session(MetaClient())
+    session.run("pd 1 @@f")
+    assert client.calls[-1][1]["total"] == 5000
+    assert "truncated at 4096 of 5000 targets" in capsys.readouterr().err
 
 
 def test_write_commands_are_gated():

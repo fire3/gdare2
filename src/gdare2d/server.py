@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from gdare2 import __version__
-from gdare2.protocol import decode_bytes, health_payload
+from gdare2.protocol import OpResult, decode_bytes, health_payload, ok
 from gdare2d.context import Context
 from gdare2d.dispatch import as_error, invoke
 from gdare2d.executor import Executor
@@ -107,7 +107,10 @@ class Handler(BaseHTTPRequestHandler):
             result = self.server.executor.submit(
                 lambda: invoke(context, op, args, allow_writes=context.allow_writes)
             )
-            self._json({"ok": True, "result": _encode(result)})
+            if isinstance(result, OpResult):
+                self._json(ok(result.value, result.meta))
+            else:
+                self._json(ok(result))
         except Exception as exc:
             self._json(as_error(exc))
 
@@ -141,9 +144,3 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
-
-
-def _encode(value: Any) -> Any:
-    from gdare2.protocol import encode_bytes
-
-    return encode_bytes(value)
