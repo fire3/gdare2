@@ -191,3 +191,44 @@ def test_decompile_and_variables(env):
     payload = json.loads(variables.stdout)
     assert payload["name"]
     assert payload["variable_count"] == len(payload["variables"])
+
+
+def test_types_and_function_signatures(env):
+    target = "/bin/ls"
+    types = run(env, "-qc", "t~int", target)
+    assert types.returncode == 0, types.stderr
+    assert "int" in types.stdout
+
+    structs = run(env, "-j", "-qc", "tsj", target)
+    assert structs.returncode == 0, structs.stderr
+    assert isinstance(json.loads(structs.stdout), list)
+
+    signatures = run(env, "-qc", "tf~entry", target)
+    assert signatures.returncode == 0, signatures.stderr
+    assert "entry" in signatures.stdout
+
+
+def test_comments_are_gated_and_persist(env):
+    target = "/bin/ls"
+    info = run(env, "-j", "-qc", "iI", target)
+    assert info.returncode == 0, info.stderr
+    entry = int(json.loads(info.stdout)["entry"])
+
+    denied = run(env, "-qc", f"s 0x{entry:x}; CC should_not_apply", target)
+    assert denied.returncode == 1
+    assert "read-only" in denied.stderr.lower()
+
+    written = run(
+        env,
+        "-w",
+        "-qc",
+        f"s 0x{entry:x}; CC gdare2-comment; Cp gdare2-plate; .gsave; .gclose",
+        target,
+    )
+    assert written.returncode == 0, written.stderr
+    time.sleep(0.5)
+
+    comments = run(env, "-qc", f"s 0x{entry:x}; C.", target)
+    assert comments.returncode == 0, comments.stderr
+    assert "gdare2-comment" in comments.stdout
+    assert "gdare2-plate" in comments.stdout

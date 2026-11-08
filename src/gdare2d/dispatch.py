@@ -43,12 +43,14 @@ def load_all() -> None:
     from gdare2d.ops import (  # noqa: F401
         analysis,
         batch,
+        comments,
         decompile,
         disasm,
         graph,
         info,
         memory,
         session,
+        types,
         write,
         xrefs,
     )

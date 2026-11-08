@@ -10,7 +10,7 @@
 | M0 骨架 | 完成 | 两进程链路、注册表、自动拉起、首批命令与测试 |
 | M1 只读核心 | 基本完成 | 只读命令、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
 | M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；剩黄金文件与架构矩阵 |
-| M3 反编译/类型 | 进行中 | `pdc/pdcj`、`afv/afvj` 已可用；类型、签名与注释待补 |
+| M3 反编译/类型 | 进行中 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`C/CC/Cp` 已可用；C 声明解析与签名写入待补 |
 | M4 写入 | 待开始 | `wx/wf/u/U/wc+` 与事务回滚 |
 | M5 兼容/体验 | 待开始 | parity、补全、rc、架构矩阵 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着 |
@@ -79,7 +79,14 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - `afv/afvj` 从 `HighFunction.getLocalSymbolMap()` 提取参数/局部变量；
 - `afv` 按 Ghidra `VariableStorage` 分类为 `reg/sp/other`。
 
-当前测试：离线 `51 passed`；真实 Ghidra `8 passed`。
+第六轮（M3 类型/注释）新增：
+
+- `t/tj` 类型列表/详情，`ts/tsj` 结构、`tu/tuj` 联合、`te/tej` 枚举、`tt/ttj` typedef；
+- `tf/tfj` 基于 Ghidra 函数签名的 `getPrototypeString()`；
+- `C/Cj/C.` 注释枚举，`CC/CC-/CC.`、`Cd/Cb/Cp/Cr` 注释写入与删除；
+- 注释写入的 `-w` 门控、transaction、`.gsave` 与重启后可见性验证。
+
+当前测试：离线 `52 passed`；真实 Ghidra `10 passed`。
 
 验收命令：
 
@@ -93,6 +100,8 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'agf @ entry; ab @ 
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; afn demo_func; .gsave' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's 0x400000; a8 9090c3; ad 1; .gsave' /tmp/blob.bin
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pdc @ entry; afv @ entry' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 't~int; ts; tf~entry' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -w -qc 's entry; CC demo comment; Cp demo plate; .gsave' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -L
 .venv/bin/python -m pytest -q
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra
@@ -103,7 +112,8 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 - `afB` 当前 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
 - `/bin/ls` 与 ARM32 样本的结构化黄金文件、架构矩阵尚未补齐；
 - batch 还没有返回统一 `meta`（总数/截断）信息；
-- 类型、函数签名、注释、搜索与通用写入命令尚未实现；
+- `td` C 声明解析、`tc` C 声明输出、`tf-`/签名写入与类型应用尚未实现；
+- 搜索与通用写入命令尚未实现；
 - `pdi/pdl/pd -n` 与 r2 parity 黄金文件尚未补齐；
 - `-i/-I` 当前按打开后脚本处理；
 - GUI 桥未开始。
@@ -113,4 +123,5 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 1. 建立 `/bin/ls` 与 ARM32 样本的结构化黄金文件；
 2. 增加 `tools/arch_matrix.py` 与首批架构矩阵；
 3. 完善 batch 分页 `meta` 与错误码一致性；
-4. 继续 M3：函数签名、类型 `t/ts/td/tu` 与注释 `C*`。
+4. 继续 M3：`td/tc`、函数签名写入与类型应用；
+5. 开始 M4：`wx/wf/w0/wd`、undo/redo 与 `io.cache`。

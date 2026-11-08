@@ -51,7 +51,16 @@ def load_all() -> None:
     global _LOADED
     if _LOADED:
         return
-    from gdare2.cmd import analysis, info, meta, print as print_cmd, seek, xrefs  # noqa: F401
+    from gdare2.cmd import (  # noqa: F401
+        analysis,
+        comments,
+        info,
+        meta,
+        print as print_cmd,
+        seek,
+        types,
+        xrefs,
+    )
 
     _LOADED = True
 

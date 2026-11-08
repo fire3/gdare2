@@ -148,6 +148,38 @@ class FakeClient:
                     }
                 ],
             }
+        if op == "types":
+            if args.get("name"):
+                return {
+                    "name": args["name"],
+                    "path": f"/{args['name']}",
+                    "kind": args.get("kind") or "struct",
+                    "length": 8,
+                    "components": [
+                        {"offset": 0, "length": 4, "name": "field_0", "type": "int"}
+                    ],
+                    "values": [{"name": "ONE", "value": 1}],
+                    "base_type": "int",
+                }
+            return [
+                {"name": "demo_struct", "path": "/demo_struct", "kind": "struct", "length": 8},
+                {"name": "demo_enum", "path": "/demo_enum", "kind": "enum", "length": 4},
+            ]
+        if op == "function_signatures":
+            return [
+                {
+                    "addr": 0x1000,
+                    "name": "main",
+                    "signature": "int main(void)",
+                    "calling_convention": "unknown",
+                }
+            ]
+        if op == "comments":
+            return [{"addr": 0x1000, "kind": "eol", "text": "hello"}]
+        if op == "comment_set":
+            return {"addr": args["ea"], "kind": args["kind"], "text": args["text"]}
+        if op == "comment_delete":
+            return {"addr": args["ea"], "kind": args["kind"], "text": ""}
         raise AssertionError(op)
 
     def _batch_item(self, spec):
@@ -337,3 +369,16 @@ def test_decompile_and_variables():
     assert "local_8" in variables
     session.json_default = True
     assert json.loads("\n".join(session.run("pdc @ main")))["signature"] == "int main(void)"
+
+
+def test_types_signatures_and_comments():
+    session, _ = make_session()
+    assert "demo_struct" in "\n".join(session.run("t"))
+    assert "field_0" in "\n".join(session.run("ts demo_struct"))
+    assert "ONE" in "\n".join(session.run("te demo_enum"))
+    assert "int main(void)" in session.run("tf")[0]
+    assert "hello" in session.run("C")[0]
+    assert "hello" in "\n".join(session.run("C. @ main"))
+    session.readonly = False
+    assert "updated" in session.run("CC updated @ main")[0]
+    assert "deleted" in session.run("CC- @ main")[0]
