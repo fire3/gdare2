@@ -46,6 +46,10 @@
 仍待处理：`pdi`/`pdj` 布局与字段集、`--loader-arg` 校验、架构矩阵增强、
 batch 子 op `meta`、Phase B 命令面与 parity。
 
+> **升级注意**：`instance_id` 指纹已规范化（忽略 `analyze`/`reimport`/`ephemeral`/
+> `readonly` 等运行时选项）。旧版本创建的 `projects/<old-id>` 不会被自动复用；
+> 升级后首次运行会按新 id 重新导入一次，之后恢复正常复用。
+
 ## 已修复问题对照（原审查清单）
 
 - C1 instance-id 指纹 → 已修复（A1）
