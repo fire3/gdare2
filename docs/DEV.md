@@ -273,6 +273,10 @@ r2 -e scr.color=0 -q -A -c 'pd 10' target > tests/golden/pd.txt
 - `Assemblers.getAssembler` 对非 SLEIGH 语言会抛异常。
 - `Memory.setBytes`、`SymbolTable.createLabel` 等写操作必须在 transaction 内。
 - 自动分析可能修改程序；只读会话的 bootstrap 分析需要明确策略。
+- Ghidra SLEIGH 汇编器通常要求大写助记符（如 `NOP`）；`pa/wa` 不支持的语言
+  会返回 `NOT_SUPPORTED`。
+- `f` 默认只写客户端 FlagStore；写回 Ghidra 需要 `-w` 且
+  `e ghidra.flags.write=true`。
 
 ### 7.2 r2 兼容
 

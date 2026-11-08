@@ -14,7 +14,7 @@ r2 风格命令，同时保留一个常驻 daemon，让后续命令可以秒级�
 - **真实 Ghidra 回归测试**：离线单测、真实 Ghidra 集成测试与 20 配置架构矩阵分层运行。
 
 当前已完成 M0–M4 核心能力，M5 体验项进行中（rc、补全、搜索、架构矩阵已可用；
-parity、flags、脚本/变量与部分命令面待补）。状态见
+parity、`izz`、`/p`、`/a`、`.gexec` 等剩余命令面待补）。状态见
 [docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
@@ -152,6 +152,15 @@ gdare2 -w -qc 's main; CC eol comment; Cp plate comment; .gsave' /bin/ls
 gdare2 -qc 's main; C.' /bin/ls
 ```
 
+### flags
+
+```bash
+gdare2 -qc 'f~entry; fq; f? entry' /bin/ls
+# 默认只写会话内 flag；写回 Ghidra 需要 -w 且开启 ghidra.flags.write
+gdare2 -w -qc 'e ghidra.flags.write=true; s entry; f demo_flag 4; .gsave' /bin/ls
+gdare2 -qc 'fq~demo_flag' /bin/ls
+```
+
 ### 写入、缓存与撤销
 
 所有写操作都需要 `-w`。`w` 无参数时保存程序，`w <text>` 时写字符串。
@@ -178,6 +187,14 @@ gdare2 -a x86 -b 64 -B 0x400000 -w \
 
 注意：`wx` 会清理写范围内的 code units；撤销只恢复字节，不回滚反汇编、函数、
 注释等元数据，daemon 重启后撤销历史清空。
+
+汇编使用 Ghidra SLEIGH 汇编器，助记符通常需要大写：
+
+```bash
+gdare2 -qc 'pa NOP' blob.bin
+gdare2 -w -qc 's 0x400000; wa NOP; .gsave' blob.bin
+gdare2 -w -qc 's 0x400000; wi4 0x12345678; w6d QUI=; .gsave' blob.bin
+```
 
 ### JSON、过滤、管道与批量迭代
 
@@ -233,12 +250,15 @@ gdare2 --project /data/projects --project-name demo /bin/ls
 | 函数/图 | `afl`、`afi`、`af`、`afn`、`afu`、`afc`、`afC`、`afx`、`afb`、`ab`、`ao`、`ai`、`agf` |
 | xref | `axt`、`axf` |
 | 反编译/变量 | `pdc`、`afv` |
-| 类型 | `t`、`ts`、`tu`、`te`、`tt`、`tf`、`td`、`tc`、`tfc`、`tf-` |
+| 类型 | `t`、`ts`、`tu`、`te`、`tt`、`tf`、`td`、`tc`、`tfc`、`t-`、`tf-`、`tp`、`tpv`、`tpx` |
 | 签名 | `afs`、`afsj` |
 | 注释 | `C`、`C.`、`CC`、`CC-`、`Cd`、`Cb`、`Cp`、`Cr` |
+| flags | `f`、`fj`、`fq`、`f?`、`f-`、`fr`、`f.` |
 | 分析写入 | `a8`、`ad` |
-| 字节写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U` |
-| 会话/配置 | `s`、`b`、`e`、`q`、`.g`、`.gstatus`、`.gsave`、`.gclose` |
+| 字节写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U`、`wi`、`w6d`、`w6e` |
+| 汇编 | `pa`、`wa`、`wa*`、`wa+`、`waf`、`waF` |
+| 脚本/杂项 | `S`、`$`、`_`、`x`、`x8`、`xw`、`xq`、`xj`、`iE`、`ia` |
+| 会话/配置 | `s`、`b`、`e`、`q`、`.g`、`.gstatus`、`.gsave`、`.gclose`、`.gsync`、`.ganalyze`、`.ghelp` |
 
 大部分查询命令支持 `j` 后缀 JSON 变体；`<command>?` 查看单命令帮助。
 完整映射见 [docs/COMMANDS.md](docs/COMMANDS.md)。
@@ -264,7 +284,9 @@ gdare2 目标不是“假装 Ghidra 是 r2”，而是兼容高频工作流并�
 - 函数名、反汇编文本、反编译输出使用 Ghidra 语义，不伪造 r2 格式。
 - `w` 无参数是“保存程序”，`w <text>` 才是写字符串。
 - `u/U` 是 daemon 内存级字节补丁历史，不是 Ghidra 全局 undo。
-- `search.in=raw`、`wa/wi`、`/r`、`/p`、`/a`、`f` flags、`S` 脚本、`x` 等尚未实现。
+- `izz`、`/p`、`/a`、`search.in=raw`、`.gexec`、`afr`、`afvR/afvW`、`an` 尚未实现。
+- `f` 默认只写会话内 flag；写回 Ghidra 需要 `-w` 且 `e ghidra.flags.write=true`。
+- `pa/wa` 使用 Ghidra SLEIGH 汇编器，助记符通常需要大写。
 - `-B` 只对裸二进制生效；`sh4` 在 Ghidra 12.2 中无对应语言。
 - `-A/-AA`、`--wait`、`--listen` 已生效；`--assembler=rasm2` 与 `--allow-exec`
   在对应命令实现前会明确报参数错误。详见 [docs/ROADMAP.md](docs/ROADMAP.md)。

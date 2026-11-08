@@ -374,6 +374,11 @@
 | `type_define` | `decl` | 解析并保存 C 类型声明 |
 | `type_c` | `name`, `kind`, `limit` | C 声明输出 |
 | `type_delete` | `name`, `kind` | 删除类型/函数定义类型 |
+| `type_read` | `name`, `ea`/`data`, `count` | 类型化读取的 bytes/values |
+| `exports` | `limit` | 导出符号列表 |
+| `symbol_create` | `ea`, `name` | 创建 Ghidra label |
+| `symbol_rename` | `name`, `new_name` | 重命名符号 |
+| `symbol_delete` | `name`/`ea` | 删除符号 |
 | `function_signature` | `ea` | 当前函数签名与参数 |
 | `function_set_signature` | `ea`, `signature` | 解析并应用函数签名 |
 | `comments` | `kind`, `ea`, `text` | 注释列表/更新 |
@@ -381,7 +386,8 @@
 | `search` | `kind`, `pattern`, `from`, `to` | 命中列表 |
 | `graph` | `ea`, `format` | blocks/edges |
 | `write` | `kind`, `ea`, `bytes` | 写入结果 |
-| `assemble` | `ea`, `text` | bytes |
+| `assemble` | `ea`, `text` | 汇编结果 bytes（不写入） |
+| `assemble_write` | `ea`, `text` | 汇编并写入（transaction + undo） |
 | `save` | `comment` | 保存结果 |
 | `undo` / `redo` | — | 结果 |
 | `batch` | `ops[]` | 信封数组 |
@@ -402,18 +408,21 @@
 | 信息 | `iI`/`iIj`/`ij`、`iS`/`iSj`/`iSS`/`iSSj`、`iS.`、`it`/`itj`、`iM`、`is`/`isj`、`ii`/`iij`、`ie`/`iej`、`iz`/`izj` |
 | 分析/图 | `afl`/`aflj`、`afln`、`afl+`、`aflc`、`afc`/`afcj`、`afC`/`afCj`、`afi`/`afij`、`afv`/`afvj`、`af`/`aF`、`afn`、`afu`、`a8`、`ad`、`aa`/`aaa`、`afb`/`afbj`、`ab`/`abj`、`ao`/`aoj`、`ai`/`aij`、`agf`/`agfj`/`agfd` |
 | 交叉引用 | `axt`/`axtj`、`axf`/`axfj`、`afx`/`afxj` |
-| 类型/签名 | `t`/`tj`、`ts`/`tsj`、`tu`/`tuj`、`te`/`tej`、`tt`/`ttj`、`tf`/`tfj`、`td`、`tc`/`tcj`、`tfc`/`tfcj`、`tf-`、`afs`/`afsj` |
+| 类型/签名 | `t`/`tj`、`ts`/`tsj`、`tu`/`tuj`、`te`/`tej`、`tt`/`ttj`、`tf`/`tfj`、`td`、`tc`/`tcj`、`tfc`/`tfcj`、`t-`、`tf-`、`afs`/`afsj`、`tp`/`tpv`/`tpx` |
 | 注释 | `C`/`Cj`、`C.`、`CC`、`CC-`、`CC.`、`Cd`、`Cb`、`Cp`、`Cr` |
-| 搜索 | `/`、`/j`、`/x`、`/xj`、`/w`、`/wj`、`/v` 及 `v1/2/4/8`、`//`、`/+`、`/-` |
-| 写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U` |
-| 扩展命令 | `.g`、`.gstatus`、`.gsave`、`.gclose` |
+| flags | `f`、`fj`、`fq`、`f?`、`f-`、`fr`、`f.` |
+| 搜索 | `/`、`/j`、`/x`、`/xj`、`/w`、`/wj`、`/v` 及 `v1/2/4/8`、`/r`、`/rj`、`//`、`/+`、`/-` |
+| 写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U`、`wi` 及宽度/符号变量、`w6d`/`w6e` |
+| 汇编 | `pa`、`wa`、`wa*`、`wa+`、`waf`/`waF` |
+| 脚本/杂项 | `S`、`$`、`_`、`x`/`x8`/`xw`/`xq`/`xj`、`iE`/`iEj`、`ia`/`iaj` |
+| 扩展命令 | `.g`、`.gstatus`、`.gsave`、`.gclose`、`.gsync`、`.ganalyze`、`.ghelp` |
 
 ### 14.2 未实现（按 ROADMAP 阶段）
 
 | 阶段 | 命令/能力 |
 |---|---|
 | Phase A | **已完成**（loader 参数校验、`pdi` 独立布局、`pdj` 字段集决策） |
-| Phase B（v1 命令面） | `f` 家族、`S`、`$`、`_`、`x`/`x8`/`xw`/`xq`/`xj`、`iE`、`ia`、`izz`、`t-`、`tp/tpv/tpx`、`/r`、`/p`、`/a`、`cmd.hit`、`search.in=raw`、`@@F`、`@@/x`、`@@.file`、`@@s:from to step`、`@!n`、`@{from to}`、`wa/wa*/wa+/waf/w6/wi`、`.gsync`、`.ganalyze`、`.gexec`、`.ghelp`、`afr`、`afvR/afvW`、`an` |
+| Phase B（剩余） | `izz`、`/p`、`/a`、`search.in=raw`、`@@/x`、`@@s:from to step`、`@{from to}`、`.gexec`、`afr`、`afvR/afvW`、`an`、`e ghidra.analysis.wait` |
 | Phase C（parity） | `tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 黄金文件、架构矩阵 `pd 1`/`iI` 断言、batch 子 op meta 透传 |
 | Phase D（M6） | Ghidra GUI 桥、`--attach gui:<endpoint>`、GUI 内写入 |
 
@@ -422,9 +431,13 @@
 - `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；
   已决策不伪造缺失字段，现有字段包含 `symbol`。
 - `pdi` 现已独立布局：`地址 + symbol + 字节 + 文本`；`pd` 保持原布局。
-- `tt` 是 typedef 列表（与 r2 一致）；类型应用/转换走 `tp`，尚未实现。
+- `tt` 是 typedef 列表（与 r2 一致）；类型读取/格式化走 `tp`/`tpv`/`tpx`，
+  当前覆盖整数、枚举、指针、char 数组；结构体只打印原始字节。
 - `u/U` 只恢复字节，不回滚反编译/函数/注释/类型；daemon 重启后历史清空。
-- `--assembler=rasm2` 与 `--allow-exec` 在对应命令实现前明确报 `BAD_ARGS`。
+- `pa/wa` 使用 Ghidra SLEIGH 汇编器；助记符通常需要大写（如 `NOP`），
+  不支持的语言明确报 `NOT_SUPPORTED`。`--assembler=rasm2` 仍未实现。
+- `f` 默认只写会话内 flag；写回 Ghidra 需要 `-w` 且 `e ghidra.flags.write=true`。
+- `--allow-exec` 仍未实现，`.gexec` 继续明确报 `BAD_ARGS`。
 
 ### 14.4 2026-11-08 已修复
 
@@ -439,3 +452,17 @@
 - `--loader`/`--loader-arg` 用 Ghidra `Option.getArg()` 校验，未知值返回 `BAD_ARGS`；
   支持 `BinaryLoader` 类名与 `Raw Binary` 显示名。
 - `pdi` 增加 symbol 列；`pdj` 增加 `symbol` 字段，缺失的 r2 字段不伪造。
+
+
+### 14.5 2026-11-08 Phase B 首批实现
+
+- flags：`f`/`fj`/`fq`/`f?`/`f-`/`fr`/`f.`；默认会话内，写回由
+  `-w` + `e ghidra.flags.write=true` 控制；daemon 新增
+  `symbol_create/symbol_rename/symbol_delete`。
+- 脚本/变量：`S`、`$`、`$?`、`_`；`x`/`x8`/`xw`/`xq`/`xj`。
+- 信息/类型：`iE`/`iEj`、`ia`/`iaj`、`t-`、`tp`/`tpv`/`tpx`。
+- 搜索/迭代：`/r`、`cmd.hit`、`@@F`、`@@.file`、`@!n`。
+- 汇编/写入：`pa`、`wa`、`wa*`、`wa+`、`waf`/`waF`、`wi` 宽度/符号变量、
+  `w6d`/`w6e`。
+- 扩展命令：`.gsync`、`.ganalyze`、`.ghelp`。
+- daemon 控制：`--daemon-readonly` 转发 `--readonly`。

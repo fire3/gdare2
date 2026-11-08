@@ -290,12 +290,12 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 |---|---|---|
 | `pdj` 字段集 | 顶层数组；字段 `addr/size/bytes/text/mnemonic/symbol/call/jump/conditional` | r2 6.2.5 顶层也是数组，但含 `esil/opcode/disasm/family/type` 等；已决策不伪造缺失字段 |
 | `pdi` 布局 | 地址+symbol+字节+文本（symbol 列为空时保留空白） | r2 使用 flag/注释缩进体系；gdare2 的 symbol 列是其近似，完整 flag 列在 Phase B1 后评估 |
-| `tt` | 列出 typedef（与 r2 一致） | 类型应用/转换走 `tp`，尚未实现；不要把 `tt` 当“应用类型” |
-| `--assembler=rasm2` | 明确报 `BAD_ARGS` | `pa/wa` 尚未实现；实现后再接入回退 |
+| `tt` | 列出 typedef（与 r2 一致） | 类型读取/转换走 `tp`/`tpv`/`tpx`；不要把 `tt` 当“应用类型” |
+| `--assembler=rasm2` | 明确报 `BAD_ARGS` | `pa/wa` 已使用 Ghidra SLEIGH 汇编器；rasm2 回退尚未接入 |
 | `--allow-exec` | 明确报 `BAD_ARGS` | `.gexec` 尚未实现；实现后由客户端与 daemon 双重门控 |
 | `afB` | 不实现，报 `NOT_SUPPORTED` | r2 6.2.5 中 `afB` 是 Thumb 位宽切换；旧文档的“第 n 个基本块”语义已过时，不做兼容层 |
 | batch 子 op `meta` | 只汇总错误数 | 应逐项保留；Phase C5 |
-| `f` / `S` / `x` / `$` / `iE` / `t-` / `tp` / `/r` / `/p` / `/a` / `wa` / `wi` | 未实现，报 `NOT_SUPPORTED` | 按 ROADMAP Phase B 补齐 |
+| `izz` / `/p` / `/a` / `search.in=raw` / `.gexec` / `afr` / `afvR` / `afvW` / `an` | 未实现，报 `NOT_SUPPORTED` | 按 ROADMAP Phase B 剩余项补齐 |
 | daemon `--readonly` 下的显式 `aa` | 返回 `READONLY` | 只读 daemon 不允许重新分析；bootstrap 分析阶段已在启动前拒绝 |
 
 ### 14.1 已修复（2026-11-08）
@@ -312,3 +312,24 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
   并以 `BAD_ARGS`/`NOT_READY` 等原始错误码回传客户端。
 - `--loader`/`--loader-arg` 使用 Ghidra `Option.getArg()` 校验；支持类名与显示名。
 - `pdi` 增加 symbol 列；`pdj` 增加 `symbol` 字段并保持顶层数组。
+
+### 14.2 Phase B 语义说明（2026-11-08）
+
+- **flags**：`f` 默认只修改会话内 FlagStore；写回 Ghidra 需要 `-w` 且
+  `e ghidra.flags.write=true`。`f` 列表播种自 Ghidra symbols 与 functions，
+  因此会包含 `FUN_...`/`LAB_...` 等 Ghidra 名称。
+- **`S` / `$`**：`S` 逐行交给客户端会话执行；`$` 只实现变量，不实现 r2 的
+  完整别名/环境变量体系。`$?` 列出变量。
+- **`x` 系列**：`x` 是 hexdump，`x8` 是 hexpairs，`xw`/`xq` 是 32/64 位字；
+  `xj` 输出 `{addr,size,bytes}`。
+- **`iE` / `ia`**：`iE` 基于非外部全局符号；`ia` 列出 gdare2 配置的 20 个
+  裸二进制架构，不是 Ghidra 全部语言。
+- **`tp` / `tpv` / `tpx`**：仅对整数、枚举、指针、char 数组做值解码；
+  结构体/联合体打印原始字节。`tpx` 从 hexpairs 直接格式化，不访问内存。
+- **`/r`**：只遍历已定义字符串（`StringDataType`），不会像 r2 那样扫描任意字节。
+  `cmd.hit` 会对每个命中执行一次命令，并用内部标记防止递归。
+- **`pa` / `wa`**：使用 Ghidra SLEIGH 汇编器，助记符通常需要大写；没有
+  SLEIGH assembler 的语言返回 `NOT_SUPPORTED`。`--assembler=rasm2` 未实现。
+- **`wi` / `w6`**：`wi` 宽度 1/2/4/8，`wi+`/`wi-` 为增减；`w6d` 解码 base64
+  并写入，`w6e` 编码当前字节。
+- **`.gsync`**：重新拉取 `info` 并清空 FlagStore，下次 `f` 会重新播种。

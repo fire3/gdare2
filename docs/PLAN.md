@@ -251,15 +251,20 @@ gdare2 -w -qc 'e io.cache=true; wx 9090; wc+' /tmp/target
 6. 内存搜索 `/`、`/x`、`/w`、`/v[1248]`、`//`、`/+`、`/-`。
 7. 架构矩阵（20 配置）与 `tools/arch_matrix.py`。
 8. `.g/.gstatus/.gsave/.gclose` 基础扩展命令。
+9. Phase B 首批：`f` flags、`S`/`$`/`_`、`x`、`iE`/`ia`、`t-`/`tp`/`tpv`/`tpx`、
+   `/r`、`cmd.hit`、`@@F`/`@@.file`/`@!n`、`pa`/`wa`/`wi`/`w6`、
+   `.gsync`/`.ganalyze`/`.ghelp`、`--daemon-readonly`。
 
 ### 8.2 待完成
 
 1. **一致性修复**（Phase A）：**已完成**。包括 instance-id 指纹、架构默认端序、
    daemon 状态、CLI 选项、`--readonly`、分析/反编译超时、只读文案、loader 参数
    校验、`pdi` 独立布局与 `pdj` 字段集决策。
-2. **命令面收尾**（Phase B）：`f` flags、`S`/`$`/`_`、`x`、`iE`、
-   `t-`/`tp/tpv/tpx`、`/r`/`/p`/`/a`、`cmd.hit`、更多 `@@` 变体、
-   `wa/wi/w6`、`.gsync/.ganalyze/.gexec/.ghelp`。
+2. **命令面收尾**（Phase B）：已完成 `f` flags、`S`/`$`/`_`、`x`、`iE`/`ia`、
+   `t-`/`tp/tpv/tpx`、`/r`、`cmd.hit`、`@@F`/`@@.file`/`@!n`、
+   `pa/wa/wi/w6`、`.gsync/.ganalyze/.ghelp`、`--daemon-readonly`；
+   剩余 `izz`、`/p`、`/a`、`search.in=raw`、`@@/x`、`@@s`、`@{from to}`、
+   `.gexec`、`afr`/`afvR`/`afvW`/`an`、`e ghidra.analysis.wait`。
 3. **parity 基础设施**（Phase C）：`tests/parity/`、`tests/golden/`、
    `tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 样本黄金文件。
 4. **架构矩阵增强**：每个配置校验 `pd 1` 与 `iI`；目标配置数补齐。

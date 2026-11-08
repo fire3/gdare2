@@ -11,18 +11,18 @@
 | M0 骨架 | 完成 | 两进程链路、注册表、自动拉起、首批命令与测试 |
 | M1 只读核心 | 基本完成 | 只读命令、搜索、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
 | M2 分析/图 | 完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 可用；架构矩阵可用 |
-| M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/tf-`、`afs`、`C/CC/Cp` 已可用；`tp/tpv/tpx`、`t-` 待补；复杂 C++ 类型受 Ghidra parser 限制 |
-| M4 写入 | 基本完成 | `wx/w/w0/wf/wd`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用；`wa/wi/w6` 等 P2 未做 |
-| M5 兼容/体验 | 进行中 | rc、readline 历史/Tab 补全、`-I/-i` 顺序、搜索、20 配置架构矩阵已可用；parity 黄金文件、flags、脚本/变量、部分命令面待补 |
+| M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/t-`、`tp/tpv/tpx`、`afs`、`C/CC/Cp` 已可用；复杂 C++ 类型与结构体值格式化仍受 Ghidra 限制 |
+| M4 写入 | 完成（v1 范围） | `wx/w/w0/wf/wd`、`wa/wa*/wa+`、`wi`、`w6d/w6e`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用 |
+| M5 兼容/体验 | 进行中 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、20 配置架构矩阵已可用；parity、`izz`、`/p`、`/a`、`.gexec` 等待补 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着；方案与验收见 `ROADMAP.md` Phase D |
 
 ## 验证基线（2026-11-08 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `114 passed`，0.12s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `17 passed`，270.06s |
-| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.70s |
+| 离线 | `.venv/bin/python -m pytest -q` | `125 passed`，0.09s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `19 passed`，320.40s |
+| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，6.69s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 
@@ -53,6 +53,19 @@ Phase A 剩余项已全部处理。后续进入 Phase B（命令面）与 Phase 
 > **升级注意**：`instance_id` 指纹已规范化（忽略 `analyze`/`reimport`/`ephemeral`/
 > `readonly` 等运行时选项）。旧版本创建的 `projects/<old-id>` 不会被自动复用；
 > 升级后首次运行会按新 id 重新导入一次，之后恢复正常复用。
+
+## Phase B 首批（2026-11-08）
+
+- **flags**：`f`/`fj`/`fq`/`f?`/`f-`/`fr`/`f.`；默认只写会话内 flag，
+  `-w` + `e ghidra.flags.write=true` 才写回 Ghidra；daemon 新增
+  `symbol_create/symbol_rename/symbol_delete`。
+- **脚本/变量/输出**：`S`、`$`/`$?`、`_`、`x`/`x8`/`xw`/`xq`/`xj`。
+- **信息/类型**：`iE`/`iEj`、`ia`/`iaj`、`t-`、`tp`/`tpv`/`tpx`。
+- **搜索/迭代**：`/r`、`cmd.hit`、`@@F`、`@@.file`、`@!n`。
+- **汇编/写入**：`pa`、`wa`、`wa*`、`wa+`、`waf`/`waF`、`wi` 宽度/符号变量、
+  `w6d`/`w6e`；SLEIGH 助记符通常需要大写。
+- **扩展命令**：`.gsync`、`.ganalyze`、`.ghelp`。
+- **daemon 控制**：`--daemon-readonly` 转发 `--readonly`。
 
 ## 已修复问题对照（原审查清单）
 
@@ -223,16 +236,11 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 ### 功能缺口
 
-- `f` flags 家族（`f/fj/fq/f-/fr/f.`）尚未实现；当前按名字 seek 直接走 daemon `resolve_name`；
-- `S` 脚本、`$` 变量/别名、`_` 上次输出、`.cmd` 尚未实现；
-- `x/x8/xw/xq/xj` hexdump 变体尚未实现（可基于 `read_bytes` 补齐）；
-- `iE` 导出、`ia` 架构列表、`izz` 全文件字符串尚未实现；
-- `t-` 通用类型删除、`tp/tpv/tpx` 类型化读取尚未实现；`tt` 当前按 r2 语义列出 typedef；
-- `/r`、`/p`、`/a`、`cmd.hit`、`search.in=raw` 尚未实现；
-- `wa/wa*/wa+/waf/w6/wi` 等 P2 写入命令尚未实现；
-- `@@F`、`@@/x`、`@@.file`、`@@s:from to step`、`@!n`、`@{from to}` 尚未实现；
-- `.gsync`、`.ganalyze`、`.gexec`、`.ghelp` 尚未实现；
-- `afr`、`afvR/afvW`、`an` 尚未实现；`afB` 的 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现。
+- `izz` 全文件字符串尚未实现（`iz` 仍只扫描已定义数据）；
+- `/p`、`/a`、`search.in=raw`、`@@/x`、`@@s:from to step`、`@{from to}` 尚未实现；
+- `.gexec` 尚未实现；`--allow-exec` 继续明确报 `BAD_ARGS`；
+- `afr`、`afvR/afvW`、`an` 尚未实现；`afB` 的 r2 语义已变为 Thumb 位宽切换，暂不按旧文档实现；
+- `e ghidra.analysis.wait` 尚未接入。
 
 ### 一致性与契约缺口
 
@@ -258,11 +266,12 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 1. C1/C2 建立 `tests/parity/`、黄金抓取工具与 `/bin/ls` 黄金文件；
 2. C4 扩展架构矩阵到 `pd 1`/`iI` 断言；
-3. B1 实现 `f` flags 家族（含写回门控）；
-4. B3 补 `t-`、`tp/tpv/tpx` 与 `iE`/`ia`；
-5. B4 补 `/r`、`/p`、`/a`、`cmd.hit` 与更多 `@@` 变体；
-6. B5/B6 补 P2 写入与 `.gsync/.ganalyze/.gexec/.ghelp`；
-7. C15 透传 batch 子 op meta；
-8. C6 记录性能基线并审查错误码/退出码。
+3. B3 补 `izz`；
+4. B4 补 `/p`、`/a`、`search.in=raw`、`@@/x`、`@@s:from to step`、`@{from to}`；
+5. B6 实现 `.gexec` 与 `--allow-exec` 双重门控；
+6. B7 接入 `e ghidra.analysis.wait`；
+7. 补 `afr`/`afvR`/`afvW`/`an` 或明确记录为不支持；
+8. C15 透传 batch 子 op meta；
+9. C6 记录性能基线并审查错误码/退出码。
 
 M6 在 v1 收尾后启动，先做 PyGhidra console 桥原型；详见 `ROADMAP.md` Phase D。

@@ -2,8 +2,9 @@
 
 `gdare2` 是一个后端接入 Ghidra、命令行与输出模型尽量兼容 radare2 的逆向工具。
 本目录保存调研、设计、实施计划、开发进度与后续路线。当前仓库已完成 M0–M4
-核心能力，M5 体验项进行中（rc、补全、搜索、架构矩阵已可用；parity、flags、
-脚本/变量与部分命令面待补）。根目录 README 提供安装、快速开始与常用命令示例。
+核心能力，M5 体验项进行中（rc、补全、搜索、架构矩阵、flags、脚本/变量、
+汇编与部分新命令已可用；parity、`izz`、`/p`、`/a`、`.gexec` 等待补）。
+根目录 README 提供安装、快速开始与常用命令示例。
 
 根目录入口见 [../README.md](../README.md)。
 
@@ -35,4 +36,4 @@
 - 调研基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、idare2 0.1/b2cd758、radare2 6.2.5
 - 目标：v1 命令面收尾、parity 黄金文件与可靠性加固，然后进入 M6 GUI 桥
 - 当前状态：M0–M4 核心完成，M5 进行中，M6 未开始（2026-11-08 实测
-  离线 114 passed、真实 Ghidra 17 passed、架构矩阵 2 passed）
+  离线 125 passed、真实 Ghidra 19 passed、架构矩阵 2 passed）
