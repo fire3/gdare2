@@ -509,3 +509,57 @@ def test_readonly_daemon_exposes_state_and_rejects_writes(env):
         except subprocess.TimeoutExpired:
             daemon.kill()
             daemon.wait(timeout=5)
+
+
+def test_loader_arguments_are_validated(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(b"\x90\x90\xc3\xcc")
+
+    ok = run(
+        env,
+        "--ephemeral",
+        "-a",
+        "x86",
+        "-b",
+        "64",
+        "--loader-arg",
+        "-loader-fileOffset",
+        "0",
+        "-qc",
+        "iI",
+        str(target),
+    )
+    assert ok.returncode == 0, ok.stderr
+
+    bad_arg = run(
+        env,
+        "--ephemeral",
+        "-a",
+        "x86",
+        "-b",
+        "64",
+        "--loader-arg",
+        "-loader-nope",
+        "1",
+        "-qc",
+        "iI",
+        str(target),
+    )
+    assert bad_arg.returncode == 2
+    assert "unknown loader argument" in bad_arg.stderr
+
+    bad_loader = run(
+        env,
+        "--ephemeral",
+        "-a",
+        "x86",
+        "-b",
+        "64",
+        "--loader",
+        "NopeLoader",
+        "-qc",
+        "iI",
+        str(target),
+    )
+    assert bad_loader.returncode == 2
+    assert "unknown loader" in bad_loader.stderr

@@ -9,6 +9,7 @@ import secrets
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 
 from gdare2 import registry
@@ -163,6 +164,10 @@ def main(argv: list[str] | None = None) -> int:
         server.serve_forever(poll_interval=0.2)
     finally:
         executor.stop()
+        if runtime.error:
+            # Give a waiting client time to read the error state/code before
+            # the registry entry disappears.
+            time.sleep(1.5)
         registry.remove_state(ingest_id)
     return 1 if executor.failed else 0
 
@@ -193,6 +198,7 @@ def _stop_on_bootstrap_failure(
     state["state"] = runtime.state
     if runtime.error:
         state["error"] = runtime.error
+        state["error_code"] = runtime.error_code
     registry.write_state(state)
     if executor.failed:
         server.shutdown()

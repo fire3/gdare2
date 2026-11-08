@@ -26,7 +26,12 @@ def _pd(session, statement):
     if count < 0:
         return _pd_backward(session, -count)
     items = session.call("disasm", ea=session.seek, count=count)
-    return format_disasm(items, session.config, _bits(session))
+    return format_disasm(
+        items,
+        session.config,
+        _bits(session),
+        show_symbol=statement.cmd == "pdi",
+    )
 
 
 def _pd_backward(session, count: int) -> list[str]:

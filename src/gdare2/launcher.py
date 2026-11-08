@@ -13,7 +13,7 @@ from typing import Any
 from gdare2 import registry
 from gdare2.argv import Options
 from gdare2.client import check_protocol
-from gdare2.errors import ConnectionFailure
+from gdare2.errors import ConnectionFailure, RemoteError
 
 
 def import_options(options: Options) -> dict[str, Any]:
@@ -155,9 +155,13 @@ def _spawn(options: Options, target: str, ingest_id: str) -> None:
 def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
     deadline = time.monotonic() + (options.startup_timeout or 180.0)
     last_state = "starting"
+    last_state_data: dict[str, Any] | None = None
+    missing_since: float | None = None
     while time.monotonic() < deadline:
         state = registry.read_state(ingest_id)
         if state is not None:
+            missing_since = None
+            last_state_data = state
             last_state = str(state.get("state", "starting"))
             if not registry.pid_alive(int(state.get("pid", 0))):
                 break
@@ -170,8 +174,23 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
                     return state
                 if health.get("state") == "error":
                     break
+        else:
+            # A daemon that dies before writing state removes its entry; do
+            # not spin until the full startup timeout.
+            missing_since = missing_since or time.monotonic()
+            if time.monotonic() - missing_since > 2.0:
+                break
         time.sleep(0.1)
     tail = _log_tail(ingest_id)
+    final_state = registry.read_state(ingest_id) or last_state_data
+    if final_state and final_state.get("error"):
+        code = str(final_state.get("error_code") or "CONNECTION")
+        message = f"daemon failed to start: {final_state['error']}"
+        # User/configuration errors are already actionable; only append the
+        # daemon log tail for unexpected failures.
+        if code not in {"BAD_ARGS", "NOT_READY", "READONLY", "NOT_FOUND", "NOT_FUNC"}:
+            message += tail
+        raise RemoteError(code, message)
     detail = f" (state={last_state})" if last_state else ""
     raise ConnectionFailure(f"gdare2 daemon failed to become ready{detail}{tail}")
 

@@ -29,12 +29,18 @@ def iter_items(value) -> list:
 def instruction_dict(instruction) -> dict:
     raw = java_bytes(instruction.getBytes())
     flow = instruction.getFlowType()
+    try:
+        symbol = instruction.getPrimarySymbol()
+        symbol_name = str(symbol.getName()) if symbol is not None else ""
+    except Exception:
+        symbol_name = ""
     return {
         "addr": int(instruction.getAddress().getOffset()),
         "size": int(instruction.getLength()),
         "bytes": raw,
         "text": str(instruction.toString()),
         "mnemonic": str(instruction.getMnemonicString()),
+        "symbol": symbol_name,
         "call": bool(flow.isCall()),
         "jump": bool(flow.isJump()),
         "conditional": bool(flow.isConditional()),

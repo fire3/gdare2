@@ -15,6 +15,7 @@ from gdare2.errors import (
     NotReadyError,
     ReadOnlyError,
     TimeoutFailure,
+    UsageError,
 )
 from gdare2d.import_plan import ImportPlan
 
@@ -54,6 +55,7 @@ class GhidraRuntime:
         self.ghidra_install = ghidra_install
         self.state = "starting"
         self.error: str | None = None
+        self.error_code: str | None = None
         self.instance_id: str | None = None
         self.pid: int | None = None
         self.port: int | None = None
@@ -62,6 +64,7 @@ class GhidraRuntime:
         self._consumer = None
         self._decompiler = None
         self._pyghidra = None
+        self._loader_class = None
         self.summary: dict[str, Any] = {}
         self.sessions: dict[str, dict[str, Any]] = {}
         self._sessions_lock = threading.Lock()
@@ -78,6 +81,7 @@ class GhidraRuntime:
             if not pyghidra.started():
                 kwargs = {"install_dir": Path(self.ghidra_install)} if self.ghidra_install else {}
                 pyghidra.start(**kwargs)
+            self._validate_loader_options()
             if self.readonly and not self._project_exists():
                 raise NotReadyError(
                     "read-only daemon requires an existing Ghidra project; "
@@ -128,8 +132,92 @@ class GhidraRuntime:
         except Exception as exc:  # keep the daemon alive so /health can report the failure
             self.state = "error"
             self.error = f"{type(exc).__name__}: {exc}"
+            self.error_code = getattr(exc, "code", "INTERNAL")
             log.exception("failed to open program")
             raise
+
+    def _validate_loader_options(self) -> None:
+        """Reject --loader/--loader-arg values Ghidra would only warn about."""
+        if not self.plan.loader and not self.plan.loader_args:
+            return
+        from ghidra.app.util.bin import FileByteProvider
+        from ghidra.app.util.opinion import LoaderService
+        from ghidra.util.task import TaskMonitor
+        from java.io import File
+        from java.nio.file import AccessMode
+
+        if self.plan.loader:
+            self._loader_class = self._resolve_loader_class(LoaderService, self.plan.loader)
+            if self._loader_class is None:
+                names = sorted(str(name) for name in LoaderService.getAllLoaderNames())
+                raise UsageError(
+                    f"unknown loader {self.plan.loader!r}; known loaders include "
+                    + ", ".join(names[:8])
+                )
+
+        if not self.plan.loader_args:
+            return
+
+        provider = FileByteProvider(File(self.target), None, AccessMode.READ)
+        try:
+            supported = LoaderService.getSupportedLoadSpecs(
+                provider, LoaderService.ACCEPT_ALL, TaskMonitor.DUMMY
+            )
+            loaders = list(supported.keySet())
+            if self._loader_class is not None:
+                loaders = [
+                    loader
+                    for loader in loaders
+                    if self._loader_class.isInstance(loader)
+                ]
+            elif loaders:
+                # LoaderMap is ordered by tier; the first entry is what Ghidra
+                # would select when --loader is not given.
+                loaders = loaders[:1]
+            valid_args: dict[str, str] = {}
+            for loader in loaders:
+                specs = list(supported.get(loader))
+                if not specs:
+                    continue
+                try:
+                    options = loader.getDefaultOptions(provider, specs[0], None, False, False)
+                except Exception:
+                    continue
+                for option in options:
+                    arg = option.getArg()
+                    if arg:
+                        valid_args[str(arg).lower()] = str(option.getName())
+        finally:
+            provider.close()
+
+        if not valid_args:
+            log.warning(
+                "could not validate loader args for %s; passing them through to Ghidra",
+                self.target,
+            )
+            return
+
+        unknown = [
+            key for key, _value in self.plan.loader_args if str(key).lower() not in valid_args
+        ]
+        if unknown:
+            known = ", ".join(
+                f"{name} ({arg})" for arg, name in sorted(valid_args.items())
+            )
+            raise UsageError(
+                f"unknown loader argument(s): {', '.join(unknown)}; known arguments: {known}"
+            )
+
+    @staticmethod
+    def _resolve_loader_class(loader_service, name: str):
+        cls = loader_service.getLoaderClassByName(name)
+        if cls is not None:
+            return cls
+        needle = str(name).lower()
+        for loader in loader_service.getAllLoaders():
+            if str(loader.getName()).lower() == needle:
+                return loader.getClass()
+        return None
 
     def _project_exists(self) -> bool:
         return (self.project_dir / f"{self.project_name}.gpr").exists()
@@ -159,7 +247,9 @@ class GhidraRuntime:
             loader = loader.language(self.plan.language)
         if self.plan.compiler:
             loader = loader.compiler(self.plan.compiler)
-        if self.plan.loader:
+        if self._loader_class is not None:
+            loader = loader.loaders(self._loader_class)
+        elif self.plan.loader:
             loader = loader.loaders(self.plan.loader)
         for key, value in self.plan.loader_args:
             loader = loader.addLoaderArg(key, value)

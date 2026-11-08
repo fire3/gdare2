@@ -16,7 +16,13 @@ class FakeClient:
             return {"program": "demo", "arch": "x86", "bits": 64, "language": "x86:LE:64:default"}
         if op == "disasm":
             return [
-                {"addr": args["ea"], "size": 2, "bytes": b"\x90\x90", "text": "NOP"},
+                {
+                    "addr": args["ea"],
+                    "size": 2,
+                    "bytes": b"\x90\x90",
+                    "text": "NOP",
+                    "symbol": "main",
+                },
                 {"addr": args["ea"] + 2, "size": 2, "bytes": b"\xc3\x90", "text": "RET"},
             ]
         if op == "read_bytes":
@@ -322,7 +328,10 @@ def test_temporary_seek_is_restored():
 
 def test_pdi_pi_pdl_and_pd_bytes():
     session, _ = make_session()
-    assert "NOP" in session.run("pdi 1")[0]
+    pdi = session.run("pdi 1")[0]
+    assert "NOP" in pdi
+    assert "main" in pdi
+    assert "main" not in session.run("pd 1")[0]
     assert session.run("pi 2") == ["NOP", "RET"]
     assert session.run("pdl 1")[0].endswith("NOP")
     assert len(session.run("pD 3")) == 2
