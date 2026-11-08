@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import ast
 import sys
 from pathlib import Path
 
 from gdare2.cmd import command
 from gdare2.errors import GdarError, UsageError
+from gdare2.escape import text_bytes
 
 MAX_TEXT_BYTES = 1024 * 1024
 MAX_FILE_BYTES = 1024 * 1024
@@ -18,7 +18,7 @@ def _write(session, statement):
     _require_write(session)
     text = statement.args
     if text:
-        _write_data(session, session.seek, _text_bytes(text))
+        _write_data(session, session.seek, text_bytes(text))
         return []
     _commit_cache(session)
     session.call("save")
@@ -159,19 +159,6 @@ def _cache_patch(session, address: int, data: bytes, mask: bytes | None = None) 
 
 def _commit_cache(session) -> None:
     session.commit_write_cache()
-
-
-def _text_bytes(text: str) -> bytes:
-    stripped = text.strip()
-    if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in ("'", '"'):
-        try:
-            value = ast.literal_eval(stripped)
-        except (SyntaxError, ValueError):
-            pass
-        else:
-            if isinstance(value, str):
-                return value.encode("utf-8")
-    return text.encode("utf-8")
 
 
 def parse_hexpairs(text: str) -> tuple[bytes, bytes | None]:

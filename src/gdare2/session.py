@@ -108,6 +108,7 @@ class Session:
         self.seek_future: list[int] = []
         self.vars: dict[str, int] = {}
         self.write_cache: list[dict[str, Any]] = []
+        self.last_search: dict[str, Any] | None = None
         self.last_result = 0
         self.last_output: list[str] = []
         self.json_default = False
@@ -336,6 +337,14 @@ class Session:
             "ii": "iij",
             "ie": "iej",
             "iz": "izj",
+            "/": "/j",
+            "/x": "/xj",
+            "/w": "/wj",
+            "/v": "/vj",
+            "/v1": "/v1j",
+            "/v2": "/v2j",
+            "/v4": "/v4j",
+            "/v8": "/v8j",
         }
         replacement = mapping.get(statement.cmd)
         if replacement is None:

@@ -856,6 +856,10 @@ bytes = asm.assemble(addr, *lines)
 - `/p <size>`：定长重复模式；
 - `search.in=io.maps|raw|bin.sections` 控制范围。
 
+实现状态：`/`、`/x`、`/w`、`/v[1248]`、`//`、`/+`、`/-` 与 `j` 变体已实现。
+`search.in` 当前支持 `io.maps` / `bin.sections`（都按 Ghidra 内存块处理），`raw`
+明确报不支持。`/r`、`/p`、`/a` 与 `cmd.hit` 仍待实现。
+
 ### 15.2 分页
 
 返回 `{hits: [...], meta: {shown, total, truncated}}`；CLI 用 `-o` 继续。

@@ -327,3 +327,50 @@ def test_rc_loading_and_skip(env, tmp_path):
     skipped = run(values, *base_args, "-N", "-qc", "e scr.color", str(target))
     assert skipped.returncode == 0, skipped.stderr
     assert skipped.stdout.strip() == "0"
+
+
+def test_memory_search_variants_and_history(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(
+        b"\xcc\x90\x90\xcc\x90\x90\x11\x22hello\x00" + "hi".encode("utf-16-le")
+    )
+    base_args = ("-a", "x86", "-b", "64", "-B", "0x400000")
+
+    history = run(
+        env,
+        *base_args,
+        "-qc",
+        "s 0x400000; /x 9090; //; /-",
+        str(target),
+    )
+    assert history.returncode == 0, history.stderr
+    assert history.stdout.splitlines() == [
+        "0x0000000000400001",
+        "0x0000000000400004",
+        "0x0000000000400004",
+        "0x0000000000400001",
+    ]
+
+    variants = run(
+        env,
+        *base_args,
+        "-qc",
+        "s 0x400000; /xj 9090",
+        str(target),
+    )
+    assert variants.returncode == 0, variants.stderr
+    payload = json.loads(variants.stdout)
+    assert payload["hits"] == [0x400001, 0x400004]
+
+    found = run(
+        env,
+        *base_args,
+        "-qc",
+        "s 0x400000; / hello; s 0x400000; /w hi; s 0x400000; /v2 0x2211",
+        str(target),
+    )
+    assert found.returncode == 0, found.stderr
+    lines = found.stdout.splitlines()
+    assert "0x0000000000400008" in lines
+    assert "0x000000000040000E" in lines or "0x000000000040000e" in lines
+    assert "0x0000000000400006" in lines

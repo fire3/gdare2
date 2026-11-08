@@ -8,7 +8,7 @@
 |---|---|---|
 | P0 预研 | 完成 | PyGhidra 导入/分析/反编译/持久化已验证 |
 | M0 骨架 | 完成 | 两进程链路、注册表、自动拉起、首批命令与测试 |
-| M1 只读核心 | 基本完成 | 只读命令、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
+| M1 只读核心 | 基本完成 | 只读命令、搜索、JSON 变体、调用关系、session lease、ARM/裸二进制导入已验证 |
 | M2 分析/图 | 基本完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 已可用；剩黄金文件与架构矩阵 |
 | M3 反编译/类型 | 进行中 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`C/CC/Cp` 已可用；C 声明解析与签名写入待补 |
 | M4 写入 | 基本完成 | `wx/w/w0/wf/wd`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用；`wa/wi` 等 P2 未做 |
@@ -105,7 +105,15 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - 修正 `-I`（命令前）与 `-i`（命令后）脚本顺序；
 - rc 在 CLI `-e` 之前加载，随后由 CLI 配置覆盖，保证命令行优先级。
 
-当前测试：离线 `64 passed`；真实 Ghidra `13 passed`。
+第九轮（搜索）新增：
+
+- daemon `search` op：按内存块搜索字节/掩码，支持前向、后向、范围与分页 `meta`；
+- 客户端 `/ <text>`、`/x <hexpairs>`（支持 `.`/`?` 掩码）、`/w <utf16>`、`/v[1248] <num>`；
+- `//`、`/+`、`/-` 基于客户端搜索历史继续前向/后向查找；
+- `/j`、`/xj`、`/wj`、`/v*j` JSON 输出与 `-j` 默认映射；
+- `search.from`/`search.to` 范围配置；`search.in=raw` 明确报不支持。
+
+当前测试：离线 `67 passed`；真实 Ghidra `14 passed`。
 
 验收命令：
 
@@ -113,6 +121,8 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pd 5' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 's 0x106760; pd 5; px 16' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pd 20~+call' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc '/x 488b; / entry' /bin/ls
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc '/xj 488b' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -j -qc 'iI' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'pd 1 @@f:^entry$' /bin/ls
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/gdare2 -qc 'agf @ entry; ab @ entry; ao @ entry; ai @ entry' /bin/ls
@@ -136,7 +146,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 - `/bin/ls` 与 ARM32 样本的结构化黄金文件、架构矩阵尚未补齐；
 - batch 还没有返回统一 `meta`（总数/截断）信息；
 - `td` C 声明解析、`tc` C 声明输出、`tf-`/签名写入与类型应用尚未实现；
-- 搜索尚未实现；`wa/wa*/wi/w6` 等 P2 写入命令尚未实现；
+- 搜索 `/r`、`/p`、`/a`、`cmd.hit` 与 `search.in=raw` 尚未实现；`wa/wa*/wi/w6` 等 P2 写入命令尚未实现；
 - `pdi/pdl/pd -n` 与 r2 parity 黄金文件尚未补齐；
 - GUI 桥未开始。
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import types
-from pathlib import Path
 
 from gdare2 import completion, rc
 from gdare2.cli import _command_lines, _run_rc

@@ -57,6 +57,7 @@ def load_all() -> None:
         info,
         meta,
         print as print_cmd,
+        search,
         seek,
         types,
         write,

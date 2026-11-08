@@ -226,7 +226,7 @@ def redo(ctx) -> dict:
 def _apply_mask(before: bytes, data: bytes, mask: bytes) -> bytes:
     return bytes(
         (old & (~keep & 0xFF)) | (value & keep)
-        for old, value, keep in zip(before, data, mask)
+        for old, value, keep in zip(before, data, mask, strict=True)
     )
 
 

@@ -49,6 +49,7 @@ def load_all() -> None:
         graph,
         info,
         memory,
+        search,
         session,
         types,
         write,

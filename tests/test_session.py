@@ -192,6 +192,18 @@ class FakeClient:
             return {"addr": args["dst"], "src": args["src"], "size": args["size"]}
         if op in ("undo", "redo"):
             return {"addr": 0x1000, "size": 2, "segments": 1}
+        if op == "search":
+            return {
+                "hits": [0x1000, 0x1004],
+                "meta": {
+                    "shown": 2,
+                    "offset": args.get("offset", 0),
+                    "limit": args.get("limit", 4096),
+                    "truncated": False,
+                    "scope": args.get("scope", "io.maps"),
+                    "forward": args.get("forward", True),
+                },
+            }
         raise AssertionError(op)
 
     def _batch_item(self, spec):
@@ -466,3 +478,43 @@ def test_gsave_commits_cache_before_saving():
     session.run("wx 90; .gsave")
     ops = [op for op, _ in client.calls]
     assert ops[-2:] == ["write_patches", "save"]
+
+
+def test_search_text_hex_wide_and_value():
+    session, client = make_session()
+    assert session.run("/x 9090") == [
+        "0x0000000000001000",
+        "0x0000000000001004",
+    ]
+    assert client.calls[-1][0] == "search"
+    assert client.calls[-1][1]["data"] == b"\x90\x90"
+    assert session.run("/ hello") == ["0x0000000000001000", "0x0000000000001004"]
+    assert client.calls[-1][1]["data"] == b"hello"
+    session.run("/w hi")
+    assert client.calls[-1][1]["data"] == "hi".encode("utf-16-le")
+    session.run("/v4 0x1234")
+    assert client.calls[-1][1]["data"] == b"\x34\x12\x00\x00"
+
+
+def test_search_json_and_repeat():
+    session, client = make_session()
+    payload = json.loads("\n".join(session.run("/xj 9090")))
+    assert payload["hits"] == [0x1000, 0x1004]
+    assert session.seek == 0x1000
+    assert session.run("//") == ["0x0000000000001000", "0x0000000000001004"]
+    assert client.calls[-1][1]["cursor"] == 0x1001
+    assert client.calls[-1][1]["forward"] is True
+    session.run("/-")
+    assert client.calls[-1][1]["cursor"] == 0x0FFF
+    assert client.calls[-1][1]["forward"] is False
+
+
+def test_search_respects_range_config():
+    session, client = make_session()
+    session.config.set("search.from", "0x2000")
+    session.config.set("search.to", "0x2fff")
+    session.run("/x 90")
+    args = client.calls[-1][1]
+    assert args["from_addr"] == 0x2000
+    assert args["to_addr"] == 0x2FFF
+    assert args["cursor"] == 0x2000
