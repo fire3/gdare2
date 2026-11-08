@@ -238,8 +238,8 @@ gdare2 -w -qc 'e io.cache=true; wx 9090; wc+' /tmp/target
 
 ## 8. M5 兼容与体验（2 周）
 
-> 当前状态：进行中。rc、readline、`-i/-I`、搜索、20 配置矩阵已完成；
-> parity、flags、脚本/变量、部分命令面仍待补。任务级拆分见 ROADMAP Phase A–C。
+> 当前状态：**已完成**（2026-11-08）。Phase A–C 全部收尾；下一步为 M6。
+> 任务级记录见 ROADMAP §2.5–§2.7。
 
 ### 8.1 已完成
 
@@ -249,15 +249,17 @@ gdare2 -w -qc 'e io.cache=true; wx 9090; wc+' /tmp/target
 4. rc 文件（`~/.gdare2rc`、`$XDG_CONFIG_HOME/gdare2/rc`）与 `-N/-NN`。
 5. `-i/-I` 脚本顺序。
 6. 内存搜索 `/`、`/x`、`/w`、`/v[1248]`、`//`、`/+`、`/-`。
-7. 架构矩阵（20 配置）与 `tools/arch_matrix.py`。
+7. 架构矩阵（22 配置）与 `tools/arch_matrix.py`；每项校验 `pd 1`/`iI`。
 8. `.g/.gstatus/.gsave/.gclose` 基础扩展命令。
 9. Phase B 完成：`f` flags、`S`/`$`/`_`、`x`、`iE`/`ia`/`izz`、
    `t-`/`tp`/`tpv`/`tpx`、`/r`/`/p`/`/a`、`cmd.hit`、`search.in=raw`、
    `@@F`/`@@/x`/`@@.file`/`@@s`/`@{from to}`/`@!n`、`pa`/`wa`/`wi`/`w6`、
    `.gsync`/`.ganalyze`/`.ghelp`/`.gexec`、`afr`/`afvR`/`afvW`/`an`、
    `--daemon-readonly`、`e ghidra.analysis.wait`。
+10. Phase C 完成：parity 基础设施与 `/bin/ls`、ARM32 黄金文件、batch 子 op
+    meta 透传、性能基线与错误码审计。
 
-### 8.2 待完成
+### 8.2 收尾任务（全部完成）
 
 1. **一致性修复**（Phase A）：**已完成**。包括 instance-id 指纹、架构默认端序、
    daemon 状态、CLI 选项、`--readonly`、分析/反编译超时、只读文案、loader 参数
@@ -267,11 +269,11 @@ gdare2 -w -qc 'e io.cache=true; wx 9090; wc+' /tmp/target
    `search.in=raw`、`@@F`/`@@/x`/`@@.file`/`@@s`/`@{from to}`、`@!n`、
    `pa/wa/wi/w6`、`.gsync/.ganalyze/.ghelp/.gexec`、`afr`/`afvR`/`afvW`/`an`、
    `--daemon-readonly` 与 `ghidra.analysis.wait`。
-3. **parity 基础设施**（Phase C）：`tests/parity/`、`tests/golden/`、
-   `tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 样本黄金文件。
-4. **架构矩阵增强**：每个配置校验 `pd 1` 与 `iI`；目标配置数补齐。
-5. **性能与错误审计**：导入/分析基线、函数列表缓存、分页、退出码检查。
-6. **batch 子 op meta 透传**。
+3. **parity 基础设施**（Phase C）：**已完成**。`tests/parity/`、
+   `tests/golden/`、`tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 黄金文件。
+4. **架构矩阵增强**：**已完成**。22 配置，每项校验 `pd 1` 与 `iI`。
+5. **性能与错误审计**：**已完成**。见 `docs/PERF.md`；缓存评估为暂不实现。
+6. **batch 子 op meta 透传**：**已完成**。
 
 ### 验收
 
@@ -399,9 +401,9 @@ uv run gdare2 -j -qc 'afl' target | jq .
 3. 补 daemon 状态字段与注册表状态更新，修复 `.g/.gstatus`（A3/C4）。
 4. 落实 `-A/-AA`、`--wait`、`--listen`，给手工 `gdare2d` 合理默认值（A4/A5）。
 5. 落实 `--readonly`、分析超时、反编译超时（A6/C7/C8）。
-6. 建立 parity 基础设施与 `/bin/ls` 黄金文件（C1/C2）。
-7. 扩展架构矩阵到 `pd 1`/`iI` 断言（C4）。
+6. ✅ 建立 parity 基础设施与 `/bin/ls` 黄金文件（C1/C2）。
+7. ✅ 扩展架构矩阵到 `pd 1`/`iI` 断言（C4）。
 8. 实现 `f` flags 家族（B1）。
 9. 补 `t-`/`tp`/`/r`/`/p`/`/a` 等命令面（B3/B4）。
-10. 记录性能基线并审查错误码/退出码（C6）。
+10. ✅ 记录性能基线并审查错误码/退出码（C6）。
 11. 完成 v1 后再启动 M6 GUI 桥原型（Phase D）。

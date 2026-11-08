@@ -1,0 +1,78 @@
+{
+  "captured_at": "2026-11-08T13:40:01Z",
+  "ghidra_version": "12.2",
+  "r2_version": "radare2 6.2.5 +38342 abi:158 @ linux-x86_64",
+  "samples_per_command": 3,
+  "targets": [
+    {
+      "cold_open_ms": 17809.13,
+      "functions": 536,
+      "language": "x86:LE:64:default",
+      "samples": 3,
+      "target": "/bin/ls",
+      "target_sha256": "833d6f9cf3ede2225d80eaa159ef78a141c92842a691179aec37d182cc808a5c",
+      "warm": {
+        "afl": {
+          "max_ms": 131.53,
+          "median_ms": 85.75,
+          "min_ms": 83.17
+        },
+        "info": {
+          "max_ms": 74.7,
+          "median_ms": 73.51,
+          "min_ms": 65.42
+        },
+        "pd100": {
+          "max_ms": 93.57,
+          "median_ms": 75.91,
+          "min_ms": 75.05
+        },
+        "pdc": {
+          "max_ms": 372.98,
+          "median_ms": 86.44,
+          "min_ms": 78.57
+        },
+        "symbols": {
+          "max_ms": 208.74,
+          "median_ms": 143.65,
+          "min_ms": 134.01
+        }
+      }
+    },
+    {
+      "cold_open_ms": 94855.71,
+      "functions": 1099,
+      "language": "ARM:LE:32:v8",
+      "samples": 3,
+      "target": "../vulfirm/OverFlow/R6700v3/upnpd",
+      "target_sha256": "5b44698596a30f36d83eafc653fe6c251365cce0d438b0eb8f11c455bf52baca",
+      "warm": {
+        "afl": {
+          "max_ms": 119.07,
+          "median_ms": 118.52,
+          "min_ms": 105.29
+        },
+        "info": {
+          "max_ms": 96.02,
+          "median_ms": 68.6,
+          "min_ms": 68.52
+        },
+        "pd100": {
+          "max_ms": 115.44,
+          "median_ms": 76.18,
+          "min_ms": 73.51
+        },
+        "pdc": {
+          "max_ms": 316.48,
+          "median_ms": 86.62,
+          "min_ms": 79.24
+        },
+        "symbols": {
+          "max_ms": 297.48,
+          "median_ms": 203.07,
+          "min_ms": 199.51
+        }
+      }
+    }
+  ]
+}

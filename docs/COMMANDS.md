@@ -76,7 +76,7 @@
 | `pdr.` | 从当前块 | 同上 | P2 |
 | `pi [n]` | 仅指令文本 | `Instruction.toString()`，客户端省列 | P1 |
 | `pI [n]` | 含函数体 | 同 `pd` | P2 |
-| `pdl` | 指令大小 | `Instruction.getLength()` | P1 |
+| `pdl` | 地址+长度+文本 | `Instruction.getLength()` + 文本 | P1 |
 | `pdi` | 地址+symbol+字节+文本 | `Instruction.getBytes()` + `getPrimarySymbol()` | P1 |
 | `pds` | 摘要 | 无稳定对应；**X** | X |
 | `pdj` / `pdJ` | JSON | 同 `pd` | P0 |
@@ -431,7 +431,7 @@
 |---|---|
 | Phase A | **已完成**（loader 参数校验、`pdi` 独立布局、`pdj` 字段集决策） |
 | Phase B | **已完成**（含 `izz`、`/p`、`/a`、raw search、`@@/x`、`@@s`、`@{from to}`、`.gexec`、`afr`/`afvR`/`afvW`/`an`、`ghidra.analysis.wait`） |
-| Phase C（parity） | `tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 黄金文件、架构矩阵 `pd 1`/`iI` 断言、batch 子 op meta 透传 |
+| Phase C（parity） | **已完成**（`tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`、`/bin/ls` 与 ARM32 黄金文件、22 配置矩阵 `pd 1`/`iI` 断言、batch 子 op meta 透传） |
 | Phase D（M6） | Ghidra GUI 桥、`--attach gui:<endpoint>`、GUI 内写入 |
 
 ### 14.3 已知语义差异
@@ -444,10 +444,16 @@
 - `u/U` 只恢复字节，不回滚反编译/函数/注释/类型；daemon 重启后历史清空。
 - `pa/wa` 使用 Ghidra SLEIGH 汇编器；助记符通常需要大写（如 `NOP`），
   不支持的语言明确报 `NOT_SUPPORTED`。`--assembler=rasm2` 仍未实现。
+- 首次汇编会触发 SLEIGH 初始化（实测 20–60 s）；汇编 op 使用
+  `e ghidra.assemble.timeout`（默认 180 s），其他 op 仍使用
+  `e ghidra.timeout`（默认 30 s）。
 - `f` 默认只写会话内 flag；写回 Ghidra 需要 `-w` 且 `e ghidra.flags.write=true`。
 - `.gexec` 需要客户端 `--allow-exec`、daemon `--allow-exec` 与 `-w` 三重条件。
 - `/r` 只遍历已定义字符串；`izz`/`search.in=raw` 返回文件偏移；`afr` 为
   删除+重建函数的近似重分析；`an` 对纯 decompiler 局部变量支持有限。
+- `pdl` 输出 `地址 + 长度 + 文本`；r2 6.2.5 的 `pdl` 只打印长度，parity 只比较行数。
+- `pd -N` 向后反汇编按地址升序输出；指令边界由解码器决定，parity 只校验地址序列。
+- `batch` 的子 op 现在逐项保留 `meta`；`search`/`search_raw` 返回响应级 `meta`。
 
 ### 14.4 2026-11-08 已修复
 

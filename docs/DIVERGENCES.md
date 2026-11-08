@@ -294,8 +294,13 @@ gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 
 | `--assembler=rasm2` | 明确报 `BAD_ARGS` | `pa/wa` 已使用 Ghidra SLEIGH 汇编器；rasm2 回退尚未接入 |
 | `.gexec` | 需要客户端 `--allow-exec` + daemon `--allow-exec` + `-w` | 三重门控是有意的安全边界；缺任一项都报错 |
 | `afB` | 不实现，报 `NOT_SUPPORTED` | r2 6.2.5 中 `afB` 是 Thumb 位宽切换；旧文档的“第 n 个基本块”语义已过时，不做兼容层 |
-| batch 子 op `meta` | 只汇总错误数 | 应逐项保留；Phase C5 |
+| batch 子 op `meta` | 逐项保留；客户端 `@@` 汇总截断并输出 `WARN` | 已实现（Phase C5）；子 op 返回 `OpResult` 时透传 `meta` |
 | daemon `--readonly` 下的显式 `aa` | 返回 `READONLY` | 只读 daemon 不允许重新分析；bootstrap 分析阶段已在启动前拒绝 |
+| `pdl` 布局 | 地址 + 长度 + 文本 | r2 6.2.5 的 `pdl` 只打印长度（且解码失败后出现 0）；parity 只比较行数 |
+| `pd -N` 向后反汇编 | 从入口向前解码，按地址升序输出 | 指令边界由解码器决定；parity 只校验地址序列、行数与上界 |
+| parity 函数数量 | Ghidra 通常比 r2 识别更多函数 | parity 比较导入函数名集合与数量区间，不要求逐项一致 |
+| parity `iS` | Ghidra 额外生成 segment/external/section-header 块 | parity 比较命名 section 子集与 `.text` 大小/相对地址 |
+| parity 黄金文件 | 版本或目标 sha256 不匹配时 skip | 避免 r2/Ghidra/目标升级后产生假失败；提示重新运行抓取工具 |
 
 ### 14.1 已修复（2026-11-08）
 

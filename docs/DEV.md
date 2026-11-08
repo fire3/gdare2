@@ -86,8 +86,8 @@ src/gdare2/       # 客户端：无 JVM 依赖
 src/gdare2d/      # daemon：依赖 pyghidra
 tests/            # 离线单测默认
 tests/integration # -m real_ghidra
-tests/parity      # -m parity（待建立）
-tests/golden      # parity 黄金文件（待建立）
+tests/parity      # -m parity
+tests/golden      # parity 黄金文件（JSON）
 tests/arch_matrix # -m arch_matrix
 tools/            # spike、黄金文件抓取、矩阵汇总
 docs/             # 本设计文档
@@ -226,17 +226,25 @@ python tools/arch_matrix.py
 
 ### 6.1 抓黄金文件
 
-目标形态（Phase C 建立）：
-
 ```bash
-r2 -e scr.color=0 -q -A -c 'pd 10' target > tests/golden/pd.txt
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
+  .venv/bin/python tools/capture_r2_golden.py --target /bin/ls \
+  --output tests/golden/ls.json
+
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
+  .venv/bin/python tools/capture_r2_golden.py \
+  --target ../vulfirm/OverFlow/R6700v3/upnpd --output tests/golden/upnpd.json
 ```
 
-计划脚本：`tools/capture_r2_golden.py`（当前不存在，见 ROADMAP C1）。脚本必须：
+`tools/capture_r2_golden.py` 会：
 
-- 记录 r2 版本、Ghidra 版本、language ID、目标 sha256；
-- 生成可归一化的结构化输出，而不是仅保存原始文本；
-- 版本不匹配时提示重新生成，而不是直接判失败。
+- 记录 r2 版本、Ghidra 版本、language ID、目标 sha256、抓取时间；
+- 生成结构化 JSON（`iI`/`iS`/`afl`/入口字节/`pd`/`pdi`/`pdl`/向后反汇编），
+  而不是仅保存原始文本；
+- 用一个临时数据目录运行 gdare2，取得实际 language ID 与 Ghidra 版本。
+
+测试在版本或目标 hash 不匹配时 skip 并提示重新生成，而不是直接判失败。
+ARM32 样本路径可用 `GDARE2_ARM_TARGET` 覆盖。
 
 ### 6.2 规范化
 
@@ -314,8 +322,8 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_ma
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 ```
 
-当前 `parity` 尚未建立，运行会得到 0 个测试；Phase C 完成后必须全绿。
-`ruff` 不在当前 venv 中，可用系统/独立环境运行。
+`parity` 覆盖 `/bin/ls` 与 ARM32 样本；样本缺失或黄金文件过期时会 skip 并给出
+重新生成提示。`ruff` 不在当前 venv 中，可用系统/独立环境运行。
 
 ## 9. 参考
 

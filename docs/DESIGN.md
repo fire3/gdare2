@@ -5,7 +5,7 @@
 - 版本：0.1（立项设计）
 - 日期：2026-11-07（实现状态更新：2026-11-08）
 - 基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、radare2 6.2.5、idare2 0.1
-- 状态：M0–M4 核心已实现，M5 进行中；本文保留为架构契约
+- 状态：M0–M5 已实现（Phase A–C 完成），下一步 M6；本文保留为架构契约
 
 > 实现状态、已知缺口与后续顺序见 [PROGRESS.md](PROGRESS.md) 与
 > [ROADMAP.md](ROADMAP.md)。本文描述的是目标设计；当实现与设计不一致时，
@@ -477,7 +477,7 @@ daemon 返回的所有对象必须是普通 Python dict/list/str/int/bool/None/b
 - `search.in`、`search.from`、`search.to`
 - `cmd.hit`、`cmd.batch`
 - `io.cache`
-- `ghidra.timeout`、`ghidra.decompile.timeout`、`ghidra.analysis.wait`
+- `ghidra.timeout`、`ghidra.assemble.timeout`、`ghidra.decompile.timeout`、`ghidra.analysis.wait`
 - `ghidra.flags.write`（flag 是否写回 Ghidra symbol/label）
 
 ### 7.3 命令匹配

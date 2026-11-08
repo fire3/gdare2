@@ -1,10 +1,11 @@
 # gdare2 设计文档索引
 
 `gdare2` 是一个后端接入 Ghidra、命令行与输出模型尽量兼容 radare2 的逆向工具。
-本目录保存调研、设计、实施计划、开发进度与后续路线。当前仓库已完成 M0–M4
-核心能力，M5 体验项进行中：Phase B 命令面已完成（flags、脚本/变量、搜索/迭代、
-类型化读取、汇编、`.gexec`、分析写入等）；剩余 parity 黄金文件、架构矩阵增强、
-batch meta 等 Phase C 工作。根目录 README 提供安装、快速开始与常用命令示例。
+本目录保存调研、设计、实施计划、开发进度与后续路线。当前仓库已完成 M0–M5：
+Phase B 命令面（flags、脚本/变量、搜索/迭代、类型化读取、汇编、`.gexec`、
+分析写入等）与 Phase C（parity 黄金文件、22 配置架构矩阵、batch meta、
+性能/错误审计）均已完成；下一步为 M6 GUI 桥。根目录 README 提供安装、快速开始
+与常用命令示例。
 
 根目录入口见 [../README.md](../README.md)。
 
@@ -17,7 +18,8 @@ batch meta 等 Phase C 工作。根目录 README 提供安装、快速开始与�
 5. [PLAN.md](PLAN.md) — 里程碑、任务拆分与验收标准
 6. [DEV.md](DEV.md) — 环境、调试与测试指南
 7. [PROGRESS.md](PROGRESS.md) — 里程碑状态、验收记录与下一轮计划
-8. [ROADMAP.md](ROADMAP.md) — 当前缺陷、细化任务、执行顺序与验收矩阵
+8. [PERF.md](PERF.md) — 性能基线、缓存评估与错误码审计
+9. [ROADMAP.md](ROADMAP.md) — 当前缺陷、细化任务、执行顺序与验收矩阵
 
 ## 一句话结论
 
@@ -34,6 +36,6 @@ batch meta 等 Phase C 工作。根目录 README 提供安装、快速开始与�
 - 版本：0.1（立项设计）
 - 更新日期：2026-11-08
 - 调研基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、idare2 0.1/b2cd758、radare2 6.2.5
-- 目标：v1 命令面收尾、parity 黄金文件与可靠性加固，然后进入 M6 GUI 桥
-- 当前状态：M0–M4 核心完成，M5 进行中，M6 未开始（2026-11-08 实测
-  离线 131 passed、真实 Ghidra 22 passed、架构矩阵 2 passed）
+- 目标：v1 命令面与可靠性收尾已完成，进入 M6 GUI 桥
+- 当前状态：M0–M5 完成，M6 未开始（2026-11-08 实测
+  离线 169 passed、真实 Ghidra 22 passed、parity 12 passed、架构矩阵 2 passed）

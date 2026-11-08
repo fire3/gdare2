@@ -13,16 +13,17 @@
 | M2 分析/图 | 完成 | `@@` batch、函数/块图、`ab/ao/ai`、`afln/afl+`、`afn/afu/a8/ad` 可用；架构矩阵可用 |
 | M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/t-`、`tp/tpv/tpx`、`afs`、`C/CC/Cp` 已可用；复杂 C++ 类型与结构体值格式化仍受 Ghidra 限制 |
 | M4 写入 | 完成（v1 范围） | `wx/w/w0/wf/wd`、`wa/wa*/wa+`、`wi`、`w6d/w6e`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用 |
-| M5 兼容/体验 | 进行中 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、`.gexec`、20 配置架构矩阵已可用；parity/黄金文件与矩阵增强待补 |
+| M5 兼容/体验 | 完成 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、`.gexec`、parity 黄金文件、22 配置架构矩阵、batch meta 已完成 |
 | M6 GUI 桥 | 待开始 | Ghidra GUI 附着；方案与验收见 `ROADMAP.md` Phase D |
 
 ## 验证基线（2026-11-08 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `131 passed`，0.10s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `22 passed`，381.73s |
-| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，7.32s |
+| 离线 | `.venv/bin/python -m pytest -q` | `169 passed`，0.29s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `22 passed`，425.39s |
+| r2 parity | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m parity` | `12 passed`，117.91s |
+| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，8.44s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 
@@ -71,6 +72,38 @@ Phase A 剩余项已全部处理。后续进入 Phase B（命令面）与 Phase 
 - **daemon 控制**：`--daemon-readonly` 转发 `--readonly`。
 
 Phase B 剩余项已清零；后续进入 Phase C（parity、架构矩阵增强、batch meta）。
+
+## Phase C 完成（2026-11-08）
+
+- **parity 基础设施**：新增 `src/gdare2/parity.py`（名称归一化、`pdi` 解析、
+  版本/hash 失效判断）、`tests/parity/`、`tests/golden/` 与
+  `tools/capture_r2_golden.py`。黄金文件是结构化 JSON，记录 schema、r2/Ghidra
+  版本、language ID 与目标 sha256；版本或目标变化时测试 skip 并提示重新生成。
+- **`/bin/ls` 黄金文件**：`tests/golden/ls.json`；覆盖 `iI` 字段与
+  entry/base 相对偏移、`iS` 命名节集合和 `.text` 大小/地址、`afl` 导入名集合
+  与数量区间、入口 32 字节、`pd`/`pdi` 地址/长度/字节序列、`pdl` 行数、向后
+  反汇编地址序列。
+- **ARM32 黄金文件**：`tests/golden/upnpd.json`，样本
+  `../vulfirm/OverFlow/R6700v3/upnpd`；样本缺失时 skip，可用
+  `GDARE2_ARM_TARGET` 覆盖。
+- **架构矩阵增强**：22 配置（新增 SuperH SH-2A/SH-2）；每项断言语言、位宽、
+  端序与 `pd 1` 非空；JSON 输出 `ok/actual/bits/big_endian/pd_ok/info_ok/pd/
+  image_base`。RISC-V 使用 `13000000` 探针；`sh4` 仍明确报错。
+- **batch meta 透传**：`search`/`search_raw` 改为返回 `OpResult`；`batch`
+  逐项保留 `meta`；客户端 `@@` 汇总子项截断并输出 `WARN`；`@@/x` 等搜索迭代也
+  使用响应级 `meta` 判断截断。
+- **性能与错误审计**：新增 `tools/perf_probe.py`、`docs/PERF.md` 与
+  `docs/perf-baseline.json`；`tests/test_errors.py` 校验错误类、`EXIT_CODES` 与
+  CLI 退出码；补齐 `CONNECTION=3`。函数/符号缓存评估为暂不实现（见 PERF.md）。
+- **汇编冷启动超时**：首次 `pa`/`wa`/`/a` 的 SLEIGH 初始化实测 20–60 s，会超过
+  通用 30 s RPC 超时。新增 `e ghidra.assemble.timeout`（默认 180 s），只对汇编
+  op 生效，其他 op 仍使用 `ghidra.timeout`；集成测试恢复稳定。
+
+parity 的已知限制：`pdl` 输出布局与 r2 不同，只比较行数；向后反汇编的指令边界
+可能随解码器不同，只校验地址序列；函数数量不要求逐项一致，只比较导入名集合与
+数量区间。
+
+Phase C 剩余项已清零；下一步进入 M6（Phase D GUI 桥）。
 
 ## 已修复问题对照（原审查清单）
 
@@ -249,28 +282,26 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 - `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；
   已决策不伪造缺失字段；
-- batch 子 op 的 `meta` 只汇总错误数，尚未按单项保留；
+- ~~batch 子 op 的 `meta` 只汇总错误数~~ → 已修复：逐项保留并汇总截断；
 - `--assembler=rasm2` 仍未实现，会明确报 `BAD_ARGS`（有意的显式拒绝）。
 
 ### 测试与 parity 缺口
 
-- `tests/parity/` 目录不存在，`pytest -m parity` 没有实际测试；
-- `tools/capture_r2_golden.py` 尚未实现（`DEV.md` 已引用）；
-- `/bin/ls` 与 ARM32 样本的结构化黄金文件尚未补齐；
-- 架构矩阵覆盖 20 配置，目标为 22；且只校验语言 ID，未校验 `pd 1`/`iI`；
-- 没有 ARM32 样本的真实 Ghidra 集成测试；
-- 已补 argv/launcher/registry/import_plan 的边界回归测试（见新增测试文件）；
-- 没有性能基线（导入/分析耗时、`afl`/`pd`/`pdc` 延迟）。
+- ~~`tests/parity/` 不存在~~ → 已建立；`pytest -m parity` 覆盖 `/bin/ls` 与 ARM32；
+- ~~`tools/capture_r2_golden.py` 未实现~~ → 已实现并生成两份黄金文件；
+- ~~架构矩阵只校验语言 ID~~ → 22 配置并断言 `pd 1`/`iI`；
+- 架构矩阵仍不覆盖真实 ELF（只覆盖裸二进制导入）；
+- 没有 ARM32 样本的独立真实 Ghidra 集成测试（parity 用例已实际导入该样本）；
+- ~~没有性能基线~~ → 见 `docs/PERF.md` 与 `docs/perf-baseline.json`。
 
 ## 下一轮
 
-详细任务、文件、测试与验收见 **[ROADMAP.md](ROADMAP.md)**。按以下顺序推进：
+详细任务、文件、测试与验收见 **[ROADMAP.md](ROADMAP.md)**。v1 的 Phase A–C
+已全部完成；下一轮进入 M6（Phase D）：
 
-1. C1/C2 建立 `tests/parity/`、黄金抓取工具与 `/bin/ls` 黄金文件；
-2. C4 扩展架构矩阵到 `pd 1`/`iI` 断言；
-3. C15 透传 batch 子 op meta；
-4. C6 记录性能基线并审查错误码/退出码；
-5. C3 补 ARM32 样本黄金文件与真实集成测试；
-6. 评估 `--assembler=rasm2` 回退与 `f` flag 视觉列。
+1. 在 PyGhidra console 中做 GUI 桥可行性原型，记录线程模型与失败模式；
+2. 产出 `docs/GUI-BRIDGE.md`；
+3. 设计 `Context` 代理，把 op 调度到 Ghidra 任务线程/EDT。
 
-M6 在 v1 收尾后启动，先做 PyGhidra console 桥原型；详见 `ROADMAP.md` Phase D。
+v1 的可选后续：`--assembler=rasm2` 回退、`f` flag 视觉列、真实 ELF 架构矩阵
+（当前矩阵只覆盖裸二进制）。M6 详见 `ROADMAP.md` Phase D。

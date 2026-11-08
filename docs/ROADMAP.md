@@ -81,14 +81,16 @@ parity 黄金文件、GUI 桥** 四类。
 | 扩展命令 | `.gsync`、`.ganalyze`、`.gexec`、`.ghelp` | 只有 `.g/.gstatus/.gsave/.gclose` | P1/P2 | `.gexec` 必须继续由 `--allow-exec` 双重门控 |
 | daemon 控制 | 客户端暴露 `--daemon-readonly`、转发 `--listen`、`--analysis-timeout` | 无 | P1 | 与 C5/C7 一起做 |
 
-### 2.3 测试与 parity 缺口
+### 2.3 测试与 parity 缺口（Phase C 已关闭）
 
-1. `tests/parity/` 目录不存在，`pytest -m parity` 实际没有测试；`tools/capture_r2_golden.py` 也不存在（`DEV.md` §3 已引用）。
-2. 没有 `/bin/ls` 与 ARM32 样本的结构化黄金文件；`pdi/pdl/pd -n` 只有假后端单测，没有 r2 对照。
-3. 架构矩阵只覆盖 20 配置；设计目标 22（待确认，见 §5）；且只校验语言 ID，见 C14。
-4. 没有 ARM32 样本的真实 Ghidra 集成测试；M1 的 ARM 验证目前只是手工记录。
-5. 离线测试 69 条，缺少 argv/launcher/registry/import_plan 的边界测试；新增 daemon 状态、`--readonly`、`-A`、手工 `gdare2d` 都会缺少回归。
-6. 没有性能基线文件（导入耗时、分析耗时、`afl`/`pd` 延迟、反编译耗时）。
+1. ✅ `tests/parity/`、`tests/golden/` 与 `tools/capture_r2_golden.py` 已建立；
+   `pytest -m parity` 有 12 个实际测试。
+2. ✅ `/bin/ls` 与 ARM32 样本的结构化黄金文件已生成；`iI/iS/afl/px/pd/pdi/pdl`
+   与向后反汇编都有 r2 对照。
+3. ✅ 架构矩阵覆盖 22 配置，并校验语言/位宽/端序与 `pd 1`。
+4. ⚠️ ARM32 样本在 parity 用例中实际导入；仍没有独立的 `-m real_ghidra` 用例。
+5. ✅ 离线测试增至 169 条，覆盖 argv/launcher/registry/import_plan/session 等边界。
+6. ✅ 性能基线见 `docs/PERF.md` 与 `docs/perf-baseline.json`。
 
 ### 2.4 文档同步（本次更新已处理）
 
@@ -169,6 +171,38 @@ C15（batch 子 op meta）与 `pdi` 的 flag 列视觉细化转入 Phase C/B1。
 剩余 Phase B：无。下一步进入 Phase C（parity、架构矩阵增强、batch meta）
 与 M6。
 
+### 2.7 Phase C 完成（2026-11-08）
+
+- **C1 parity 基础设施（完成）**：新增 `src/gdare2/parity.py`、
+  `tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`。黄金文件为
+  JSON，头部记录 schema、r2 版本、Ghidra 版本、language ID 与目标 sha256；
+  版本或目标变化时测试 skip 并提示重新生成。
+- **C2 `/bin/ls` 黄金文件（完成）**：`tests/golden/ls.json`；断言 `iI` 的
+  arch/bits/endian 与 entry/base 相对偏移、`iS` 命名节集合和 `.text` 大小/地址、
+  `afl` 导入函数集合与数量区间、入口 32 字节、`pd`/`pdi` 的地址/长度/字节序列、
+  `pdl` 行数、向后反汇编地址序列。
+- **C3 ARM32 黄金文件（完成）**：`tests/golden/upnpd.json`，样本为
+  `../vulfirm/OverFlow/R6700v3/upnpd`（sha256 记录在文件内）；样本缺失时 skip
+  并提示路径，可用 `GDARE2_ARM_TARGET` 覆盖。
+- **C4 架构矩阵增强（完成）**：矩阵增至 22 配置（新增 SuperH SH-2A/SH-2），
+  每项断言语言/位宽/端序与 `pd 1` 非空；JSON 增加
+  `ok/actual/bits/big_endian/pd_ok/info_ok/pd/image_base`。RISC-V 使用
+  `13000000` 作为可解码探针；`sh4` 仍明确报错。
+- **C5 batch 子 op meta（完成，C15）**：`search`/`search_raw` 返回
+  `OpResult`；`batch` 每项保留 `meta`；客户端 `@@` 汇总子项截断并输出 `WARN`；
+  `@@/x` 搜索迭代也使用响应级 `meta`。离线测试覆盖 meta 透传、单项错误隔离与
+  WARN 文案。
+- **C6 性能与错误审计（完成）**：新增 `tools/perf_probe.py`、`docs/PERF.md` 与
+  `docs/perf-baseline.json`；`tests/test_errors.py` 校验错误类、`EXIT_CODES`
+  与 CLI 退出码，并补齐 `CONNECTION=3`。函数/符号缓存评估结论为暂不实现，
+  理由见 PERF.md。
+
+已知限制（记录在 DIVERGENCES）：`pdl` 输出布局与 r2 不同，parity 只比较行数；
+向后反汇编的指令边界可能随解码器不同，parity 只校验地址序列；函数数量不要求
+逐项一致，只比较导入名集合与数量区间。
+
+**Phase C 剩余项：无。**
+
 ## 3. 分阶段推进
 
 ### Phase A：一致性与契约修复（P0，预计 1–2 天）
@@ -245,30 +279,30 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_gh
 
 ### Phase C：parity 与可靠性（P1，预计 2–3 天）
 
-1. **C1 建立 parity 基础设施**
+1. **C1 建立 parity 基础设施（完成）**
    - 新增 `tests/parity/`、`tests/golden/`、`tools/capture_r2_golden.py`；
    - 每个黄金文件头记录：r2 版本、Ghidra 版本、language ID、目标 sha256；
    - 归一化：函数名（`FUN_`/`sym.`/`fcn.`）、地址宽度、ANSI、助记符别名、
      行首空格；版本不匹配时提示重新生成而不是直接失败。
-2. **C2 `/bin/ls` 黄金文件**
+2. **C2 `/bin/ls` 黄金文件（完成）**
    - `iI`：arch/bits/endian/language/base/entry；
    - `iS`：块数量与关键块（`.text` 起止）；
    - `afl`：函数数量与若干函数名（归一化后）；
    - `px`：入口附近固定区域逐字节一致；
    - `pd`：地址/长度/文本结构（允许助记符差异归因）；
-   - `pdi`、`pdl`、`pd -n` 的行数/地址序列。
-3. **C3 ARM32 样本黄金文件**
+   - `pdi`、`pdl`、`pd -N`（向后反汇编）的行数/地址序列。
+3. **C3 ARM32 样本黄金文件（完成）**
    - 使用 `../vulfirm` 的 ARM32 样本；记录 `sha256`；
    - 重复 C2 的结构化断言；
    - 若样本缺失，测试 skip 并提示路径。
-4. **C4 架构矩阵增强**
+4. **C4 架构矩阵增强（完成）**
    - 每个配置断言 `pd 1` 非空、`iI` 字段正确；
-   - 目标配置补齐到设计值（建议加 `SuperH:BE:32:SH-2A`，并明确 `sh4` 仍报错）；
+   - 目标配置补齐到设计值 22（新增 `SuperH:BE:32:SH-2A`/`SH-2`），并明确 `sh4` 仍报错；
    - 输出 JSON 包含 `ok/actual/bits/big_endian/pd_ok/info_ok`。
-5. **C5 batch 子 op meta 透传（C15）**
+5. **C5 batch 子 op meta 透传（C15，完成）**
    - `batch` 每项保留 `meta`；客户端 `@@` 汇总子项截断；
    - 测试：子 op 截断时输出明确 WARN。
-6. **C6 性能与错误审计**
+6. **C6 性能与错误审计（完成）**
    - 记录 `/bin/ls` 与 ARM 样本的首次导入/分析耗时、`afl`/`pd`/`pdc` 延迟；
    - 检查所有错误码与退出码（`BAD_ARGS=2`、`NOT_READY=3`、`TIMEOUT=4`）；
    - 评估函数列表/符号表缓存（`Program.getModificationNumber()` 作为失效键）。

@@ -11,10 +11,10 @@ r2 风格命令，同时保留一个常驻 daemon，让后续命令可以秒级�
 - **常驻 daemon**：首次导入/分析较慢，之后多个客户端共享同一个已打开程序。
 - **默认可读，显式可写**：只有 `-w` 的请求才能执行写操作；daemon 也可强制只读。
 - **批处理友好**：`-qc`、`-j`、`~` 过滤、`|` 管道、`>` 重定向、`@@` 批量迭代。
-- **真实 Ghidra 回归测试**：离线单测、真实 Ghidra 集成测试与 20 配置架构矩阵分层运行。
+- **真实 Ghidra 回归测试**：离线单测、真实 Ghidra 集成测试与 22 配置架构矩阵、r2 parity 分层运行。
 
-当前已完成 M0–M4 核心能力，M5 体验项进行中（rc、补全、搜索、架构矩阵已可用；
-parity 黄金文件、架构矩阵增强、batch meta 等 Phase C 工作待补）。状态见
+当前已完成 M0–M5 核心能力与体验项（rc、补全、搜索、flags、脚本、汇编、
+parity 黄金文件、22 配置架构矩阵、batch meta）。下一步为 M6 GUI 桥。状态见
 [docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
@@ -315,9 +315,18 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
   .venv/bin/python -m pytest -q -m arch_matrix
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
-# r2 parity（待建立，见 docs/ROADMAP.md Phase C）
+# r2 parity（/bin/ls 与 ARM32 样本；黄金文件见 tests/golden）
 GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
   .venv/bin/python -m pytest -q -m parity
+
+# 重新抓取黄金文件
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
+  .venv/bin/python tools/capture_r2_golden.py --target /bin/ls \
+  --output tests/golden/ls.json
+
+# 性能基线
+GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
+  .venv/bin/python tools/perf_probe.py /bin/ls --output docs/perf-baseline.json
 ```
 
 目录边界：`src/gdare2` 是客户端，不得导入 `pyghidra`/`jpype`；
@@ -333,4 +342,5 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current \
 - 实施计划：[docs/PLAN.md](docs/PLAN.md)
 - 开发指南：[docs/DEV.md](docs/DEV.md)
 - 开发进度：[docs/PROGRESS.md](docs/PROGRESS.md)
+- 性能基线：[docs/PERF.md](docs/PERF.md)
 - 后续路线：[docs/ROADMAP.md](docs/ROADMAP.md)
