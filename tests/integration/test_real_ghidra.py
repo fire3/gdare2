@@ -563,3 +563,97 @@ def test_loader_arguments_are_validated(env, tmp_path):
     )
     assert bad_loader.returncode == 2
     assert "unknown loader" in bad_loader.stderr
+
+
+def test_flags_create_rename_delete_and_persist(env):
+    target = "/bin/ls"
+    first = run(env, "-qc", "iI", target)
+    assert first.returncode == 0, first.stderr
+
+    created = run(
+        env,
+        "-w",
+        "-qc",
+        "e ghidra.flags.write=true; s entry; f demo_flag 4; .gsave; .gclose",
+        target,
+    )
+    assert created.returncode == 0, created.stderr
+
+    listed = run(env, "-qc", "fq; f? demo_flag", target)
+    assert listed.returncode == 0, listed.stderr
+    assert "demo_flag" in listed.stdout.splitlines()
+    assert listed.stdout.splitlines()[-1] == "1"
+
+    renamed = run(
+        env,
+        "-w",
+        "-qc",
+        "e ghidra.flags.write=true; fr demo_flag demo_renamed; .gsave; .gclose",
+        target,
+    )
+    assert renamed.returncode == 0, renamed.stderr
+
+    renamed_list = run(env, "-qc", "f? demo_renamed; f? demo_flag", target)
+    assert renamed_list.returncode == 0, renamed_list.stderr
+    assert renamed_list.stdout.splitlines() == ["1", "0"]
+
+    deleted = run(
+        env,
+        "-w",
+        "-qc",
+        "e ghidra.flags.write=true; f- demo_renamed; .gsave; .gclose",
+        target,
+    )
+    assert deleted.returncode == 0, deleted.stderr
+
+    after_delete = run(env, "-qc", "f? demo_renamed", target)
+    assert after_delete.returncode == 0, after_delete.stderr
+    assert after_delete.stdout.strip() == "0"
+
+
+def test_assembly_integer_and_base64_writes(env, tmp_path):
+    target = tmp_path / "blob.bin"
+    target.write_bytes(b"\x90\x90\xc3\xcc")
+    args = ["-a", "x86", "-b", "64", "-B", "0x400000"]
+
+    assembled = run(env, *args, "-qc", "pa NOP", str(target))
+    assert assembled.returncode == 0, assembled.stderr
+    assert assembled.stdout.strip()
+
+    written = run(
+        env,
+        *args,
+        "-w",
+        "-qc",
+        "s 0x400000; wa NOP; .gsave",
+        str(target),
+    )
+    assert written.returncode == 0, written.stderr
+
+    integer = run(
+        env,
+        *args,
+        "-w",
+        "-qc",
+        "s 0x400000; wi4 0x12345678; .gsave",
+        str(target),
+    )
+    assert integer.returncode == 0, integer.stderr
+
+    read_back = run(env, *args, "-qc", "wi4 @ 0x400000", str(target))
+    assert read_back.returncode == 0, read_back.stderr
+    assert read_back.stdout.strip() == "0x12345678"
+
+    base64_write = run(
+        env,
+        *args,
+        "-w",
+        "-qc",
+        "s 0x400000; w6d QUI=; .gsave",
+        str(target),
+    )
+    assert base64_write.returncode == 0, base64_write.stderr
+
+    dump = run(env, *args, "-qc", "px 2 @ 0x400000", str(target))
+    assert dump.returncode == 0, dump.stderr
+    assert "41 42" in dump.stdout

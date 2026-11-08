@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from gdare2.cmd import command
 from gdare2.cmd.write import parse_hexpairs
 from gdare2.errors import UsageError
@@ -53,6 +55,35 @@ def _search_value(session, statement):
     return _search(session, statement, data, None)
 
 
+@command("/r", "search defined strings with a regex", aliases=("/rj",))
+def _search_regex(session, statement):
+    pattern = statement.args.strip()
+    if not pattern:
+        raise UsageError("/r needs a regular expression")
+    try:
+        regex = re.compile(pattern)
+    except re.error as exc:
+        raise UsageError(f"invalid regular expression: {exc}") from exc
+    payload = session.call("strings", limit=10000)
+    hits = [
+        int(item["addr"])
+        for item in payload
+        if regex.search(str(item.get("string", ""))) is not None
+    ]
+    session.last_search = {
+        "kind": "regex",
+        "pattern": pattern,
+        "hits": hits,
+        "last": hits[0] if hits else session.seek,
+    }
+    if hits:
+        session.last_result = hits[0]
+        session.seek_to(hits[0])
+    if statement.cmd.endswith("j"):
+        return [dumps({"hits": hits, "meta": {"shown": len(hits), "total": len(hits), "truncated": False}})]
+    return [session.format_addr(hit) for hit in hits]
+
+
 @command("//", "repeat the last search")
 @command("/+", "search forward from the last hit")
 def _search_next(session, statement):
@@ -71,6 +102,21 @@ def _repeat(session, statement, *, forward: bool):
     last = state.get("last")
     if last is None:
         raise UsageError("no previous search hit to continue from")
+    if state.get("kind") == "regex":
+        hits = list(state.get("hits") or [])
+        if not hits:
+            return []
+        index = hits.index(last) if last in hits else -1
+        index = index + 1 if forward else index - 1
+        if index < 0 or index >= len(hits):
+            return []
+        hit = hits[index]
+        state["last"] = hit
+        session.last_result = hit
+        session.seek_to(hit)
+        if statement.cmd.endswith("j"):
+            return [dumps({"hits": [hit]})]
+        return [session.format_addr(hit)]
     cursor = last + 1 if forward else max(0, last - 1)
     return _execute(
         session,
@@ -117,6 +163,16 @@ def _execute(
     if hits:
         session.last_result = hits[0]
         session.seek_to(hits[0])
+    hit_command = session.config.get_str("cmd.hit").strip()
+    if hit_command and hits and not getattr(session, "_hit_running", False):
+        session._hit_running = True
+        try:
+            lines: list[str] = []
+            for hit in hits:
+                lines.extend(session.run(f"{hit_command} @ 0x{hit:x}"))
+            return lines
+        finally:
+            session._hit_running = False
     session.last_search = {
         "data": data,
         "mask": mask,

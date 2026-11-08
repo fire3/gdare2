@@ -73,6 +73,7 @@ LONG_BOOL = frozenset(
         "ephemeral",
         "reimport",
         "allow-exec",
+        "daemon-readonly",
     }
 )
 
@@ -121,6 +122,7 @@ class Options:
     save_on_close: bool | None = None
     wait: bool = False
     assembler: str = "ghidra"
+    daemon_readonly: bool = False
     ephemeral: bool = False
     allow_exec: bool = False
     listen: str | None = None
@@ -258,6 +260,8 @@ def _apply_long_bool(options: Options, name: str) -> None:
         options.reimport = True
     elif name == "allow-exec":
         raise UsageError("--allow-exec is not available until .gexec is implemented")
+    elif name == "daemon-readonly":
+        options.daemon_readonly = True
 
 
 def _short(options: Options, cluster: str, argv: list[str], index: int) -> int:

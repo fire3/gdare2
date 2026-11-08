@@ -53,9 +53,12 @@ def load_all() -> None:
         return
     from gdare2.cmd import (  # noqa: F401
         analysis,
+        assemble,
         comments,
+        flags,
         info,
         meta,
+        misc,
         print as print_cmd,
         search,
         seek,
@@ -77,6 +80,10 @@ def lookup(cmd: str) -> CommandSpec | None:
     for spec in all_commands():
         if cmd == spec.pattern or cmd in spec.aliases:
             return spec
+    if cmd.startswith("$"):
+        for spec in all_commands():
+            if spec.pattern == "$":
+                return spec
     return None
 
 

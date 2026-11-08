@@ -13,7 +13,16 @@ class FakeClient:
     def call(self, op, **args):
         self.calls.append((op, args))
         if op == "info":
-            return {"program": "demo", "arch": "x86", "bits": 64, "language": "x86:LE:64:default"}
+            return {
+                "program": "demo",
+                "arch": "x86",
+                "bits": 64,
+                "language": "x86:LE:64:default",
+                "instance_id": "demo-id",
+                "state": "ready",
+            }
+        if op == "analyze":
+            return {"state": "unchanged"}
         if op == "disasm":
             return [
                 {
@@ -38,6 +47,47 @@ class FakeClient:
             return {"main": 0x2000}.get(args["name"])
         if op == "functions":
             return [{"addr": 0x1000, "name": "main", "size": 10, "end": 0x100A}]
+        if op == "symbols":
+            return [
+                {
+                    "addr": 0x1000,
+                    "name": "entry",
+                    "type": "LABEL",
+                    "external": False,
+                    "global": True,
+                },
+                {
+                    "addr": 0x2000,
+                    "name": "helper",
+                    "type": "LABEL",
+                    "external": False,
+                    "global": True,
+                },
+            ]
+        if op == "symbol_create":
+            return {
+                "addr": args["ea"],
+                "name": args["name"],
+                "type": "LABEL",
+                "external": False,
+                "global": True,
+            }
+        if op == "symbol_rename":
+            return {
+                "addr": 0x2000,
+                "name": args["new_name"],
+                "type": "LABEL",
+                "external": False,
+                "global": True,
+            }
+        if op == "symbol_delete":
+            return {
+                "addr": 0x2000,
+                "name": args.get("name") or "helper",
+                "type": "LABEL",
+                "external": False,
+                "global": True,
+            }
         if op == "function_callers":
             return [{"addr": 0x3000, "name": "caller", "size": 5, "end": 0x3005}]
         if op == "function_callees":
@@ -171,6 +221,26 @@ class FakeClient:
                 {"name": "demo_struct", "path": "/demo_struct", "kind": "struct", "length": 8},
                 {"name": "demo_enum", "path": "/demo_enum", "kind": "enum", "length": 4},
             ]
+        if op == "strings":
+            return [
+                {"addr": 0x1000, "length": 5, "string": "hello", "type": "string"},
+                {"addr": 0x2000, "length": 5, "string": "world", "type": "string"},
+            ]
+        if op == "exports":
+            return [
+                {"addr": 0x1000, "name": "entry", "type": "FUNCTION"},
+            ]
+        if op == "type_read":
+            return {
+                "name": args["name"],
+                "path": f"/{args['name']}",
+                "kind": "int",
+                "length": 4,
+                "count": 1,
+                "addr": args.get("ea", 0),
+                "bytes": b"ABCD",
+                "values": [0x44434241],
+            }
         if op == "function_signatures":
             return [
                 {
@@ -211,7 +281,7 @@ class FakeClient:
                 "declaration": "struct demo_new { int field; };",
             }
         if op == "type_delete":
-            return {"removed": ["demo_new"], "count": 1}
+            return {"removed": [args["name"]], "count": 1}
         if op == "comments":
             return [{"addr": 0x1000, "kind": "eol", "text": "hello"}]
         if op == "comment_set":
@@ -221,6 +291,24 @@ class FakeClient:
         if op == "write_bytes":
             data = bytes(args["data"])
             return {"addr": args["ea"], "size": len(data), "bytes": data}
+        if op == "assemble":
+            return {
+                "items": [
+                    {"addr": args["ea"], "text": args["text"], "bytes": b"\x90\x90", "size": 2}
+                ],
+                "bytes": b"\x90\x90",
+                "size": 2,
+            }
+        if op == "assemble_write":
+            return {
+                "items": [
+                    {"addr": args["ea"], "text": args["text"], "bytes": b"\x90\x90", "size": 2}
+                ],
+                "bytes": b"\x90\x90",
+                "size": 2,
+                "addr": args["ea"],
+                "written": {"addr": args["ea"], "size": 2, "bytes": b"\x90\x90"},
+            }
         if op == "write_patches":
             return {
                 "patches": len(args["patches"]),
@@ -599,3 +687,135 @@ def test_search_respects_range_config():
     assert args["from_addr"] == 0x2000
     assert args["to_addr"] == 0x2FFF
     assert args["cursor"] == 0x2000
+
+
+def test_flag_commands_and_write_back():
+    session, client = make_session()
+    assert session.config.get_bool("ghidra.flags.write") is False
+    assert "entry" in "\n".join(session.run("f"))
+    assert session.run("fq") == ["entry", "main", "helper"]
+    assert session.run("f? entry") == ["1"]
+    assert session.run("f? missing") == ["0"]
+
+    session.run("s 0x3000; f local_flag 4 @ 0x3000")
+    assert session.flag_store.get("local_flag") is not None
+    assert session.run("s local_flag") == []
+    assert session.seek == 0x3000
+    assert session.run("f.") == ["0x0000000000003000   4 local_flag"]
+
+    session.readonly = False
+    session.config.set("ghidra.flags.write", "true")
+    assert session.run("f remote_flag @ 0x4000") == []
+    assert ("symbol_create", {"allow_writes": True, "ea": 0x4000, "name": "remote_flag"}) in client.calls
+    assert session.run("fr remote_flag renamed_flag") == []
+    assert session.run("f- renamed_flag") == []
+
+
+def test_flag_rename_and_delete_are_local_without_write_back():
+    session, client = make_session()
+    session.run("f local @ 0x5000")
+    assert session.run("fr local renamed") == []
+    assert session.flag_store.get("renamed") is not None
+    assert session.run("f- renamed") == []
+    assert session.flag_store.get("renamed") is None
+    assert not [call for call in client.calls if call[0].startswith("symbol_")]
+
+
+def test_variables_last_output_and_script(tmp_path):
+    session, _ = make_session()
+    assert session.run("$foo=0x10") == []
+    assert session.run("$foo") == ["16"]
+    assert session.run("$foo = $foo + 1") == []
+    assert session.run("$foo") == ["17"]
+    assert any(line.startswith("$foo = 17") for line in session.run("$"))
+    assert any(line.startswith("$foo = 17") for line in session.run("$?"))
+
+    session.run("s 0x2000")
+    assert session.run("s; _")[-1] == "0x0000000000002000"
+
+    script = tmp_path / "demo.rc"
+    script.write_text("s 0x2000\npd 1\n")
+    lines = session.run(f"S {script}")
+    assert any("NOP" in line for line in lines)
+
+
+def test_x_hexdump_variants():
+    session, _ = make_session()
+    assert session.run("x8 4") == ["41424344"]
+    assert "41 42 43 44" in "\n".join(session.run("x 4"))
+    assert json.loads("\n".join(session.run("xj 4")))["bytes"] == "41424344"
+    assert len(session.run("xw 4")) == 1
+
+
+def test_exports_architectures_and_typed_reads():
+    session, client = make_session()
+    exports = session.run("iE")
+    assert "entry" in "\n".join(exports)
+    assert any("x86" in line for line in session.run("ia"))
+    assert json.loads("\n".join(session.run("iaj")))[0]["name"] == "x86-16"
+
+    typed = session.run("tp int @ 0x1000")
+    assert "int size=4" in typed[0]
+    assert "0x44434241" in "\n".join(typed)
+    assert ("type_read", {"allow_writes": False, "name": "int", "ea": 0x1000}) in client.calls
+
+    hex_typed = session.run("tpx int 41424344")
+    assert "int size=4" in hex_typed[0]
+
+    session.readonly = False
+    assert session.run("t- demo_type") == ["removed demo_type"]
+
+
+def test_regex_search_and_cmd_hit():
+    session, _ = make_session()
+    assert session.run("/r hello") == ["0x0000000000001000"]
+    assert session.run("//") == []
+    assert json.loads("\n".join(session.run("/rj world")))["hits"] == [0x2000]
+
+    session.config.set("cmd.hit", "pi 1")
+    lines = session.run("/x 9090")
+    assert lines and any("NOP" in line for line in lines)
+
+
+def test_temporary_blocksize_and_address_file_iterator(tmp_path):
+    session, client = make_session()
+    session.run("px @!4")
+    assert session.blocksize == 0x100
+    assert ("read_bytes", {"allow_writes": False, "ea": 0x1000, "size": 4}) in client.calls
+
+    addresses = tmp_path / "addrs.txt"
+    addresses.write_text("0x1000\n0x2000\n")
+    lines = session.run(f"pd 1 @@.{addresses}")
+    assert len(lines) == 2
+    ops = [item["args"]["ea"] for item in client.calls[-1][1]["ops"]]
+    assert ops == [0x1000, 0x2000]
+
+    session.run("pd 1 @@F")
+    assert client.calls[-2][0] == "iter_targets"
+
+
+def test_dot_sync_analyze_and_help():
+    session, client = make_session()
+    session.info["state"] = "stale"
+    assert session.run(".gsync") == []
+    assert session.info["state"] == "ready"
+    assert ("info", {"allow_writes": False}) in client.calls
+    assert "analysis:" in session.run(".ganalyze")[0]
+    assert any(line.startswith(".g") for line in session.run(".ghelp"))
+
+
+def test_assembler_and_integer_base64_writes():
+    session, client = make_session()
+    assert session.run("pa nop") == ["9090"]
+    assert any("wx 9090" in line for line in session.run("wa* nop"))
+
+    session.readonly = False
+    assert any("9090" in line for line in session.run("wa nop"))
+    session.run("wi4 0x1234")
+    assert ("write_bytes", {"allow_writes": True, "ea": 0x1000, "data": b"\x34\x12\x00\x00"}) in client.calls
+    assert session.run("wi4") == ["0x44434241"]
+    session.run("wi4+ 1")
+    assert client.calls[-1][1]["data"] == b"BBCD"
+    session.run("w6d QUI=")
+    assert client.calls[-1][1]["data"] == b"AB"
+    assert session.run("w6e 4") == ["QUJDRA=="]

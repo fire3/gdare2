@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from gdare2.arch_matrix import ARCH_MATRIX
 from gdare2.cmd import command
 from gdare2.jsonutil import dumps
 
@@ -86,6 +87,37 @@ def _symbols(session, statement):
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item.get('type', ''):8s} {item['name']}" for item in payload]
+
+
+@command("iE", "list exports", aliases=("iEj",))
+def _exports(session, statement):
+    payload = session.call("exports", limit=10000)
+    session.warn_truncated("export list", len(payload))
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    return [f"{session.format_addr(int(item['addr']))} {item.get('type', ''):8s} {item['name']}" for item in payload]
+
+
+@command("ia", "list architectures", aliases=("iaj",))
+def _architectures(session, statement):
+    payload = [
+        {
+            "name": item["name"],
+            "arch": item["arch"],
+            "bits": item["bits"],
+            "endian": item["endian"],
+            "language": item["language"],
+            "current": item["language"] == session.info.get("language"),
+        }
+        for item in ARCH_MATRIX
+    ]
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    return [
+        f"{item['name']:<12} {item['bits']:>2} {item['endian']:<6} {item['language']}"
+        + (" *" if item["current"] else "")
+        for item in payload
+    ]
 
 
 @command("ii", "list imports", aliases=("iij",))

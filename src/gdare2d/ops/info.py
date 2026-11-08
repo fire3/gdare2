@@ -131,6 +131,7 @@ def symbols(ctx, limit: int = MAX_ITEMS) -> list[dict]:
                 "name": str(symbol.getName()),
                 "type": str(symbol.getSymbolType()),
                 "external": bool(symbol.isExternal()),
+                "global": bool(symbol.isGlobal()),
             }
         )
     return result
@@ -148,6 +149,29 @@ def imports(ctx, limit: int = MAX_ITEMS) -> list[dict]:
         result.append(
             {
                 "addr": int(address.getOffset()) if address is not None else 0,
+                "name": str(symbol.getName()),
+                "type": str(symbol.getSymbolType()),
+            }
+        )
+    return result
+
+
+@op("exports")
+def exports(ctx, limit: int = MAX_ITEMS) -> list[dict]:
+    program = require_program(ctx)
+    _check_limit(limit)
+    result = []
+    for symbol in program.getSymbolTable().getAllSymbols(True):
+        if len(result) >= limit:
+            break
+        if symbol.isExternal() or not symbol.isGlobal():
+            continue
+        address = symbol.getAddress()
+        if address is None:
+            continue
+        result.append(
+            {
+                "addr": int(address.getOffset()),
                 "name": str(symbol.getName()),
                 "type": str(symbol.getSymbolType()),
             }

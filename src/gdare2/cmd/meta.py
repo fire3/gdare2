@@ -74,6 +74,33 @@ def _dot_save(session, statement):
     return []
 
 
+@command(".gsync", "refresh daemon information and flags")
+def _dot_sync(session, statement):
+    payload = session.call("info")
+    session.info.update(payload)
+    session.invalidate_flags()
+    session.setup()
+    return []
+
+
+@command(".ganalyze", "run analysis and report the result")
+def _dot_analyze(session, statement):
+    force = statement.args.strip().lower() in ("all", "aaa")
+    payload = session.call("analyze", force=force)
+    return [f"analysis: {payload.get('state')}"]
+
+
+@command(".ghelp", "list gdare2 extension commands")
+def _dot_help(session, statement):
+    from gdare2.cmd import all_commands
+
+    return [
+        f"{spec.pattern:<10} {spec.summary}"
+        for spec in all_commands()
+        if spec.pattern.startswith(".")
+    ]
+
+
 @command(".gclose", "close the daemon")
 def _dot_close(session, statement):
     session.client.shutdown(save=not session.readonly)

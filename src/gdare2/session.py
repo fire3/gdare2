@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 from gdare2 import cmd, expr, parser, pipe
@@ -11,6 +12,7 @@ from gdare2 import filter as grep
 from gdare2.client import Client
 from gdare2.config import Config
 from gdare2.errors import GdarError, RemoteError, UsageError
+from gdare2.flags import Flag, FlagStore
 from gdare2.fmt.listing import format_addr
 from gdare2.jsonutil import dumps
 from gdare2.parser import Statement
@@ -116,6 +118,8 @@ class Session:
         self.failed = False
         self.last_error: GdarError | None = None
         self.quit_requested = False
+        self.flag_store = FlagStore()
+        self.flags_loaded = False
         self._names: dict[str, int | None] = {}
         self.setup()
 
@@ -131,6 +135,9 @@ class Session:
 
     # -- Resolver protocol -------------------------------------------------
     def lookup_name(self, name: str) -> int | None:
+        flag = self.flag_store.get(name)
+        if flag is not None:
+            return flag.addr
         if name in self._names:
             return self._names[name]
         try:
@@ -140,6 +147,42 @@ class Session:
         result = int(value) if value is not None else None
         self._names[name] = result
         return result
+
+    def load_flags(self, *, force: bool = False) -> None:
+        if self.flags_loaded and not force:
+            return
+        self.flag_store.clear()
+        try:
+            symbols = self.call("symbols", limit=10000)
+        except GdarError:
+            symbols = []
+        for item in symbols:
+            if not item.get("external"):
+                self.flag_store.add(
+                    Flag(
+                        str(item["name"]),
+                        int(item["addr"]),
+                        kind=str(item.get("type") or "flag"),
+                    )
+                )
+        try:
+            functions = self.call("functions", limit=10000)
+        except GdarError:
+            functions = []
+        for item in functions:
+            self.flag_store.add(
+                Flag(
+                    str(item["name"]),
+                    int(item["addr"]),
+                    size=int(item.get("size") or 0),
+                    kind="fcn",
+                )
+            )
+        self.flags_loaded = True
+
+    def invalidate_flags(self) -> None:
+        self.flags_loaded = False
+        self.flag_store.clear()
 
     def get_var(self, name: str) -> int | None:
         if name in self.vars:
@@ -190,6 +233,7 @@ class Session:
                 self.stderr(f"ERROR: {exc}")
                 continue
             output.extend(produced)
+            self.last_output = produced
             if emit is not None:
                 emit(produced)
             if self.quit_requested:
@@ -202,14 +246,20 @@ class Session:
             return pipe.run_shell(statement.args)
         lines: list[str] = []
         for _ in range(max(statement.repeat, 1)):
-            saved = self.seek
+            saved_seek = self.seek
+            saved_blocksize = self.blocksize
             try:
                 if statement.tmpseek:
-                    self.seek = self.eval(statement.tmpseek)
+                    spec = statement.tmpseek.strip()
+                    if spec.startswith("!"):
+                        self.blocksize = self.eval(spec[1:].strip())
+                    else:
+                        self.seek = self.eval(spec)
                 lines = self.dispatch(statement)
             finally:
                 if statement.tmpseek:
-                    self.seek = saved
+                    self.seek = saved_seek
+                    self.blocksize = saved_blocksize
         return self.postprocess(lines, statement)
 
     def dispatch(self, statement: Statement) -> list[str]:
@@ -311,10 +361,24 @@ class Session:
                 raise UsageError("@@= needs at least one address")
             targets = [{"addr": self.eval(token), "size": 0} for token in tokens]
             return targets, {"total": len(targets), "shown": len(targets), "truncated": False}
+        if kind.startswith("."):
+            path = kind[1:]
+            try:
+                lines = Path(path).expanduser().read_text(encoding="utf-8").splitlines()
+            except OSError as exc:
+                raise UsageError(f"cannot read address file {path}: {exc}") from exc
+            targets = []
+            for line in lines:
+                token = line.strip()
+                if token and not token.startswith("#"):
+                    targets.append({"addr": self.eval(token), "size": 0})
+            return targets, {"total": len(targets), "shown": len(targets), "truncated": False}
         return self.call_with_meta("iter_targets", kind=kind, ea=self.seek, pattern=pattern)
 
     def _maybe_json(self, statement: Statement) -> Statement:
         if not self.json_default or statement.cmd.endswith("j"):
+            return statement
+        if statement.cmd == "f" and statement.args.strip():
             return statement
         mapping = {
             "iI": "iIj",
@@ -351,6 +415,8 @@ class Session:
             "iSS": "iSSj",
             "is": "isj",
             "ii": "iij",
+            "iE": "iEj",
+            "ia": "iaj",
             "ie": "iej",
             "iz": "izj",
             "/": "/j",
@@ -361,6 +427,8 @@ class Session:
             "/v2": "/v2j",
             "/v4": "/v4j",
             "/v8": "/v8j",
+            "x": "xj",
+            "f": "fj",
         }
         replacement = mapping.get(statement.cmd)
         if replacement is None:

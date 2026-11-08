@@ -85,6 +85,30 @@ def _pdc(session, statement):
     return str(payload.get("c") or "").rstrip().splitlines()
 
 
+@command(
+    "x",
+    "hexdump memory",
+    detail="Usage: x [n] [@ addr]; aliases x8/xw/xq/xj",
+    aliases=("x8", "xw", "xq", "xj"),
+)
+def _x(session, statement):
+    if statement.cmd in ("xw", "xq"):
+        return _words(session, statement, 4 if statement.cmd == "xw" else 8)
+    size = _number(statement.args, session.blocksize)
+    data = bytes(session.call("read_bytes", ea=session.seek, size=size))
+    if statement.cmd == "x8":
+        return [data.hex()]
+    if statement.cmd == "xj":
+        return [dumps({"addr": session.seek, "size": len(data), "bytes": data.hex()})]
+    return hexdump(
+        data,
+        session.seek,
+        cols=session.config.get_int("hex.cols"),
+        header=session.config.get_bool("hex.header"),
+        bits=_bits(session),
+    )
+
+
 @command("px", "hexdump memory", detail="Usage: px [n] [@ addr]")
 def _px(session, statement):
     size = _number(statement.args, session.blocksize)

@@ -85,3 +85,8 @@ def test_wait_is_accepted():
 def test_ignored_value_flag_accepts_a_glued_argument():
     options = argv.parse(["-klinux", "/bin/ls"])
     assert options.file == "/bin/ls"
+
+
+def test_daemon_readonly_is_accepted():
+    options = argv.parse(["--daemon-readonly", "/bin/ls"])
+    assert options.daemon_readonly is True

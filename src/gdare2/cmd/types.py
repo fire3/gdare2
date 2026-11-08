@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from gdare2.cmd import command, require_write
+from gdare2.cmd.write import parse_hexpairs
 from gdare2.errors import UsageError
 from gdare2.escape import unquote_text
 from gdare2.jsonutil import dumps
@@ -48,6 +49,43 @@ def _type_query(session, statement, kind):
         f"{item['name']:<40} {int(item['length']):6d} {item['kind']}"
         for item in payload
     ]
+
+
+def _type_request(session, statement) -> tuple[str, int]:
+    text = statement.args.strip()
+    if not text:
+        raise UsageError(f"{statement.cmd} needs a type name")
+    address = session.seek
+    if statement.tmpseek is None:
+        parts = text.rsplit(None, 1)
+        if len(parts) == 2:
+            try:
+                address = session.eval(parts[1])
+                text = parts[0]
+            except Exception:
+                pass
+    return text, address
+
+
+def _format_typed(session, payload, *, with_addr: bool) -> list[str]:
+    prefix = ""
+    if with_addr and payload.get("addr") is not None:
+        prefix = f"{session.format_addr(int(payload['addr']))} "
+    lines = [
+        f"{prefix}{payload['name']} size={int(payload['length'])} "
+        f"count={int(payload['count'])}"
+    ]
+    values = payload.get("values")
+    if values is not None:
+        for value in values:
+            if isinstance(value, dict):
+                name = f" {value['name']}" if value.get("name") else ""
+                lines.append(f"  {int(value['value']):#x}{name}")
+            else:
+                lines.append(f"  {int(value):#x} ({int(value)})")
+    else:
+        lines.append(f"  {bytes(payload.get('bytes', b'')).hex()}")
+    return lines
 
 
 def _format_detail(session, payload):
@@ -119,6 +157,41 @@ def _signatures_c(session, statement):
     if statement.cmd.endswith("j"):
         return [dumps(payload)]
     return [str(item["signature"]) for item in payload]
+
+
+@command("t-", "delete loaded types by name or glob")
+def _delete_type(session, statement):
+    require_write(session)
+    name = statement.args.strip()
+    if not name:
+        raise UsageError("t- needs a type name or glob")
+    payload = session.call("type_delete", name=name)
+    return [f"removed {name}" for name in payload.get("removed", [])]
+
+
+@command("tp", "print memory using a type", aliases=("tpv",))
+def _type_print(session, statement):
+    type_name, address = _type_request(session, statement)
+    payload = session.call("type_read", name=type_name, ea=address)
+    return _format_typed(session, payload, with_addr=statement.cmd == "tpv")
+
+
+@command("tpx", "format a byte sequence using a type")
+def _type_print_hex(session, statement):
+    text = statement.args.strip()
+    type_name = text
+    data = None
+    if " " in text:
+        head, tail = text.rsplit(None, 1)
+        try:
+            data, _mask = parse_hexpairs(tail)
+            type_name = head
+        except UsageError:
+            pass
+    if data is None:
+        raise UsageError("tpx needs a type and hexpairs")
+    payload = session.call("type_read", name=type_name, data=data)
+    return _format_typed(session, payload, with_addr=False)
 
 
 @command("tf-", "delete loaded function definition types")

@@ -70,7 +70,7 @@ def iter_targets(
     if limit <= 0 or limit > MAX_TARGETS:
         raise UsageError(f"target limit must be between 1 and {MAX_TARGETS}")
     kind = str(kind)
-    if kind in ("f", "functions"):
+    if kind in ("f", "F", "functions"):
         items, total = _function_targets(program, pattern, limit)
     elif kind in ("i", "instructions"):
         items, total = _instruction_targets(program, int(ea), limit)

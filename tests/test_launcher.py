@@ -49,3 +49,19 @@ def test_ensure_attach_does_not_require_a_target(monkeypatch):
     state = {"instance_id": "0123456789abcdef"}
     monkeypatch.setattr(launcher, "attach", lambda options: state)
     assert launcher.ensure(argv.parse(["--attach", "0123456789abcdef"])) is state
+
+
+def test_spawn_forwards_daemon_readonly(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    captured: dict[str, list[str]] = {}
+
+    class FakePopen:
+        def __init__(self, command, **_kwargs):
+            captured["command"] = command
+
+    monkeypatch.setattr(launcher.subprocess, "Popen", FakePopen)
+    options = argv.parse(
+        ["--daemon-readonly", "--project", str(tmp_path / "project"), "/bin/ls"]
+    )
+    launcher._spawn(options, "/bin/ls", "0123456789abcdef")
+    assert "--readonly" in captured["command"]

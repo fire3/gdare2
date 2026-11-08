@@ -50,7 +50,7 @@ KEYS = (
     Key("ghidra.timeout", 30, INT, "per-op RPC timeout", minimum=1),
     Key("ghidra.decompile.timeout", 30, INT, "decompiler timeout", minimum=1),
     Key("ghidra.analysis.wait", "wait", STR, "wait | poll | skip"),
-    Key("ghidra.flags.write", True, BOOL, "write flags back to Ghidra symbols"),
+    Key("ghidra.flags.write", False, BOOL, "write flags back to Ghidra symbols"),
 )
 
 _BY_NAME = {key.name: key for key in KEYS}

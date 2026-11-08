@@ -57,6 +57,11 @@ def ensure(options: Options) -> dict[str, Any]:
     ingest_id = registry.instance_id(target, import_options=import_options(options))
     live = registry.live_instance(ingest_id)
     if live is not None:
+        if options.daemon_readonly and not live.get("readonly"):
+            raise ConnectionFailure(
+                "a writable daemon is already running for this target; "
+                "close it before using --daemon-readonly"
+            )
         check_protocol(live.get("health", {}))
         return live
     if not options.spawn:
@@ -126,6 +131,8 @@ def _spawn(options: Options, target: str, ingest_id: str) -> None:
         command.append("--ephemeral")
     if options.listen:
         command += ["--listen", options.listen]
+    if options.daemon_readonly:
+        command.append("--readonly")
     if options.save_on_close is True:
         command.append("--save-on-close")
     elif options.save_on_close is False:
