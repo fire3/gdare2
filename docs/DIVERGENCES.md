@@ -251,7 +251,9 @@ daemon 只读。
 - Ghidra 的 SLEIGH assembler 只覆盖部分语言；
 - 汇编语法是 Ghidra 语法，不是 r2/rasm2 语法；
 - 不支持时明确报错，不静默调用外部汇编器；
-- **v2 G20 尚未实现**：`--assembler=rasm2` 目前明确报 `BAD_ARGS`，不会回退。
+- **v2 G20 已实现**：`e asm.assembler=ghidra|rasm2|auto`；rasm2 后端使用
+  `-a/-b/-e` 映射，`auto` 仅在 Ghidra 失败时回退并输出 WARN。CLI 的
+  `--assembler=rasm2` 仍是显式拒绝（避免与 daemon 配置混淆），请用 `-e`。
 
 ## 11. 输出与 JSON
 

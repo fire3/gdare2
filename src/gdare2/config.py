@@ -33,6 +33,8 @@ KEYS = (
     Key("asm.comments", False, BOOL, "show symbol/comment annotations"),
     Key("asm.flags", True, BOOL, "show flags"),
     Key("asm.demangle", True, BOOL, "demangle symbols"),
+    Key("asm.assembler", "ghidra", STR, "ghidra | rasm2 | auto"),
+    Key("asm.rasm2", "rasm2", STR, "rasm2 executable path"),
     Key("hex.cols", 16, INT, "hexdump bytes per line", minimum=1),
     Key("hex.header", True, BOOL, "hexdump column header"),
     Key("hex.pairs", True, BOOL, "group hexdump bytes in pairs"),

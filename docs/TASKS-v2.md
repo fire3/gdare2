@@ -9,7 +9,7 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G19、G24 已完成并验证；G20–G23
+> **进度（2026-11-13）**：G1–G20、G24 已完成并验证；G21–G23
 > （批次 D 剩余）待做，详见 §10。
 
 ## 0. 结论与目标
@@ -392,6 +392,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G20 rasm2 回退
 
+- **状态**：✅ 2026-11-13 已完成（`e asm.assembler=ghidra|rasm2|auto`；
+  `pa`/`wa`/`wa*`/`wa+`/`waf`/`/a` 均支持；真实 rasm2 验证 x86/ARM）。
+
 - 让 `--assembler=rasm2` 真正可用；`pa/wa//a` 在 Ghidra assembler 失败或
   语言不支持时回退；输出标注 `assembler=rasm2`。
 - 支持 `e asm.assembler=ghidra|rasm2|auto`；rasm2 路径可配。
@@ -536,6 +539,18 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G20 完成（rasm2 回退）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| 后端选择 | 新增 `assembler.py`：`ghidra`/`rasm2`/`auto`，架构映射与 `-e` | `tests/test_assembler.py`（9 项） |
+| 命令接入 | `cmd/assemble.py`、`cmd/search.py` 改走 `assembler.assemble*` | 同上 |
+| 配置 | `asm.assembler`（默认 ghidra）、`asm.rasm2` | `test_config.py` 自动覆盖 |
+| 错误 | 未映射架构/缺失/超时/非法输出显式报错；auto 失败保留原错误 | 同上 |
+
+验证：离线 **324 passed**；真实 rasm2 6.2.5：`pa mov eax, 1` → `b801000000`，
+`auto` 下 Ghidra 成功的 `NOP` → `90`。
 
 ### 2026-11-13：G24 完成（发布工程化）
 

@@ -27,6 +27,7 @@
 | v2 G18 | 完成（2026-11-13） | 离线 308 passed；`ruff check .` 干净；GitHub Actions CI |
 | v2 G19 | 完成（2026-11-13） | 客户端 ELF 解析：`ih`/`iH`/`il`/`ir`；/bin/ls 与 readelf 一致 |
 | v2 G24 | 完成（2026-11-13） | LICENSE/CHANGELOG/RELEASING/uv.lock/publish CI；动态版本 |
+| v2 G20 | 完成（2026-11-13） | `e asm.assembler=ghidra/rasm2/auto`；`pa/wa//a` 回退 rasm2 |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -145,6 +146,12 @@
 - 发布工程：MIT LICENSE、CHANGELOG、RELEASING、`uv.lock`、PyPI publish workflow。
 - `pyproject.toml` 版本改为从 `src/gdare2/__init__.py` 动态读取。
 - `uv build` 产出 sdist/wheel；`uvx twine check dist/*` 均 PASSED。
+
+## v2 G20（2026-11-13）
+
+- 新增客户端 `assembler.py`：Ghidra SLEIGH、rasm2 与 auto 三种后端。
+- `pa`/`wa`/`wa*`/`wa+`/`waf`/`/a` 统一走后端选择；auto 回退输出 WARN。
+- 真实 rasm2 验证：x86 `mov eax, 1`、ARM/PPC/RISC-V 常见指令可汇编。
 
 ## 验证基线（2026-11-13 实测）
 

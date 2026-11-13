@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from gdare2 import assembler
 from gdare2.cmd import command
 from gdare2.cmd.write import parse_hexpairs
 from gdare2.errors import UsageError
@@ -34,7 +35,7 @@ def _search_pattern(session, statement):
 def _search_assembly(session, statement):
     if not statement.args.strip():
         raise UsageError("/a needs assembly text")
-    payload = session.call_assembler("assemble", ea=session.seek, text=statement.args)
+    payload = assembler.assemble(session, session.seek, statement.args)
     return _search(session, statement, bytes(payload["bytes"]), None)
 
 

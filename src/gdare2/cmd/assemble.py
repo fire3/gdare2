@@ -6,6 +6,7 @@ import base64
 import sys
 from pathlib import Path
 
+from gdare2 import assembler
 from gdare2.cmd import command, require_write
 from gdare2.errors import GdarError, UsageError
 
@@ -23,15 +24,15 @@ def _assembly_text(statement) -> str:
 
 @command("pa", "assemble text to hexpairs")
 def _assemble(session, statement):
-    payload = session.call_assembler("assemble", ea=session.seek, text=_assembly_text(statement))
+    payload = assembler.assemble(session, session.seek, _assembly_text(statement))
     return [bytes(payload["bytes"]).hex()]
 
 
 @command("wa", "assemble and write at seek")
 def _assemble_write(session, statement):
     require_write(session)
-    payload = session.call_assembler(
-        "assemble_write", ea=session.seek, text=_assembly_text(statement)
+    payload = assembler.assemble_write(
+        session, session.seek, _assembly_text(statement)
     )
     return [
         f"{session.format_addr(int(item['addr']))} {bytes(item['bytes']).hex()} {item['text']}"
@@ -41,7 +42,7 @@ def _assemble_write(session, statement):
 
 @command("wa*", "print the wx commands for assembly text")
 def _assemble_commands(session, statement):
-    payload = session.call_assembler("assemble", ea=session.seek, text=_assembly_text(statement))
+    payload = assembler.assemble(session, session.seek, _assembly_text(statement))
     return [
         f"wx {bytes(item['bytes']).hex()} @ {session.format_addr(int(item['addr']))}"
         for item in payload["items"]
@@ -51,8 +52,8 @@ def _assemble_commands(session, statement):
 @command("wa+", "assemble, write, and seek past the result")
 def _assemble_write_plus(session, statement):
     require_write(session)
-    payload = session.call_assembler(
-        "assemble_write", ea=session.seek, text=_assembly_text(statement)
+    payload = assembler.assemble_write(
+        session, session.seek, _assembly_text(statement)
     )
     session.seek_to(int(payload["addr"]) + int(payload["size"]))
     return []
@@ -68,7 +69,7 @@ def _assemble_file(session, statement):
         text = Path(path).expanduser().read_text(encoding="utf-8")
     except OSError as exc:
         raise GdarError(f"cannot read {path}: {exc}") from exc
-    payload = session.call_assembler("assemble_write", ea=session.seek, text=text)
+    payload = assembler.assemble_write(session, session.seek, text)
     return [
         f"{session.format_addr(int(item['addr']))} {bytes(item['bytes']).hex()} {item['text']}"
         for item in payload["items"]
