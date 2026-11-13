@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G19 已完成并验证；G20–G24（批次 D 剩余）
-> 待做，详见 §10。
+> **进度（2026-11-13）**：G1–G19、G24 已完成并验证；G20–G23
+> （批次 D 剩余）待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -421,6 +421,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G24 发布工程化
 
+- **状态**：✅ 2026-11-13 已完成（LICENSE/CHANGELOG/RELEASING/uv.lock/
+  publish.yml；动态版本；`uv build` 与 `twine check` 通过）。
+
 - 增加 `LICENSE`、`CHANGELOG.md`、`RELEASING.md`、`uv.lock`、
   `.github/workflows/{ci,publish}.yml`；版本改为动态（`__version__`）；
   补齐 PyPI classifiers 与 `project.urls`。
@@ -533,6 +536,16 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G24 完成（发布工程化）
+
+| 任务 | 文件 | 验证 |
+|---|---|---|
+| 许可与变更记录 | `LICENSE`、`CHANGELOG.md`、`RELEASING.md` | 人工 |
+| 动态版本 | `pyproject.toml` + `[tool.hatch.version]` | `uv build` → 0.1.0 |
+| 锁文件 | `uv.lock`（`uv lock`） | `uv build` 使用锁文件 |
+| 发布流程 | `.github/workflows/publish.yml`（tag → build → twine check → PyPI trusted publishing） | 配置需在 PyPI 侧完成 |
+| 元数据 | MIT/3.12/3.13 classifiers、Issues/Changelog URL | `uvx twine check dist/*` 两项 PASSED |
 
 ### 2026-11-13：G19 完成（轻量 ELF 解析）
 

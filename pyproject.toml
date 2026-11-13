@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gdare2"
-version = "0.1.0"
+dynamic = ["version"]
 description = "radare2-style CLI backed by Ghidra and PyGhidra"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,8 +14,12 @@ keywords = ["reverse-engineering", "ghidra", "radare2", "disassembler"]
 classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "Topic :: Security",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
 ]
 dependencies = []
 
@@ -29,6 +33,11 @@ gdare2d = "gdare2d.__main__:main"
 
 [project.urls]
 Repository = "https://github.com/fire3/gdare2"
+Issues = "https://github.com/fire3/gdare2/issues"
+Changelog = "https://github.com/fire3/gdare2/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/gdare2/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gdare2", "src/gdare2d"]

@@ -26,6 +26,7 @@
 | v2 G14 | 完成（2026-11-13） | `px` r2 列布局；`hex.pairs/offset/ascii` 生效 |
 | v2 G18 | 完成（2026-11-13） | 离线 308 passed；`ruff check .` 干净；GitHub Actions CI |
 | v2 G19 | 完成（2026-11-13） | 客户端 ELF 解析：`ih`/`iH`/`il`/`ir`；/bin/ls 与 readelf 一致 |
+| v2 G24 | 完成（2026-11-13） | LICENSE/CHANGELOG/RELEASING/uv.lock/publish CI；动态版本 |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -138,6 +139,12 @@
 - `ih`/`ihj`/`iH`/`il`/`ilj`/`ir`/`irj`；非 ELF 明确 `NOT_SUPPORTED`。
 - `/bin/ls`：14 个 program header、3 个 DT_NEEDED、325 条重定位，与
   `readelf -l/-d/-r` 一致。
+
+## v2 G24（2026-11-13）
+
+- 发布工程：MIT LICENSE、CHANGELOG、RELEASING、`uv.lock`、PyPI publish workflow。
+- `pyproject.toml` 版本改为从 `src/gdare2/__init__.py` 动态读取。
+- `uv build` 产出 sdist/wheel；`uvx twine check dist/*` 均 PASSED。
 
 ## 验证基线（2026-11-13 实测）
 
