@@ -5,13 +5,24 @@
 > 任何条目完成后，必须同步更新 `PROGRESS.md` 的验收记录与 `COMMANDS.md` 的
 > 实现状态。
 
-- 更新时间：2026-11-08
-- 当前基线：M0–M5 完成，v1 收尾完成（Phase A–C 全部关闭）
+- 更新时间：2026-11-13
+- 当前基线：M0–M5 完成，v1 收尾完成（Phase A–C 全部关闭）；v2 批次 A/B/C
+  （G1–G18）已完成，P0/P1 命令面关闭
 - 目标：维护已完成的 v1；不做 Ghidra GUI 附着（2026-11-08 决定）
 - **v2 任务**：v1 之后的兼容性补齐已拆分到
-  [TASKS-v2.md](TASKS-v2.md)（2026-11-13 差距审计）
+  [TASKS-v2.md](TASKS-v2.md)（2026-11-13 差距审计）；剩余 G19–G24 属 P2
 
-## 0. 验证基线（2026-11-08 实测）
+## 0. 验证基线（2026-11-13 实测）
+
+| 套件 | 命令 | 结果 |
+|---|---|---|
+| 离线 | `.venv/bin/python -m pytest -q` | `308 passed`，0.20s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`（一轮 gexec 偶发失败重跑通过） |
+| r2 parity | 同上 `-m parity` | `12 passed`，95.91s |
+| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，7.56s |
+| lint | `ruff check .` | 干净 |
+
+## 0.1 历史验证基线（2026-11-08）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
