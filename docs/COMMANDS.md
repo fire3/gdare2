@@ -410,7 +410,7 @@
 | 类别 | 命令 |
 |---|---|
 | 定位/会话 | `s`、`s+`、`s-`、`s++`、`s--`、`s.`、`sb`、`sf`、`sF`、`so`、`sn`、`sp`、`s*`、`b`、`b*`、`q`、`?`、`?V`、`e`/`ej`/`e?`/`e??`、`L` |
-| 反汇编/内存 | `pd`、`pdj`、`pdi`、`pi`、`pdl`、`pD`、`pdf`、`pdfj`、`pdc`、`pdcj`、`px`、`pxw`、`pxq`、`p8`、`p8j`、`pv` 及 `pvj/1/2/4/8`、`ps`、`pc`、`pf`/`pfj`/`pfs`/`pf.`/`pf.<name>` |
+| 反汇编/内存 | `pd`、`pdj`、`pdi`、`pi`、`pdl`、`pD`、`pdf`、`pdfj`、`pdc`、`pdcj`、`pdb`、`pC`、`pA`；`px`、`pxw`、`pxq`、`pxd`、`pxu`、`pxj`、`p8`、`p8j`、`p8s`、`p8d`、`p8x`、`p8,`、`p8*`、`p8b`、`p8f`；`pv` 及 `pvj/1/2/4/8/u/d/p`；`ps`、`psz`、`psw`、`psp`、`psu`、`psx`、`psn`、`psj`；`pc`、`pf`/`pfj`/`pfs`/`pf.`/`pf.<name>`；`pdk`/`pdr` 明确 `NOT_SUPPORTED` |
 | 信息 | `i`、`iI`/`iIj`/`ij`、`iS`/`iSj`/`iS*`/`iSS`/`iSSj`、`iS.`、`it`/`itj`、`iM`、`is`/`isj`、`ii`/`iij`、`ie`/`iej`、`iz`/`izj` |
 | 分析/图 | `afl`/`aflj`、`aflq`、`afln`、`afl+`、`aflc`、`afc`/`afcj`、`afC`/`afCj`、`afi`/`afij`、`afv`/`afvj`、`af`/`aF`、`afn`、`afu`、`a8`、`ad`、`aa`/`aaa`、`afb`/`afbj`、`ab`/`abj`、`ao`/`aoj`、`ai`/`aij`、`agf`/`agfj`/`agfd` |
 | 交叉引用 | `axt`/`axtj`、`axf`/`axfj`、`afx`/`afxj`、`ax*`、`axlj`、`axlq`、`axlc`；`axj` 明确报 `NOT_SUPPORTED`（r2 中是写引用） |

@@ -36,9 +36,16 @@ class FakeClient:
                     "size": 2,
                     "bytes": b"\x90\x90",
                     "text": "NOP",
+                    "mnemonic": "NOP",
                     "symbol": "main",
                 },
-                {"addr": args["ea"] + 2, "size": 2, "bytes": b"\xc3\x90", "text": "RET"},
+                {
+                    "addr": args["ea"] + 2,
+                    "size": 2,
+                    "bytes": b"\xc3\x90",
+                    "text": "RET",
+                    "mnemonic": "RET",
+                },
             ]
         if op == "read_bytes":
             return b"ABCD"
@@ -123,6 +130,8 @@ class FakeClient:
             return {"name": ".text", "addr": 0x1000, "end": 0x1FFF, "size": 0x1000, "perms": "r-x"}
         if op == "basic_block":
             return {"start": 0x1000, "end": 0x1005, "successors": [0x1010]}
+        if op == "function_at":
+            return {"addr": 0x1000, "name": "main", "size": 10, "end": 0x100A}
         if op == "instruction_info":
             return {
                 "addr": args["ea"],
@@ -472,6 +481,65 @@ def test_json_default_resolves_separate_command_specs():
     # ``-j`` must not turn ``<cmd>?`` into the JSON variant.
     help_lines = session.run("afl?")
     assert "list functions" in help_lines[0]
+
+
+def test_print_read_variants():
+    session, _ = make_session()
+    assert session.run("p8s 4") == ["41 42 43 44"]
+    assert session.run("p8d 4") == ["65 66 67 68 "]
+    assert session.run("p8, 4") == ["0x41,0x42,0x43,0x44"]
+    assert session.run("p8* 4") == ["wx+ 41424344"]
+    assert session.run("p8x 4") == ["41424344"]
+    assert session.run("p8b") == ["41424344"]
+    assert session.run("p8f") == ["41424344"]
+    assert json.loads(session.run("pxj 4")[0]) == [65, 66, 67, 68]
+    assert session.run("psn") == ["ABCD"]
+    assert session.run("psx 4") == ["ABCD"]
+    assert session.run("psu 4") == ["ABCD"]
+    assert session.run("psw") == ["AC"]
+    assert session.run("psp") == ["BCD"]
+    assert session.run("psz") == ["ABCD"]
+    record = json.loads(session.run("psj")[0])
+    assert record == {
+        "string": "ABCD",
+        "offset": 0x1000,
+        "section": ".text",
+        "length": 4,
+        "type": "ascii",
+    }
+    assert any("NOP" in line for line in session.run("pdb"))
+    assert session.run("pA 2")[0] == "0x0000000000001000 nop 2 NOP"
+    assert len(session.run("pC 2")) == 2
+    assert "1145258561" in session.run("pxd 8")[0]
+    assert "1145258561" in session.run("pxu 8")[0]
+
+
+def test_pv_variants():
+    class ValueClient(FakeClient):
+        def call(self, op, **args):
+            if op == "read_bytes":
+                self.calls.append((op, args))
+                return b"\x04\x03\x02\x01\xff\xff\xff\xff"[: args["size"]]
+            return super().call(op, **args)
+
+    session, client = make_session(ValueClient())
+    assert session.run("pv4") == ["0x01020304"]
+    assert session.run("pv4u") == ["16909060"]
+    assert session.run("pv4d") == ["16909060"]
+    assert session.run("pvu") == ["18446744069431493380"]
+    assert session.run("pvd") == ["-4278058236"]
+    assert session.run("pvp") == ["0xffffffff01020304"]
+    assert json.loads(session.run("pvj4")[0])[0]["value"] == 0x01020304
+    assert client.calls[-1][0] == "read_bytes"
+
+
+def test_print_family_explicit_unsupported():
+    session, _ = make_session()
+    session.run("pdk")
+    assert session.failed and "no Ghidra equivalent" in str(session.last_error)
+    session.failed = False
+    session.run("pdr")
+    assert session.failed and "not implemented" in str(session.last_error)
 
 
 def test_all_xrefs_variants():

@@ -313,6 +313,23 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
 - `s`/`S` 指针字符串通过 `read_bytes` 读取，最多 256 字节；不可读时显示
   `-> <invalid>`，不静默省略。
 
+### 11.6 `p` 族只读命令
+
+- `pA` 的“类型”列使用 Ghidra 助记符小写形式（如 `xor`/`mov`），不是 r2 的
+  指令类别枚举；`size` 与文本来自 `Instruction`。
+- `pdb` 按 Ghidra 基本块边界输出；PLT thunk 等无基本块的目标会报
+  `NOT_FOUND`，与 r2 的“找不到函数”类似。
+- `pC` 固定双列，默认每列 16 行；不支持 `pCa/pCc/pCd/pCw` 等后缀。
+- `pxd`/`pxu` 以 4 字节为单位、按 `hex.cols` 换行；ASCII 列是原始字节，
+  不是 r2 的固定列宽；`pxj` 是字节值 JSON 数组。
+- `ps` 家族沿用 idare2 的 r2 兼容解码：`psz` 不做转义（非法 UTF-8 以
+  U+FFFD 显示），`psx` 才输出 `\xNN`；`psu` 输出 `\u00NN`。
+- `p8x` 按 `hex.cols` 分行的连续 hexpairs；`p8b`/`p8f` 读取基本块/函数范围。
+- `pv` 同时接受 `pv4j` 与 `pvj4`（gdare2 历史顺序）；`pvj` 输出数组，
+  每项 `{value,string,address}`。裸 `pv` 的参数仍是宽度，与 r2 的“元素个数”
+  不同。
+- `pdk`/`pdr` 明确 `NOT_SUPPORTED`。
+
 ## 12. 不支持的命令
 
 以下命令 v1 明确不做，必须报 `unsupported`，不能回退到相似命令：

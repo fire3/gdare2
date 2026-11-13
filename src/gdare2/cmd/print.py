@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from itertools import zip_longest
+
 from gdare2 import pf as pf_format
 from gdare2.cmd import command
-from gdare2.errors import GdarError, UsageError
+from gdare2.errors import GdarError, UnsupportedError, UsageError
+from gdare2.fmt import strings as stringfmt
 from gdare2.fmt.disasm import format_disasm
 from gdare2.fmt.memory import hexdump
 from gdare2.jsonutil import dumps
@@ -163,18 +166,94 @@ def _p8(session, statement):
 @command(
     "pv",
     "print a value",
-    aliases=("pvj", "pv1", "pv2", "pv4", "pv8", "pvj1", "pvj2", "pvj4", "pvj8"),
+    aliases=(
+        "pvj",
+        "pv1",
+        "pv2",
+        "pv4",
+        "pv8",
+        "pvj1",
+        "pvj2",
+        "pvj4",
+        "pvj8",
+        "pvu",
+        "pvd",
+        "pvp",
+        "pvuj",
+        "pvdj",
+        "pvpj",
+        "pv1u",
+        "pv2u",
+        "pv4u",
+        "pv8u",
+        "pv1d",
+        "pv2d",
+        "pv4d",
+        "pv8d",
+        "pv1uj",
+        "pv2uj",
+        "pv4uj",
+        "pv8uj",
+        "pv1dj",
+        "pv2dj",
+        "pv4dj",
+        "pv8dj",
+    ),
 )
 def _pv(session, statement):
     suffix = statement.cmd[2:]
-    as_json = suffix.startswith("j")
+    as_json = "j" in suffix
+    suffix = suffix.replace("j", "")
+    width = None
+    mode = "hex"
+    pointer = False
+    for char in suffix:
+        if char == "p" and not pointer and width is None:
+            pointer = True
+        elif char in "ud" and mode == "hex":
+            mode = char
+        elif char in "1248" and width is None:
+            width = int(char)
+        else:
+            raise UsageError(f"unsupported pv modifier {suffix!r}")
+    if not suffix:
+        width = _number(statement.args, 4)
+        amount = 1
+    else:
+        if width is None:
+            width = max(1, _bits(session) // 8)
+        amount = _number(statement.args, 1)
+    if amount < 0:
+        raise UsageError("pv needs a non-negative count")
+    data = bytes(session.call("read_bytes", ea=session.seek, size=width * amount))
+    order = "big" if session.info.get("endian") == "big" else "little"
+    values = [
+        int.from_bytes(data[index : index + width], order)
+        for index in range(0, len(data) - width + 1, width)
+    ]
     if as_json:
-        suffix = suffix[1:]
-    width = int(suffix) if suffix in ("1", "2", "4", "8") else _number(statement.args, 4)
-    payload = session.call("read_value", ea=session.seek, width=width)
-    if as_json:
-        return [dumps(payload)]
-    return [hex(int(payload["value"]))]
+        return [
+            dumps(
+                [
+                    {
+                        "value": value,
+                        "string": "",
+                        "address": session.seek + index * width,
+                    }
+                    for index, value in enumerate(values)
+                ]
+            )
+        ]
+    if mode == "u":
+        return [str(value) for value in values]
+    if mode == "d":
+        return [str(_signed_value(value, width)) for value in values]
+    return [f"0x{value:0{width * 2}x}" for value in values]
+
+
+def _signed_value(value: int, width: int) -> int:
+    limit = 1 << (width * 8)
+    return value - limit if value >= limit >> 1 else value
 
 
 @command("ps", "print a string")
@@ -328,3 +407,204 @@ def _pf_read_string(session):
         return raw.split(b"\x00", 1)[0].decode("utf-8", errors="replace")
 
     return read_string
+
+
+@command("pdb", "disassemble the current basic block")
+def _pdb(session, statement):
+    block = session.call("basic_block", ea=session.seek)
+    start = int(block["start"])
+    size = max(1, int(block["end"]) - start + 1)
+    items = session.call("disasm_bytes", ea=start, size=size)
+    return format_disasm(items, session.config, _bits(session))
+
+
+@command("pC", "disassemble in columns")
+def _pc_columns(session, statement):
+    per_column = _number(statement.args, 16)
+    if per_column <= 0:
+        raise UsageError("pC needs a positive row count")
+    items = session.call("disasm", ea=session.seek, count=per_column * 2)
+    cells = [
+        f"{session.format_addr(int(item['addr']))} {item.get('text', '')}"
+        for item in items
+    ]
+    left = cells[:per_column]
+    right = cells[per_column : per_column * 2]
+    column_width = max((len(cell) for cell in left), default=0) + 2
+    return [
+        f"{a:<{column_width}}{b}".rstrip()
+        for a, b in zip_longest(left, right, fillvalue="")
+    ]
+
+
+@command("pA", "show address, type, size and disassembly")
+def _pa_type(session, statement):
+    count = _number(statement.args, 1)
+    items = session.call("disasm", ea=session.seek, count=max(count, 0))
+    return [
+        f"{session.format_addr(int(item['addr']))} "
+        f"{str(item.get('mnemonic', '')).lower()} "
+        f"{int(item['size'])} {item.get('text', '')}"
+        for item in items
+    ]
+
+
+@command("pdk", "disassemble class methods (not supported)")
+def _pdk(session, statement):
+    raise UnsupportedError("pdk (class methods) has no Ghidra equivalent; use pdf/afb")
+
+
+@command("pdr", "recursive block disassembly (not supported)")
+def _pdr(session, statement):
+    raise UnsupportedError("pdr is not implemented; use pdb/pdf and agf")
+
+
+@command("pxd", "signed integer dump")
+def _pxd(session, statement):
+    return _decimal_dump(session, statement, signed=True)
+
+
+@command("pxu", "unsigned integer dump")
+def _pxu(session, statement):
+    return _decimal_dump(session, statement, signed=False)
+
+
+def _decimal_dump(session, statement, *, signed: bool):
+    size = _range_size(session, _number(statement.args, session.blocksize))
+    data = bytes(session.call("read_bytes", ea=session.seek, size=size))
+    order = "big" if session.info.get("endian") == "big" else "little"
+    cols = max(4, (session.config.get_int("hex.cols") // 4) * 4)
+    lines = []
+    for offset in range(0, len(data), cols):
+        chunk = data[offset : offset + cols]
+        values = [
+            int.from_bytes(chunk[index : index + 4], order)
+            for index in range(0, len(chunk) - 3, 4)
+        ]
+        if signed:
+            values = [_signed_value(value, 4) for value in values]
+        text = "".join(chr(byte) if 0x20 <= byte < 0x7F else "." for byte in chunk)
+        cells = " ".join(f"{value:>13d}" for value in values)
+        lines.append(
+            f"{session.format_addr(session.seek + offset)} {cells}  {text}".rstrip()
+        )
+    return lines
+
+
+@command("pxj", "hexdump bytes as a JSON array")
+def _pxj(session, statement):
+    size = _range_size(session, _number(statement.args, session.blocksize))
+    data = bytes(session.call("read_bytes", ea=session.seek, size=size))
+    return [dumps(list(data))]
+
+
+@command("psz", "print a zero-terminated string")
+def _psz(session, statement):
+    return _string_form(session, statement, "z")
+
+
+@command("psw", "print a 16-bit wide string")
+def _psw(session, statement):
+    return _string_form(session, statement, "w")
+
+
+@command("psp", "print a pascal string")
+def _psp(session, statement):
+    return _string_form(session, statement, "p")
+
+
+@command("psu", "print a utf16 string with escapes")
+def _psu(session, statement):
+    return _string_form(session, statement, "u")
+
+
+@command("psx", "print a string with escaped bytes")
+def _psx(session, statement):
+    return _string_form(session, statement, "x")
+
+
+@command("psn", "print a string until newline")
+def _psn(session, statement):
+    return _string_form(session, statement, "n")
+
+
+@command("psj", "print the current string as JSON")
+def _psj(session, statement):
+    return _string_form(session, statement, "", as_json=True)
+
+
+def _string_form(session, statement, form, *, as_json=False):
+    size = _range_size(session, _number(statement.args, session.blocksize))
+    data = bytes(session.call("read_bytes", ea=session.seek, size=size))
+    text, kind = stringfmt.decode_string(data, form)
+    if not as_json:
+        return [text]
+    section = ""
+    try:
+        block = session.call("block_at", ea=session.seek)
+        section = str(block.get("name", ""))
+    except GdarError:
+        section = ""
+    return [
+        dumps(
+            {
+                "string": text,
+                "offset": session.seek,
+                "section": section,
+                "length": len(text),
+                "type": kind,
+            }
+        )
+    ]
+
+
+@command("p8s", "print space-separated hex bytes")
+def _p8s(session, statement):
+    data = _raw_bytes(session, statement)
+    return [" ".join(f"{byte:02x}" for byte in data)]
+
+
+@command("p8d", "print space-separated decimal bytes")
+def _p8d(session, statement):
+    data = _raw_bytes(session, statement)
+    return [" ".join(str(byte) for byte in data) + (" " if data else "")]
+
+
+@command("p8x", "print hexpairs split at hex.cols")
+def _p8x(session, statement):
+    data = _raw_bytes(session, statement)
+    cols = max(1, session.config.get_int("hex.cols"))
+    return [data[offset : offset + cols].hex() for offset in range(0, len(data), cols)]
+
+
+@command("p8,", "print comma-separated hex bytes")
+def _p8_comma(session, statement):
+    data = _raw_bytes(session, statement)
+    return [",".join(f"0x{byte:02x}" for byte in data)]
+
+
+@command("p8*", "print the block as a wx+ command")
+def _p8_commands(session, statement):
+    data = _raw_bytes(session, statement)
+    return [f"wx+ {data.hex()}"]
+
+
+@command("p8b", "print the current basic block as hexpairs")
+def _p8_block(session, statement):
+    block = session.call("basic_block", ea=session.seek)
+    start = int(block["start"])
+    size = max(1, int(block["end"]) - start + 1)
+    return [bytes(session.call("read_bytes", ea=start, size=size)).hex()]
+
+
+@command("p8f", "print the current function as hexpairs")
+def _p8_function(session, statement):
+    function = session.call("function_at", ea=session.seek)
+    start = int(function["addr"])
+    size = max(1, int(function["end"]) - start + 1)
+    return [bytes(session.call("read_bytes", ea=start, size=size)).hex()]
+
+
+def _raw_bytes(session, statement) -> bytes:
+    size = _range_size(session, _number(statement.args, session.blocksize))
+    return bytes(session.call("read_bytes", ea=session.seek, size=size))

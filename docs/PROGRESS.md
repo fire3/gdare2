@@ -19,6 +19,7 @@
 | v2 G6/G8/G10 | 完成（2026-11-13） | 颜色/注释/gutter/demangle/`cmd.batch`；`--list-offset` 分页；文档收尾 |
 | v2 G11 | 完成（2026-11-13） | `f*`/`C*`/`CC*`/`t*`/`s*`/`b*`/`iS*`/`ax*` 导出变体；`CCu base64`；`~` 转义修复 |
 | v2 G12 | 完成（2026-11-13） | `pf`/`pfj`/`pfs`/`pf.<name>`：标量、数组、偏移、命名格式、uleb128 |
+| v2 G15 | 完成（2026-11-13） | `pdb`/`pC`/`pA`、`pxd/pxu/pxj`、`ps*`、`p8*`、`pvu/pvd/pvp`；`pdk/pdr` 明确不支持 |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -84,6 +85,14 @@
 - `pf`/`pfj`/`pfs`/`pf.`/`pf.<name>`；命名格式存于 `Session.pf_formats`。
 - `CommandSpec.consumes_repeat` 让 `4pf xx` 由格式层分组。
 - `-j` 映射 `pf`→`pfj`、`pf.<name>`→`pfj.<name>`。
+
+## v2 G15（2026-11-13）
+
+- 反汇编：`pdb`/`pC`/`pA`。
+- 内存：`pxd`/`pxu`/`pxj`；`p8s`/`p8d`/`p8x`/`p8,`/`p8*`/`p8b`/`p8f`。
+- 字符串：`psz`/`psw`/`psp`/`psu`/`psx`/`psn`/`psj`（`fmt/strings.py`）。
+- 数值：`pv` 扩展 `[p][width][u|d][j]`，新增 `pvu`/`pvd`/`pvp`。
+- `pdk`/`pdr` 抛 `NOT_SUPPORTED`。
 
 ## 验证基线（2026-11-13 实测）
 

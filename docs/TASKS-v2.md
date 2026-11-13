@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G12 已完成并验证（批次 A + G11/G12）；
-> G13–G24 待做，详见 §10。
+> **进度（2026-11-13）**：G1–G12、G15 已完成并验证；G13/G14/G16–G24
+> 待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -313,6 +313,10 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G15 `p` 族只读命令补齐（第二优先）
 
+- **状态**：✅ 2026-11-13 已完成（`pdb`/`pC`/`pA`、`pxd`/`pxu`/`pxj`、
+  `psz`/`psw`/`psp`/`psu`/`psx`/`psn`/`psj`、`p8s`/`p8d`/`p8x`/`p8,`/`p8*`/
+  `p8b`/`p8f`、`pvu`/`pvd`/`pvp`；`pdk`/`pdr` 明确 `NOT_SUPPORTED`）。
+
 - **范围**：`pdb`（当前基本块）、`pC`（分列）、`pA`（地址/类型/大小）、
   `pxd`/`pxu`/`pxj`、`psw/psp/psz/psj/psu/psx/psn`、
   `p8s/p8d/p8x/p8b/p8f/p8,/p8*`、`pvj` 已有则补 `pvu/pvd/pvp`。
@@ -511,6 +515,19 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G15 完成（`p` 族只读命令）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| `pdb`/`pC`/`pA` | `cmd/print.py`：基本块反汇编、双列布局、地址+助记符+大小+文本 | `test_print_read_variants` |
+| `pxd`/`pxu`/`pxj` | 客户端 4 字节十进制 dump 与字节 JSON 数组 | 同上 |
+| `ps` 家族 | 新增 `fmt/strings.py`（移植 idare2 解码）；`psz/psw/psp/psu/psx/psn/psj` | 同上 |
+| `p8` 投影 | `p8s/p8d/p8x/p8,/p8*/p8b/p8f` | 同上 |
+| `pv` | `[p][width][u|d][j]` 解析；`pvu/pvd/pvp` 及宽度组合 | `test_pv_variants` |
+| 明确不支持 | `pdk`/`pdr` 抛 `UnsupportedError` | `test_print_family_explicit_unsupported` |
+
+验证：离线 **221 passed**；真实 Ghidra（`/bin/ls`）确认每条命令有真实输出。
 
 ### 2026-11-13：G12 完成（`pf` 格式化打印）
 
