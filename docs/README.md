@@ -20,6 +20,7 @@ Phase B 命令面（flags、脚本/变量、搜索/迭代、类型化读取、�
 7. [PROGRESS.md](PROGRESS.md) — 里程碑状态、验收记录与下一轮计划
 8. [PERF.md](PERF.md) — 性能基线、缓存评估与错误码审计
 9. [ROADMAP.md](ROADMAP.md) — 当前缺陷、细化任务、执行顺序与验收矩阵
+10. [TASKS-v2.md](TASKS-v2.md) — v2 兼容性补齐任务书（P0/P1/P2、验收与提交拆分）
 
 ## 一句话结论
 
@@ -34,8 +35,10 @@ Phase B 命令面（flags、脚本/变量、搜索/迭代、类型化读取、�
 ## 文档状态
 
 - 版本：0.1（立项设计）
-- 更新日期：2026-11-08
+- 更新日期：2026-11-13
 - 调研基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、idare2 0.1/b2cd758、radare2 6.2.5
-- 目标：v1 命令面与可靠性收尾已完成
+- 目标：v1 命令面与可靠性收尾已完成；v2 兼容性补齐按
+  [TASKS-v2.md](TASKS-v2.md) 推进
 - 当前状态：M0–M5 与 v1 完成（2026-11-08 实测
-  离线 169 passed、真实 Ghidra 22 passed、parity 12 passed、架构矩阵 2 passed）
+  离线 169 passed、真实 Ghidra 22 passed、parity 12 passed、架构矩阵 2 passed）；
+  2026-11-13 完成 v2 差距审计
