@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G13、G15、G16 已完成并验证；
-> G14/G17–G24 待做，详见 §10。
+> **进度（2026-11-13）**：G1–G13、G15–G17 已完成并验证；
+> G14、G18–G24 待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -345,6 +345,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G17 迭代器语义对齐
 
+- **状态**：✅ 2026-11-13 已完成（反引号替换；`@@f`/`@@F` 排除
+  external/thunk；`.cmd` 明确不做；迭代/截断沿用 G8/G9）。
+
 - **现状（2026-11-13 复核）**：r2 的 `@@f` 就是 functions（`?@@` 输出
   `x @@f` = "run 'x' on all functions"），gdare2 已一致；`@@s:from to step`
   与 `@@S` 均已实现。G9 已让 `@@F`/`@@S` 跳过无指令/不可读目标。
@@ -521,6 +524,18 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G17 完成（迭代器与命令替换）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| 反引号替换 | `session.py::_expand_backticks`：首行替换、嵌套上限 8、未闭合报错 | `test_backtick_substitution*` |
+| 函数迭代器 | `ops/batch.py::_function_targets` 排除 external/thunk/非可执行入口 | `test_function_iterators_are_equivalent`；real `/bin/ls` 无跳过告警 |
+| `.cmd` | 明确不做（与 `.g*` 命名空间冲突），记入 DIVERGENCES §11.9 | 文档 |
+| `@@s` 扩展 | `@@s:<symbol-pattern>` 标注为 gdare2 扩展 | 文档 |
+
+验证：离线 **238 passed**；真实 Ghidra `pd 1 @@f` / `pd 1 @@F` 均为 292 行且
+无跳过告警；反引号 `s \`? 0x400000\`` 生效。
 
 ### 2026-11-13：G16 完成（补全与 rc 层级）
 

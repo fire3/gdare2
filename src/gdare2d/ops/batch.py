@@ -105,6 +105,14 @@ def _function_targets(program, pattern: str | None, limit: int) -> tuple[list[di
     matcher = _matcher(pattern)
 
     def convert(function):
+        # External functions, thunks at EXTERNAL addresses and functions
+        # without a body have no instructions; radare2's @@f only iterates
+        # defined code that a disassembly command can actually use.
+        if function.isExternal() or function.getBody().getNumAddresses() == 0:
+            return None
+        block = program.getMemory().getBlock(function.getEntryPoint())
+        if block is None or not block.isExecute():
+            return None
         name = str(function.getName())
         if matcher is not None and matcher.search(name) is None:
             return None

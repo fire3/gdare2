@@ -483,6 +483,28 @@ def test_json_default_resolves_separate_command_specs():
     assert "list functions" in help_lines[0]
 
 
+def test_backtick_substitution():
+    session, _ = make_session()
+    session.run("s `? 0x2000`")
+    assert session.seek == 0x2000
+    assert session.run("s `? 0x1000`; s") == ["0x0000000000001000"]
+    session.run("s `? 0x2000`")
+    session.run("s `? no-such-symbol`")
+    assert session.failed
+
+
+def test_backtick_substitution_rejects_unterminated():
+    session, _ = make_session()
+    session.run("s `? 0x2000")
+    assert session.failed
+    assert "unterminated backtick" in str(session.last_error)
+
+
+def test_function_iterators_are_equivalent():
+    session, _ = make_session()
+    assert session.run("pd 1 @@f") == session.run("pd 1 @@F")
+
+
 def test_print_read_variants():
     session, _ = make_session()
     assert session.run("p8s 4") == ["41 42 43 44"]

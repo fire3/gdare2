@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
@@ -19,6 +20,8 @@ from gdare2.parser import Statement
 
 DEFAULT_BLOCKSIZE = 0x100
 MAX_BATCH_TARGETS = 4096
+MAX_BACKTICK_DEPTH = 8
+_BACKTICK = re.compile(r"`([^`]*)`")
 
 
 class _ProbeStop(Exception):
@@ -123,6 +126,7 @@ class Session:
         self.last_search: dict[str, Any] | None = None
         self.last_result = 0
         self.last_output: list[str] = []
+        self._backtick_depth = 0
         self.json_default = False
         self.failed = False
         self.last_error: GdarError | None = None
@@ -234,6 +238,13 @@ class Session:
         self.last_result = address
 
     def run(self, line: str, emit: Callable[[list[str]], None] | None = None) -> list[str]:
+        try:
+            line = self._expand_backticks(line)
+        except GdarError as exc:
+            self.failed = True
+            self.last_error = exc
+            self.stderr(f"ERROR: {exc}")
+            return []
         output: list[str] = []
         for statement in parser.parse(line):
             try:
@@ -251,6 +262,25 @@ class Session:
                 break
         self.last_output = output
         return output
+
+    def _expand_backticks(self, line: str) -> str:
+        """Replace a backtick command with the first line of its output."""
+        if "`" not in line:
+            return line
+        if line.count("`") % 2:
+            raise UsageError("unterminated backtick substitution")
+        if self._backtick_depth >= MAX_BACKTICK_DEPTH:
+            raise UsageError("backtick substitution nested too deeply")
+        self._backtick_depth += 1
+        try:
+
+            def replace_match(match: re.Match[str]) -> str:
+                produced = self.run(match.group(1))
+                return produced[0].strip() if produced else ""
+
+            return _BACKTICK.sub(replace_match, line)
+        finally:
+            self._backtick_depth -= 1
 
     def run_statement(self, statement: Statement) -> list[str]:
         if statement.shell:
