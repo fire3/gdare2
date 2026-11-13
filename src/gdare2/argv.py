@@ -35,6 +35,7 @@ REJECTED = {
     "x": "load permissions come from Ghidra's loader",
     "X": "extraction plugins are not implemented",
     "P": "rapatch would write with different semantics",
+    "o": "file-offset mapping is not implemented; use --list-offset for list pagination",
 }
 
 LONG_VALUE = frozenset(
@@ -56,6 +57,7 @@ LONG_VALUE = frozenset(
         "listen",
         "color",
         "endian",
+        "list-offset",
     }
 )
 LONG_BOOL = frozenset(
@@ -119,6 +121,7 @@ class Options:
     idle: float | None = None
     timeout: float | None = None
     startup_timeout: float | None = None
+    list_offset: int | None = None
     save_on_close: bool | None = None
     wait: bool = False
     assembler: str = "ghidra"
@@ -231,6 +234,11 @@ def _apply_long_value(options: Options, name: str, value: str) -> None:
         if value not in ("big", "little"):
             raise UsageError("--endian must be big or little")
         options.endian = value
+    elif name == "list-offset":
+        offset = _int(value, "--list-offset")
+        if offset < 0:
+            raise UsageError("--list-offset must not be negative")
+        options.list_offset = offset
 
 
 def _apply_long_bool(options: Options, name: str) -> None:

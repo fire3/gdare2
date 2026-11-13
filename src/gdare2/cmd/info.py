@@ -119,8 +119,8 @@ def _main_address(session, statement):
 
 @command("is", "list symbols", aliases=("isj",))
 def _symbols(session, statement):
-    payload = session.call("symbols", limit=10000)
-    session.warn_truncated("symbol list", len(payload))
+    payload, meta = session.call_with_meta("symbols", **session.list_args(10000))
+    session.warn_list_meta("symbol list", meta)
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item.get('type', ''):8s} {item['name']}" for item in payload]
@@ -128,8 +128,8 @@ def _symbols(session, statement):
 
 @command("iE", "list exports", aliases=("iEj",))
 def _exports(session, statement):
-    payload = session.call("exports", limit=10000)
-    session.warn_truncated("export list", len(payload))
+    payload, meta = session.call_with_meta("exports", **session.list_args(10000))
+    session.warn_list_meta("export list", meta)
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item.get('type', ''):8s} {item['name']}" for item in payload]
@@ -159,8 +159,8 @@ def _architectures(session, statement):
 
 @command("ii", "list imports", aliases=("iij",))
 def _imports(session, statement):
-    payload = session.call("imports")
-    session.warn_truncated("import list", len(payload))
+    payload, meta = session.call_with_meta("imports", **session.list_args(10000))
+    session.warn_list_meta("import list", meta)
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item['name']}" for item in payload]
@@ -176,8 +176,10 @@ def _entries(session, statement):
 
 @command("izz", "scan the whole file for strings", aliases=("izzj",))
 def _strings_all(session, statement):
-    payload = session.call("strings_all", min_length=4, limit=10000)
-    session.warn_truncated("string scan", len(payload), limit=10000)
+    payload, meta = session.call_with_meta(
+        "strings_all", min_length=4, **session.list_args(10000)
+    )
+    session.warn_list_meta("string scan", meta)
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"0x{int(item['offset']):08x} {item['string']}" for item in payload]
@@ -185,8 +187,8 @@ def _strings_all(session, statement):
 
 @command("iz", "list strings", aliases=("izj",))
 def _strings(session, statement):
-    payload = session.call("strings", limit=10000)
-    session.warn_truncated("string list", len(payload))
+    payload, meta = session.call_with_meta("strings", **session.list_args(10000))
+    session.warn_list_meta("string list", meta)
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item['string']}" for item in payload]

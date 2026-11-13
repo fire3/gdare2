@@ -54,6 +54,10 @@ def main(argv_list: list[str] | None = None) -> int:
             config.set(key, value)
         if options.color is not None:
             config.set("scr.color", options.color)
+        elif sys.stdout.isatty() and not options.json and not os.environ.get("NO_COLOR"):
+            config.set("scr.color", 1)
+        if options.list_offset is not None:
+            config.set("list.offset", options.list_offset)
         timeout = options.timeout or float(config.get_int("ghidra.timeout"))
         client = Client(state, timeout=timeout)
         lease = client.call(
@@ -80,6 +84,8 @@ def main(argv_list: list[str] | None = None) -> int:
             config.set(key, value)
         if options.color is not None:
             config.set("scr.color", options.color)
+        if options.list_offset is not None:
+            config.set("list.offset", options.list_offset)
         client.timeout = options.timeout or float(config.get_int("ghidra.timeout"))
         _analysis_request(session, options)
         if options.seek:

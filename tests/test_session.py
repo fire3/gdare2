@@ -54,7 +54,7 @@ class FakeClient:
         if op == "functions":
             return [{"addr": 0x1000, "name": "main", "size": 10, "end": 0x100A}]
         if op == "symbols":
-            return [
+            items = [
                 {
                     "addr": 0x1000,
                     "name": "entry",
@@ -70,6 +70,9 @@ class FakeClient:
                     "global": True,
                 },
             ]
+            offset = int(args.get("offset", 0))
+            limit = int(args.get("limit", len(items)))
+            return items[offset : offset + limit]
         if op == "symbol_create":
             return {
                 "addr": args["ea"],
@@ -1071,3 +1074,44 @@ def test_assembler_calls_extend_and_restore_client_timeout():
     assert session.run("pa NOP") == ["9090"]
     assert client.seen == [180.0]
     assert client.timeout == 30.0
+
+
+def test_list_offset_slices_daemon_results():
+    session, client = make_session()
+    session.config.set("list.offset", 1)
+    lines = session.run("is")
+    assert len(lines) == 1
+    assert "helper" in lines[0]
+    assert client.calls[-1] == (
+        "symbols",
+        {"allow_writes": False, "limit": 10000, "offset": 1},
+    )
+    assert session.run("aflc") == ["1"]
+
+
+def test_list_truncation_warning_mentions_next_offset(capsys):
+    class MetaClient(FakeClient):
+        def call_with_meta(self, op, **args):
+            if op == "symbols":
+                return [{"addr": 0x1000, "name": "entry", "type": "LABEL"}], {
+                    "total": 12000,
+                    "shown": 1,
+                    "offset": 10000,
+                    "limit": 1,
+                    "truncated": True,
+                }
+            return super().call(op, **args), {}
+
+    session, _ = make_session(MetaClient())
+    session.run("is")
+    assert "--list-offset 10001" in capsys.readouterr().err
+
+
+def test_cmd_batch_false_uses_individual_calls():
+    session, client = make_session()
+    session.config.set("cmd.batch", False)
+    lines = session.run("pd 1 @@=0x1000,0x2000")
+    assert len(lines) == 4
+    operations = [op for op, _ in client.calls]
+    assert "batch" not in operations
+    assert operations.count("disasm") == 2

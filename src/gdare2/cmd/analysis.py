@@ -20,8 +20,8 @@ def _match_name(name: str, pattern: str) -> bool:
 
 @command("afl", "list functions", aliases=("aflj",))
 def _functions(session, statement):
-    payload = session.call("functions", limit=10000)
-    session.warn_truncated("function list", len(payload))
+    payload, meta = session.call_with_meta("functions", **session.list_args(10000))
+    session.warn_list_meta("function list", meta)
     pattern = statement.args.strip()
     if pattern:
         payload = [item for item in payload if _match_name(str(item["name"]), pattern)]
@@ -35,8 +35,8 @@ def _functions(session, statement):
 
 @command("aflq", "list function addresses")
 def _function_addresses(session, statement):
-    payload = session.call("functions", limit=10000)
-    session.warn_truncated("function list", len(payload))
+    payload, meta = session.call_with_meta("functions", **session.list_args(10000))
+    session.warn_list_meta("function list", meta)
     pattern = statement.args.strip()
     if pattern:
         payload = [item for item in payload if _match_name(str(item["name"]), pattern)]
@@ -45,21 +45,23 @@ def _function_addresses(session, statement):
 
 @command("afln", "list function names")
 def _function_names(session, statement):
-    payload = session.call("functions", limit=10000)
-    session.warn_truncated("function list", len(payload))
+    payload, meta = session.call_with_meta("functions", **session.list_args(10000))
+    session.warn_list_meta("function list", meta)
     return [str(item["name"]) for item in payload]
 
 
 @command("afl+", "show the total function size")
 def _function_size(session, statement):
-    payload = session.call("functions", limit=10000)
-    session.warn_truncated("function list", len(payload))
+    payload, meta = session.call_with_meta("functions", **session.list_args(10000))
+    session.warn_list_meta("function list", meta)
     return [str(sum(int(item["size"]) for item in payload))]
 
 
 @command("aflc", "count functions")
 def _function_count(session, statement):
-    payload = session.call("functions", limit=10000)
+    payload, meta = session.call_with_meta("functions", limit=0)
+    if meta.get("total") is not None:
+        return [str(int(meta["total"]))]
     return [str(len(payload))]
 
 

@@ -90,3 +90,12 @@ def test_ignored_value_flag_accepts_a_glued_argument():
 def test_daemon_readonly_is_accepted():
     options = argv.parse(["--daemon-readonly", "/bin/ls"])
     assert options.daemon_readonly is True
+
+
+def test_list_offset_and_file_offset_rejection():
+    options = argv.parse(["--list-offset", "5", "/bin/ls"])
+    assert options.list_offset == 5
+    with pytest.raises(UsageError, match="file-offset"):
+        argv.parse(["-o", "0", "/bin/ls"])
+    with pytest.raises(UsageError, match="negative"):
+        argv.parse(["--list-offset", "-1", "/bin/ls"])

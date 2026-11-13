@@ -34,6 +34,25 @@ def instruction_dict(instruction) -> dict:
         symbol_name = str(symbol.getName()) if symbol is not None else ""
     except Exception:
         symbol_name = ""
+    comment = ""
+    try:
+        from ghidra.program.model.listing import CommentType
+
+        comment = str(instruction.getComment(CommentType.EOL) or "")
+    except Exception:
+        comment = ""
+    demangled = ""
+    if symbol_name.startswith(("_Z", "__Z")):
+        try:
+            from ghidra.app.util.demangler import DemanglerUtil
+
+            demangled_object = DemanglerUtil.demangle(instruction.getProgram(), symbol_name)
+            if demangled_object is not None:
+                demangled = str(
+                    demangled_object.getDemangledName() or demangled_object.getName() or ""
+                )
+        except Exception:
+            demangled = ""
     return {
         "addr": int(instruction.getAddress().getOffset()),
         "size": int(instruction.getLength()),
@@ -41,6 +60,8 @@ def instruction_dict(instruction) -> dict:
         "text": str(instruction.toString()),
         "mnemonic": str(instruction.getMnemonicString()),
         "symbol": symbol_name,
+        "symbol_demangled": demangled,
+        "comment": comment,
         "call": bool(flow.isCall()),
         "jump": bool(flow.isJump()),
         "conditional": bool(flow.isConditional()),

@@ -16,6 +16,7 @@
 | M5 兼容/体验 | 完成 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、`.gexec`、parity 黄金文件、22 配置架构矩阵、batch meta 已完成 |
 | v2 G1–G5 | 完成（2026-11-13） | `iSS`、`tp/tc`、JSON 过滤、`-j` 查找顺序与 loader-arg 修复；详见 [TASKS-v2.md](TASKS-v2.md) §10 |
 | v2 G7/G9 | 完成（2026-11-13） | `i`/`aflq`/`L`/`ej`/`e?`；迭代器跳过无指令/不可读目标、重复注册校验 |
+| v2 G6/G8/G10 | 完成（2026-11-13） | 颜色/注释/gutter/demangle/`cmd.batch`；`--list-offset` 分页；文档收尾 |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -45,14 +46,28 @@
 - **语义复核**：r2 的 `@@f` 是 functions（`?@@`），gdare2 行为已一致；
   `@@s:from to step` 已实现，`@@s:<symbol-pattern>` 是 gdare2 扩展。
 
+## v2 G6/G8/G10（2026-11-13）
+
+- **G6 渲染**：`scr.color` 输出 ANSI（TTY 自动开启、`NO_COLOR` 关闭）；
+  `asm.comments` 输出 `;-- symbol:` 与 EOL 注释（默认关闭，避免分析器注释
+  污染默认输出）；`asm.lines` 输出 `│ `/`└─` gutter；`asm.demangle` 对
+  `_Z` 符号使用 Ghidra `DemanglerUtil`；`asm.flags=false` 隐藏符号注释与
+  `pdi` 符号列；`cmd.batch=false` 改为逐目标 RPC。
+- **G8 分页**：新增 `--list-offset N` 与 `e list.offset=N`；
+  `functions/symbols/imports/exports/strings/strings_all` 支持 `offset` 并
+  返回 `meta.total/shown/offset/limit/truncated`；截断提示下一页偏移。
+- **`-o` 语义修正**：r2 的 `-o` 是按文件偏移映射，不是输出分页；gdare2
+  明确拒绝并提示使用 `--list-offset`，避免静默错义。
+- **G10 文档**：COMMANDS/PROGRESS/DIVERGENCES/README/TASKS 同步。
+
 ## 验证基线（2026-11-13 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `180 passed`，0.14s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，362.57s |
+| 离线 | `.venv/bin/python -m pytest -q` | `190 passed`，0.20s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，308.13s |
 | r2 parity | 同上 `-m parity` | `12 skipped`（本机 r2 5.5.0 与黄金文件 6.2.5 不匹配） |
-| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，6.20s |
+| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，6.41s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 

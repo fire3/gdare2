@@ -93,7 +93,8 @@ Ghidra 的 `Instruction.toString()` 与 r2 的 `pd` 文本不同：
 - 助记符大小写/别名可能不同；
 - 操作数顺序、立即数格式、符号显示可能不同；
 - 函数调用目标可能显示为 `FUN_...` 而不是 `sym.imp...`；
-- 没有 r2 的 `;` 注释分隔和颜色语义。
+- `;-- symbol:` 标签与 EOL 注释需要 `e asm.comments=true`（默认关闭，
+  避免把 Ghidra 分析器注释混入默认输出）；颜色见 §11.2。
 
 gdare2 渲染层会尽量对齐列布局，但不改写 Ghidra 的语义文本。
 
@@ -264,13 +265,17 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
 
 ### 11.2 颜色
 
-**v2 G6 尚未实现**：`scr.color` 目前只是接受并保存的键，不会改变输出；
-管道/重定向也没有自动去色逻辑可依赖。实现前不要在脚本里依赖颜色差异。
+颜色在 stdout 为 TTY 且未设置 `NO_COLOR` 时默认开启（`scr.color=1`），
+`--color 0`、`-e scr.color=0` 可关闭。当前 `scr.color` 1/2/3 使用同一套
+256 色调色板（地址/字节/助记符/注释四类）；管道与重定向不自动去色，需要时
+显式 `-e scr.color=0`。
 
 ### 11.3 分页
 
-**v2 G8 尚未实现**：大列表只会在达到上限时输出 `WARN`，`-o` 选项不存在。
-`meta.truncated=true` 时目前只能通过缩小查询范围继续。
+大列表通过 `--list-offset N` 或 `e list.offset=N` 继续，作用范围是
+`functions/symbols/imports/exports/strings/strings_all`；截断时提示下一页
+偏移。r2 的 `-o` 是“按文件偏移映射”，gdare2 尚未实现，传入会明确报
+`file-offset mapping is not implemented; use --list-offset`。
 
 `@@`/`@@@` 的目标枚举也带 `meta`：`total` 是服务端匹配总数，`shown` 是本次
 保留数量，目标超过上限时会告警。`batch` 的 `meta` 目前汇总 `total/shown/errors`，

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
+
 from gdare2.errors import GdarError, NotFoundError, NotFuncError, UsageError
+from gdare2.protocol import OpResult
 from gdare2d.context import to_addr
 from gdare2d.dispatch import op
 from gdare2d.ops._helpers import function_dict, iter_items, require_program
@@ -11,16 +14,32 @@ MAX_FUNCTIONS = 10000
 
 
 @op("functions")
-def functions(ctx, limit: int = MAX_FUNCTIONS) -> list[dict]:
+def functions(ctx, limit: int = MAX_FUNCTIONS, offset: int = 0) -> OpResult:
     program = require_program(ctx)
     if limit < 0 or limit > MAX_FUNCTIONS:
         raise UsageError(f"function limit must be between 0 and {MAX_FUNCTIONS}")
+    if offset < 0:
+        raise UsageError("function offset must not be negative")
     manager = program.getFunctionManager()
     result = []
+    total = 0
     iterator = manager.getFunctions(True)
-    while iterator.hasNext() and len(result) < limit:
-        result.append(function_dict(iterator.next()))
-    return result
+    while iterator.hasNext():
+        function = function_dict(iterator.next())
+        total += 1
+        if total <= offset or len(result) >= limit:
+            continue
+        result.append(function)
+    return OpResult(
+        result,
+        {
+            "total": total,
+            "shown": len(result),
+            "offset": offset,
+            "limit": limit,
+            "truncated": offset + len(result) < total,
+        },
+    )
 
 
 @op("function_callers")
@@ -154,10 +173,8 @@ def function_reanalyze(ctx, ea: int) -> dict:
     if preserve_name:
         from ghidra.program.model.symbol import SourceType
 
-        try:
+        with contextlib.suppress(Exception):
             refreshed.setName(old_name, SourceType.USER_DEFINED)
-        except Exception:
-            pass
     return function_dict(refreshed)
 
 

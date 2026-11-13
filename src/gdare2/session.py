@@ -349,11 +349,22 @@ class Session:
             if sized and target_size > 0 and not statement.args.strip() and "size" in args:
                 args["size"] = target_size
             operations.append({"op": op_name, "args": args})
-        replies, _meta = self.call_with_meta(
-            "batch",
-            ops=operations,
-            total=int(target_meta.get("total", len(operations))),
-        )
+        if self.config.get_bool("cmd.batch"):
+            replies, _meta = self.call_with_meta(
+                "batch",
+                ops=operations,
+                total=int(target_meta.get("total", len(operations))),
+            )
+        else:
+            replies = []
+            for operation in operations:
+                try:
+                    result, operation_meta = self.call_with_meta(
+                        operation["op"], **operation["args"]
+                    )
+                    replies.append({"ok": True, "result": result, "meta": operation_meta})
+                except GdarError as exc:
+                    replies.append({"ok": False, "error": exc.as_dict()})
         if not isinstance(replies, list) or len(replies) != len(targets):
             raise GdarError("daemon returned an invalid batch response")
         warning = _batch_meta_warning(replies)
@@ -626,6 +637,24 @@ class Session:
     def warn_truncated(self, label: str, count: int, limit: int = 10000) -> None:
         if count >= limit:
             self.stderr(f"WARN: {label} truncated at {limit} items; narrow the query")
+
+    def list_args(self, limit: int) -> dict[str, int]:
+        """Keyword arguments for a paginated list op (offset only when set)."""
+        offset = self.config.get_int("list.offset")
+        args = {"limit": limit}
+        if offset:
+            args["offset"] = offset
+        return args
+
+    def warn_list_meta(self, label: str, meta: dict[str, Any] | None) -> None:
+        if not meta or not meta.get("truncated"):
+            return
+        shown = int(meta.get("shown", 0))
+        offset = int(meta.get("offset", 0))
+        self.stderr(
+            f"WARN: {label} truncated at {meta.get('limit')} items "
+            f"(total {meta.get('total')}); use --list-offset {offset + shown} to continue"
+        )
 
     def cmd_info_json(self, statement: Statement) -> list[str]:
         return [dumps(self.info)]

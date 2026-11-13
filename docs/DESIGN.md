@@ -866,13 +866,14 @@ bytes = asm.assemble(addr, *lines)
 - `/p <size>`：定长重复模式；
 - `search.in=io.maps|raw|bin.sections` 控制范围。
 
-实现状态：`/`、`/x`、`/w`、`/v[1248]`、`//`、`/+`、`/-` 与 `j` 变体已实现。
-`search.in` 当前支持 `io.maps` / `bin.sections`（都按 Ghidra 内存块处理），`raw`
-明确报不支持。`/r`、`/p`、`/a` 与 `cmd.hit` 仍待实现。
+实现状态：`/`、`/x`、`/w`、`/v[1248]`、`/r`、`/p`、`/a`、`cmd.hit` 与 `j`
+变体已实现。`search.in` 支持 `io.maps` / `bin.sections`（按 Ghidra 内存块处理）
+与 `raw`（原始文件）。
 
 ### 15.2 分页
 
-返回 `{hits: [...], meta: {shown, total, truncated}}`；CLI 用 `-o` 继续。
+返回 `{hits: [...], meta: {shown, total, truncated}}`；CLI 用
+`--list-offset N` 或 `e list.offset=N` 继续。
 
 ### 15.3 `cmd.hit`
 
@@ -1018,11 +1019,12 @@ daemon 内可缓存：
 - `pd` 单次最多 4096 条指令；
 - `px` 单次最多 1 MiB；
 - 搜索最多返回 10000 命中；
-- 通过 `-o`/`-n` 继续。
+- 通过 `--list-offset N`/`e list.offset=N` 继续。
 
 ### 17.3 批量
 
-`@@` 和 `@@@` 必须走 `batch`；禁止 N 次 HTTP 往返。
+`@@` 和 `@@@` 默认走 `batch`；`e cmd.batch=false` 时退化为逐目标 RPC，
+用于排障或避免一次请求过大。禁止在默认路径上做 N 次串行 HTTP 往返。
 
 ### 17.4 反编译缓存
 

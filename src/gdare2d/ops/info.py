@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from gdare2.errors import GdarError, UsageError
+from gdare2.protocol import OpResult
 from gdare2d.dispatch import op
 from gdare2d.ops._helpers import require_program
 
@@ -117,15 +118,18 @@ def hashes(ctx) -> dict:
 
 
 @op("symbols")
-def symbols(ctx, limit: int = MAX_ITEMS) -> list[dict]:
+def symbols(ctx, limit: int = MAX_ITEMS, offset: int = 0) -> OpResult:
     program = require_program(ctx)
     _check_limit(limit)
+    _check_offset(offset)
     result = []
+    total = 0
     for symbol in program.getSymbolTable().getAllSymbols(True):
-        if len(result) >= limit:
-            break
         address = symbol.getAddress()
         if address is None:
+            continue
+        total += 1
+        if total <= offset or len(result) >= limit:
             continue
         result.append(
             {
@@ -136,17 +140,20 @@ def symbols(ctx, limit: int = MAX_ITEMS) -> list[dict]:
                 "global": bool(symbol.isGlobal()),
             }
         )
-    return result
+    return _paged(result, total, offset, limit)
 
 
 @op("imports")
-def imports(ctx, limit: int = MAX_ITEMS) -> list[dict]:
+def imports(ctx, limit: int = MAX_ITEMS, offset: int = 0) -> OpResult:
     program = require_program(ctx)
     _check_limit(limit)
+    _check_offset(offset)
     result = []
+    total = 0
     for symbol in program.getSymbolTable().getExternalSymbols():
-        if len(result) >= limit:
-            break
+        total += 1
+        if total <= offset or len(result) >= limit:
+            continue
         address = symbol.getAddress()
         result.append(
             {
@@ -155,21 +162,24 @@ def imports(ctx, limit: int = MAX_ITEMS) -> list[dict]:
                 "type": str(symbol.getSymbolType()),
             }
         )
-    return result
+    return _paged(result, total, offset, limit)
 
 
 @op("exports")
-def exports(ctx, limit: int = MAX_ITEMS) -> list[dict]:
+def exports(ctx, limit: int = MAX_ITEMS, offset: int = 0) -> OpResult:
     program = require_program(ctx)
     _check_limit(limit)
+    _check_offset(offset)
     result = []
+    total = 0
     for symbol in program.getSymbolTable().getAllSymbols(True):
-        if len(result) >= limit:
-            break
         if symbol.isExternal() or not symbol.isGlobal():
             continue
         address = symbol.getAddress()
         if address is None:
+            continue
+        total += 1
+        if total <= offset or len(result) >= limit:
             continue
         result.append(
             {
@@ -178,7 +188,7 @@ def exports(ctx, limit: int = MAX_ITEMS) -> list[dict]:
                 "type": str(symbol.getSymbolType()),
             }
         )
-    return result
+    return _paged(result, total, offset, limit)
 
 
 @op("entries")
@@ -197,11 +207,17 @@ def entries(ctx) -> list[dict]:
 
 
 @op("strings_all")
-def strings_all(ctx, min_length: int = 4, limit: int = MAX_ITEMS) -> list[dict]:
+def strings_all(
+    ctx,
+    min_length: int = 4,
+    limit: int = MAX_ITEMS,
+    offset: int = 0,
+) -> OpResult:
     program = require_program(ctx)
     if min_length < 1 or min_length > 256:
         raise UsageError("string minimum length must be between 1 and 256")
     _check_limit(limit)
+    _check_offset(offset)
     path = str(program.getExecutablePath() or "")
     if not path:
         raise UsageError("program has no executable path for a whole-file scan")
@@ -210,6 +226,7 @@ def strings_all(ctx, min_length: int = 4, limit: int = MAX_ITEMS) -> list[dict]:
     except OSError as exc:
         raise GdarError(f"cannot read {path}: {exc}") from exc
     result = []
+    total = 0
     start = None
     for index, byte in enumerate(data):
         printable = 0x20 <= byte < 0x7F
@@ -217,34 +234,38 @@ def strings_all(ctx, min_length: int = 4, limit: int = MAX_ITEMS) -> list[dict]:
             start = index
         elif not printable and start is not None:
             if index - start >= min_length:
-                result.append(
-                    {
-                        "offset": start,
-                        "length": index - start,
-                        "string": data[start:index].decode("latin-1"),
-                    }
-                )
-                if len(result) >= limit:
-                    break
+                total += 1
+                if total > offset and len(result) < limit:
+                    result.append(
+                        {
+                            "offset": start,
+                            "length": index - start,
+                            "string": data[start:index].decode("latin-1"),
+                        }
+                    )
             start = None
-    if start is not None and len(data) - start >= min_length and len(result) < limit:
-        result.append(
-            {
-                "offset": start,
-                "length": len(data) - start,
-                "string": data[start:].decode("latin-1"),
-            }
-        )
-    return result
+    if start is not None and len(data) - start >= min_length:
+        total += 1
+        if total > offset and len(result) < limit:
+            result.append(
+                {
+                    "offset": start,
+                    "length": len(data) - start,
+                    "string": data[start:].decode("latin-1"),
+                }
+            )
+    return _paged(result, total, offset, limit)
 
 
 @op("strings")
-def strings(ctx, limit: int = MAX_ITEMS) -> list[dict]:
+def strings(ctx, limit: int = MAX_ITEMS, offset: int = 0) -> OpResult:
     program = require_program(ctx)
     _check_limit(limit)
+    _check_offset(offset)
     result = []
+    total = 0
     iterator = program.getListing().getDefinedData(True)
-    while iterator.hasNext() and len(result) < limit:
+    while iterator.hasNext():
         data = iterator.next()
         try:
             if not data.hasStringValue():
@@ -257,6 +278,9 @@ def strings(ctx, limit: int = MAX_ITEMS) -> list[dict]:
         text = str(value)
         if len(text) < 2 or text.startswith("??"):
             continue
+        total += 1
+        if total <= offset or len(result) >= limit:
+            continue
         result.append(
             {
                 "addr": int(data.getAddress().getOffset()),
@@ -265,9 +289,27 @@ def strings(ctx, limit: int = MAX_ITEMS) -> list[dict]:
                 "type": str(data.getDataType().getName()),
             }
         )
-    return result
+    return _paged(result, total, offset, limit)
 
 
 def _check_limit(limit: int) -> None:
     if limit < 0 or limit > MAX_ITEMS:
         raise UsageError(f"limit must be between 0 and {MAX_ITEMS}")
+
+
+def _check_offset(offset: int) -> None:
+    if offset < 0:
+        raise UsageError("offset must not be negative")
+
+
+def _paged(result: list[dict], total: int, offset: int, limit: int) -> OpResult:
+    return OpResult(
+        result,
+        {
+            "total": total,
+            "shown": len(result),
+            "offset": offset,
+            "limit": limit,
+            "truncated": offset + len(result) < total,
+        },
+    )

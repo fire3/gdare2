@@ -15,8 +15,10 @@ r2 风格命令，同时保留一个常驻 daemon，让后续命令可以秒级�
 
 当前已完成 M0–M5 核心能力与体验项（rc、补全、搜索、flags、脚本、汇编、
 parity 黄金文件、22 配置架构矩阵、batch meta）。v1 已完成；不支持 Ghidra
-GUI 附着。状态见 [docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
-[docs/ROADMAP.md](docs/ROADMAP.md)。
+GUI 附着。2026-11-13 完成 v2 差距审计，批次 A（G1–G10：`iSS`/`tp`/`tc`、
+JSON 过滤、`-j`、`i`/`aflq`/`L`/`ej`、颜色/注释、`--list-offset` 分页等）
+已关闭。状态见 [docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
+[docs/TASKS-v2.md](docs/TASKS-v2.md) 与 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 ## 架构
 

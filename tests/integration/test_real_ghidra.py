@@ -879,3 +879,28 @@ def test_meta_commands_and_iterator_skip(env):
     sections = run(env, "-qc", "px 4 @@S", target)
     assert sections.returncode == 0, sections.stderr
     assert "ERROR" not in sections.stderr
+
+    full_functions = run(env, "-j", "-qc", "afl", target)
+    page_functions = run(env, "-j", "--list-offset", "10", "-qc", "afl", target)
+    assert page_functions.returncode == 0, page_functions.stderr
+    assert json.loads(page_functions.stdout) == json.loads(full_functions.stdout)[10:]
+
+    full_symbols = run(env, "-qc", "is", target)
+    page_symbols = run(env, "--list-offset", "20", "-qc", "is", target)
+    assert page_symbols.returncode == 0, page_symbols.stderr
+    assert page_symbols.stdout.splitlines() == full_symbols.stdout.splitlines()[20:]
+
+    rejected = run(env, "-o", "0", "-qc", "iI", target)
+    assert rejected.returncode == 2
+    assert "file-offset" in rejected.stderr
+
+    coloured = run(env, "-qc", "e scr.color=1; pd 1 @ entry", target)
+    assert "\x1b[" in coloured.stdout
+    plain = run(env, "-qc", "e scr.color=0; pd 1 @ entry", target)
+    assert "\x1b[" not in plain.stdout
+    annotated = run(env, "-qc", "e asm.comments=true; pd 1 @ entry", target)
+    assert ";-- entry:" in annotated.stdout
+    gutter = run(env, "-qc", "e asm.lines=true; pd 1 @ entry", target)
+    assert "│" in gutter.stdout
+    no_flags = run(env, "-qc", "e asm.flags=false; pdi 1 @ entry", target)
+    assert "entry" not in no_flags.stdout

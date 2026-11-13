@@ -512,3 +512,16 @@
 - 注册表：重复 pattern 在导入期直接抛 `ValueError`；`wi` 只注册一次。
 - 语义复核：r2 的 `@@f` 是 functions；`@@s:from to step` 已实现，
   `@@s:<symbol-pattern>` 是 gdare2 扩展。
+
+### 14.8 2026-11-13 v2 G6/G8/G10
+
+- 颜色：`scr.color=1/2/3` 输出 ANSI（同一 256 色调色板）；stdout 为 TTY
+  且未设置 `NO_COLOR` 时默认 1；`--color 0`/`e scr.color=0` 关闭。
+- 反汇编注解：`asm.comments=true` 输出 `;-- symbol:` 与 EOL 注释（默认
+  false）；`asm.lines=true` 输出 `│ `/`└─` gutter；`asm.demangle` 用于
+  `_Z` 符号；`asm.flags=false` 隐藏符号注解与 `pdi` 符号列。
+- 批处理：`cmd.batch=false` 时 `@@` 逐目标 RPC，不再合并为一次 `batch`。
+- 分页：`--list-offset N` / `e list.offset=N` 作用于
+  `afl/aflq/afln/afl+/is/iE/ii/iz/izz`；截断时提示下一页偏移。
+- `-o`：r2 的文件偏移映射未实现，明确报
+  `file-offset mapping is not implemented; use --list-offset`。

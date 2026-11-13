@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G5、G7、G9 已完成并验证；G6/G8 待设计确认，
-> G10–G24 待做，详见 §10。
+> **进度（2026-11-13）**：G1–G10（批次 A）已全部完成并验证；G11–G24 待做，
+> 详见 §10。
 
 ## 0. 结论与目标
 
@@ -154,6 +154,8 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G6 清理“假开关”配置键
 
+- **状态**：✅ 2026-11-13 已完成（颜色、注释/标签、gutter、demangle、`cmd.batch`）。
+
 - **现状**：以下键只在 `src/gdare2/config.py` 声明，代码从未读取：
   `scr.color`、`asm.lines`、`asm.comments`、`asm.flags`、`asm.demangle`、
   `cmd.batch`。
@@ -192,18 +194,21 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G8 `-o` 分页续读
 
-- **现状**：`argv.py` 的 `VALUE_FLAGS` 没有 `o`，`gdare2 -o 2000` →
-  `unknown option -o`；`DIVERGENCES §11.3` 与 `DESIGN §15.2/17.2` 承诺该能力。
+- **状态**：✅ 2026-11-13 已完成（设计已修正为 `--list-offset` / `e list.offset`）。
+- **设计修正**：r2 的 `-o` 是“按文件偏移映射”，不是输出分页。G8 改为
+  `--list-offset N` + `e list.offset=N`；`-o` 明确报
+  “file-offset mapping is not implemented”，避免与 r2 语义冲突。
 - **方案**：
-  - 新增 `-o <offset>`（与 r2 的 `-o` 语义对齐：输出偏移）；
-  - 列表 op（`functions/symbols/imports/exports/strings/search`）增加
-    `offset` 参数，服务端按 offset+limit 切片并返回 `meta.total`;
-  - 若继续采用 `meta.truncated`，客户端提示“use -o N to continue”。
-- **验收**：对 >10,000 项的符号表，`-o 10000` 能继续且不重复；`meta.total`
-  正确；无 `-o` 时行为与现在一致（只告警）。
-- **测试**：daemon 单测 `offset` 切片；real_ghidra 用合成大列表或
-  `/bin/ls` 的 `is`。
-- **涉及**：`argv.py`、`cli.py`、`session.py`、`gdare2d/ops/{info,analysis,search}.py`。
+  - 列表 op（`functions/symbols/imports/exports/strings/strings_all`）增加
+    `offset` 参数并返回 `OpResult(meta.total/shown/offset/limit/truncated)`；
+  - 客户端这些命令读 `list.offset`，默认调用参数不变（offset=0 时不传）；
+  - 截断时提示 `use --list-offset N to continue`。
+- **验收**：`--list-offset 10 -qc afl` 等于 `afl` 的第 11 项起；`is`、`ii`、
+    `iE`、`iz`、`izz` 同理；`-o` 返回 `BAD_ARGS` 并说明原因。
+- **测试**：`test_argv.py`（选项）、`test_session.py`（offset 与告警）、
+  real_ghidra（`afl`/`is` 分页与 `-o` 拒绝）。
+- **涉及**：`argv.py`、`cli.py`、`config.py`、`session.py`、`cmd/{info,analysis}.py`、
+  `gdare2d/ops/{info,analysis}.py`。
 
 ### G9 健壮性小修
 
@@ -225,6 +230,8 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 - **涉及**：`cmd/__init__.py`、`cmd/assemble.py`、`session.py`、`gdare2d/ops/info.py`。
 
 ### G10 文档状态同步（与代码同批提交）
+
+- **状态**：✅ 2026-11-13 已完成（COMMANDS/PROGRESS/DIVERGENCES/ROADMAP/README 已同步）。
 
 - **现状**：`PROGRESS.md` 声称 P0/P1 命令面全部可用；`COMMANDS.md` 却把
   `i`、`aflq`、`L`、`ej` 标 P0 且未实现；`DIVERGENCES.md` 承诺的颜色、
@@ -402,7 +409,7 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 4. `fix(session): filter JSON output line by line`（G4）
 5. `fix(session): resolve -j form before command lookup`（G5）
 6. `feat(meta): add i/aflq/L/ej`（G7）
-7. `feat(cli): support -o pagination offset`（G8）
+7. `feat(cli): add --list-offset pagination`（G8）
 8. `fix: harden iterators and duplicate command registration`（G9）
 9. `chore(config): make declared keys effective or reject them`（G6）
 10. `docs: sync command status with implementation`（G10）
@@ -480,8 +487,12 @@ gdare2 -L
 | `tc Elf64_Ehdr` | 依赖 typedef + 结构体 | typedef + 结构体（无依赖前导） |
 | `aflj~entry` | 2,909 行，未过滤 | 1 行，`"name": "entry"` |
 | `-j -qc f` | 文本输出 | JSON 数组 |
-| `e scr.color=3; pd 2` | 无 ANSI 输出 | 未变（G6 待做） |
-| `gdare2 -o 2000` | `unknown option -o` | 未变（G8 待做） |
+| `e scr.color=3; pd 2` | 无 ANSI 输出 | 有 ANSI；`scr.color=0` 关闭，TTY 自动开启 |
+| `gdare2 -o 2000` | `unknown option -o` | 明确报 `file-offset mapping is not implemented` |
+| `--list-offset 10 -qc afl` | 不存在 | 等于 `afl` 第 11 项起 |
+| `e asm.comments=true; pd 1` | 无变化 | 输出 `;-- symbol:` 与 EOL 注释 |
+| `e asm.lines=true; pd 1` | 无变化 | 输出 `│ ` / `└─` gutter |
+| `e cmd.batch=false; pd 1 @@F` | 无变化 | 逐目标 RPC，不使用 batch |
 | `L` / `i` / `aflq` / `ej` | `unknown or unsupported command` | 全部可用（G7） |
 | `pd 1 @@F` | 对 0x125000+ thunk 刷屏 | 跳过 112 个无指令目标，仅一条 WARN |
 | `px 4 @@S` | 不可读块刷 `MemoryAccessException` | 跳过不可读块，无 ERROR |
@@ -493,6 +504,22 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G6/G8/G10 完成（批次 A 收尾）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| G6 颜色 | 新增 `fmt/disasm.py` 调色板与 `scr.color` 渲染；TTY 自动开启、`NO_COLOR` 关闭 | `tests/test_fmt.py`；real_ghidra |
+| G6 注释/标签 | `instruction_dict` 增加 `comment`/`symbol_demangled`；`asm.comments` 输出 `;-- symbol:` 与 EOL 注释 | `test_fmt.py`；real_ghidra |
+| G6 gutter | `asm.lines` 输出 `│ ` / `└─` | `test_fmt.py`；real_ghidra |
+| G6 demangle | `_Z` 符号用 `DemanglerUtil` 生成 `symbol_demangled`；`asm.demangle` 控制 | `test_fmt.py` |
+| G6 `cmd.batch` | `cmd.batch=false` 时逐目标 RPC，不再合并 batch | `test_session.py::test_cmd_batch_false_uses_individual_calls` |
+| G8 分页 | `--list-offset`/`e list.offset`；`functions/symbols/imports/exports/strings/strings_all` 支持 `offset` 并返回 meta | `test_argv.py`、`test_session.py`、real_ghidra |
+| G8 `-o` | `-o` 明确拒绝，提示 file-offset 未实现 | `test_argv.py`；real_ghidra |
+| G10 文档 | COMMANDS/PROGRESS/DIVERGENCES/README/TASKS 同步 | 人工抽查 |
+
+验证结果（2026-11-13 第三轮）：离线 **190 passed**；真实 Ghidra **24 passed**
+（308.13s）；架构矩阵 **2 passed**；parity 因 r2 版本 skip。
 
 ### 2026-11-13：G7 完成
 
