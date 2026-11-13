@@ -38,7 +38,7 @@ Phase B 命令面（flags、脚本/变量、搜索/迭代、类型化读取、�
 - 更新日期：2026-11-13
 - 调研基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、idare2 0.1/b2cd758、radare2 6.2.5
 - 目标：v1 命令面与可靠性收尾已完成；v2 兼容性补齐按
-  [TASKS-v2.md](TASKS-v2.md) 推进
-- 当前状态：M0–M5 与 v1 完成（2026-11-08 实测
-  离线 169 passed、真实 Ghidra 22 passed、parity 12 passed、架构矩阵 2 passed）；
-  2026-11-13 完成 v2 差距审计
+  [TASKS-v2.md](TASKS-v2.md) 推进，G1–G5 已完成
+- 当前状态：M0–M5 与 v1 完成；2026-11-13 完成 v2 差距审计并关闭 G1–G5
+  （实测离线 176 passed、真实 Ghidra 23 passed、架构矩阵 2 passed；
+  parity 因本机 r2 5.5.0 与黄金文件 6.2.5 不匹配而 skip）

@@ -74,6 +74,16 @@ gdare2 对裸二进制要求 `-a/-b/--endian` 或 `--ghidra-language`；缺失�
 `-B` 映射到 `BinaryLoader` 的 `-baseAddr` loader arg，不修改已有程序的内存块。
 对 ELF/PE 默认忽略 `-B`；PIE 重定位需要 `--force-base`，v1 不实现，会明确警告/报错。
 
+### 3.5 `iSS` 是原始 ELF 视图
+
+`iSS`/`iSSj` 直接解析输入文件的 ELF program headers（客户端
+`src/gdare2/formats/elf.py`），不是 Ghidra 的 memory block；`iS` 才是 Ghidra
+视图。因此：
+
+- PIE 或 `-B` 强制基址下，`iSS` 的 vaddr 仍是 ELF 链接时地址；
+- 非 ELF 输入（裸二进制、PE）明确返回 `NOT_SUPPORTED`，不回落为 `iS`；
+- r2 5.5 会额外合成一行 `ehdr`，gdare2 不合成，行数可能少 1。
+
 ## 4. 反汇编
 
 ### 4.1 文本格式
@@ -141,13 +151,18 @@ Ghidra `VariableStorage` 不直接对应 r2 的 `reg/sp/bp`：
 Ghidra 可能把 typedef 展开或保留为 `TypeDef`，r2 的 `t` 列表格式也不同。
 客户端只做渲染，不改变类型语义。
 
+`tp`/`tpv`/`tpx` 支持内建整数、枚举、指针和 char 数组；结构体/联合仍输出
+原始字节，不伪造成员值。
+
 ### 6.3 `td` / `tc`
 
 `td` 使用 Ghidra `CParser`，支持常用 C 声明；包含 `;` 的声明必须整体引用，
 例如 `td 'struct demo { int a; };'`。解析失败返回 `BAD_ARGS`，并由事务回滚，
 不会留下半解析类型。
 
-`tc` 使用 Ghidra `DataTypeWriter` 输出 ANSI-C，而不是 r2 自己的类型数据库格式。
+`tc <name>` 使用 Ghidra `DataTypeWriter`，但只保留声明目标类型的
+typedef/struct/union/enum 行，不再输出依赖类型的前导；内建类型（如 `int`）
+没有生成声明时输出其原型。`tc` 无参数仍输出全部类型。
 同名类型可能位于不同 category，此时请使用完整路径（如 `tc /types.h/size_t`）。
 
 ### 6.4 `afs` 函数签名
@@ -235,7 +250,7 @@ daemon 只读。
 - Ghidra 的 SLEIGH assembler 只覆盖部分语言；
 - 汇编语法是 Ghidra 语法，不是 r2/rasm2 语法；
 - 不支持时明确报错，不静默调用外部汇编器；
-- 可选 `--assembler=rasm2` 显式回退，并在输出中标注。
+- **v2 G20 尚未实现**：`--assembler=rasm2` 目前明确报 `BAD_ARGS`，不会回退。
 
 ## 11. 输出与 JSON
 
@@ -244,13 +259,18 @@ daemon 只读。
 gdare2 的 JSON 尽量对齐 r2 的字段名，但 Ghidra 没有的信息（如 r2 的 `esil`、
 `cycles`、`family`）会缺失。缺失字段不伪造默认值。
 
+JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
+`aflj~entry`、`pdj~ENDBR` 与 r2 一样只保留匹配行，而不是过滤整块 JSON。
+
 ### 11.2 颜色
 
-颜色只在 TTY 下默认开启；管道/重定向自动关闭。`e scr.color` 可覆盖。
+**v2 G6 尚未实现**：`scr.color` 目前只是接受并保存的键，不会改变输出；
+管道/重定向也没有自动去色逻辑可依赖。实现前不要在脚本里依赖颜色差异。
 
 ### 11.3 分页
 
-大列表默认分页/截断；`meta.truncated=true` 时必须用 `-o` 继续，不静默丢弃。
+**v2 G8 尚未实现**：大列表只会在达到上限时输出 `WARN`，`-o` 选项不存在。
+`meta.truncated=true` 时目前只能通过缩小查询范围继续。
 
 `@@`/`@@@` 的目标枚举也带 `meta`：`total` 是服务端匹配总数，`shown` 是本次
 保留数量，目标超过上限时会告警。`batch` 的 `meta` 目前汇总 `total/shown/errors`，

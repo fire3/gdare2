@@ -141,7 +141,7 @@
 | `it` / `itj` | 哈希 | `Program.getExecutableMD5/SHA256`；可选原始文件 SHA1 | P1 |
 | `ia` / `iaj` | 架构列表 | `LanguageID` / `CompilerSpec` | P1 |
 | `iS` / `iSj` | 节/块 | `Memory.getBlocks()`：name/start/end/perm/type | P0 |
-| `iSS` / `iSSj` | 内存 maps | `Memory.getBlocks()` + 权限 | P1 |
+| `iSS` / `iSSj` | ELF program headers | 客户端 `formats/elf.py` 解析原始文件；非 ELF 返回 `NOT_SUPPORTED` | 已实现 |
 | `iS.` | 当前块 | `Memory.getBlock(addr)` | P1 |
 | `iSh` | 原始块头 | **X**（Ghidra 不保留原格式 section header） | X |
 | `iSm` | 块内符号 | `SymbolTable.getSymbols(AddressSetView, ...)` | P2 |
@@ -470,7 +470,6 @@
 
 
 ### 14.5 2026-11-08 Phase B 首批实现
-
 - flags：`f`/`fj`/`fq`/`f?`/`f-`/`fr`/`f.`；默认会话内，写回由
   `-w` + `e ghidra.flags.write=true` 控制；daemon 新增
   `symbol_create/symbol_rename/symbol_delete`。
@@ -485,3 +484,19 @@
   `@@/`、`@@s:from to step`、`@{from to}`。
 - 分析写入与逃生舱：`afr`、`afvR`、`afvW`、`an`；`.gexec` 双重
   `--allow-exec` 门控；`e ghidra.analysis.wait=skip` 跳过 `-A` 自动分析。
+
+### 14.6 2026-11-13 v2 G1–G5
+
+- `iSS`/`iSSj`：改为解析输入文件的 ELF program headers（客户端
+  `src/gdare2/formats/elf.py`），不再 alias 到 `iS`；非 ELF 返回
+  `NOT_SUPPORTED`。r2 5.5 额外生成的 `ehdr` 行不再合成。
+- `tp`/`tpv`/`tpx`：修复内建整数类型（`int` 等）上的
+  `getBaseDataType()` 崩溃；整数、枚举、指针、char 数组均可格式化。
+- `tc <name>`：只输出该类型自身的 typedef/struct/union/enum 声明，不再
+  输出依赖类型前导；`tc` 无参数保持全量输出。
+- JSON 输出：`~`/`|` 在渲染后按行处理，`aflj~entry`、`pdj~...` 与 r2 的
+  过滤语义一致。
+- `-j`：在命令查找前解析 JSON 变体；`-j f` 等独立 spec 命令现在返回
+  JSON，`<cmd>?` 帮助不受影响。
+- 附带修复：`gdare2d --loader-arg -loader-xxx value` 不再被 argparse
+  误判为缺失参数；`DESIGN §8.4` 的 `K V` 接口保持不变。

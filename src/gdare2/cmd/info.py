@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from gdare2.arch_matrix import ARCH_MATRIX
 from gdare2.cmd import command
+from gdare2.errors import UnsupportedError
+from gdare2.formats.elf import ElfFormatError, read_segments
 from gdare2.jsonutil import dumps
 
 
@@ -31,7 +33,7 @@ def _info(session, statement):
     ]
 
 
-@command("iS", "list memory blocks", aliases=("iSj", "iSS", "iSSj"))
+@command("iS", "list memory blocks", aliases=("iSj",))
 def _sections(session, statement):
     payload = session.call("sections")
     if statement.cmd.endswith("j"):
@@ -41,6 +43,29 @@ def _sections(session, statement):
         lines.append(
             f"{index:3d}  {session.format_addr(int(block['addr']))}  "
             f"{int(block['size']):08x}   {block.get('perms', '---')}  {block.get('name', '')}"
+        )
+    return lines
+
+
+@command("iSS", "list ELF program headers", aliases=("iSSj",))
+def _segments(session, statement):
+    target = session.info.get("target")
+    if not target:
+        raise UnsupportedError("iSS needs the original file; this session has no target path")
+    try:
+        segments = read_segments(str(target))
+    except ElfFormatError as exc:
+        raise UnsupportedError(f"iSS: {exc}") from exc
+    except OSError as exc:
+        raise UnsupportedError(f"iSS cannot read {target}: {exc}") from exc
+    if statement.cmd.endswith("j"):
+        return _jsonify([segment.as_dict() for segment in segments])
+    lines = ["idx  paddr              size       vaddr              vsize      perm name"]
+    for segment in segments:
+        lines.append(
+            f"{segment.index:3d}  {session.format_addr(segment.offset)}  "
+            f"{segment.filesz:08x}   {session.format_addr(segment.vaddr)}  "
+            f"{segment.memsz:08x}   {segment.perm} {segment.name}"
         )
     return lines
 

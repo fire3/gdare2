@@ -8,6 +8,8 @@
 > 基线：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、Python 3.12.3、radare2 5.5.0。
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
+>
+> **进度（2026-11-13）**：G1–G5 已完成并验证；G6–G24 待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -59,6 +61,8 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G1 `iSS` 独立实现，禁止 alias 到 `iS`
 
+- **状态**：✅ 2026-11-13 已完成（客户端 ELF program header 解析）。
+
 - **现状**：`src/gdare2/cmd/info.py:34` 把 `iSS`/`iSSj` 注册为 `iS` 的 alias。
 - **证据**：`gdare2 -qc 'iS' /bin/ls` 与 `iSS` 输出逐字节相同（34 个 Ghidra
   memory block）；r2 5.5 的 `iSS` 是 ELF program headers（`/bin/ls` 17 行），
@@ -71,7 +75,7 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 - **验收**：
   - `gdare2 -qc 'iSS' /bin/ls` 行数等于 `readelf -l /bin/ls` 的 `LOAD`
     等 program header 数；`iS` 保持 34 行；
-  - `iSSj` 字段含 `paddr/vaddr/vsize/perms/name`；
+  - `iSSj` 字段与 r2 对齐：`name/size/vsize/perm/paddr/vaddr`；
   - 非 ELF/PE 目标返回空列表或 `NOT_SUPPORTED`，不报内部异常。
 - **测试**：新增 `tests/test_info_formats.py`（纯解析）+ real_ghidra 用例；
   parity 黄金文件增加 `iSS` 行数与首行字段。
@@ -79,6 +83,8 @@ v2 的目标不是“命令数量追平 idare2”，而是：
   `docs/COMMANDS.md`。
 
 ### G2 修复 `tp`/`tpv` 崩溃
+
+- **状态**：✅ 2026-11-13 已完成（`getattr` 兜底 + 内建整数分支）。
 
 - **现状**：`gdare2d/ops/types.py:233` 无条件调用
   `data_type.getBaseDataType()`；`IntegerDataType` 没有该方法。
@@ -97,6 +103,8 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G3 `tc <name>` 只输出目标类型
 
+- **状态**：✅ 2026-11-13 已完成（按行筛选目标声明）。
+
 - **现状**：`gdare2d/ops/types.py:316` 用 `DataTypeWriter.write([dt])`，
   该 API 会连同依赖 typedef 一起写出。
 - **证据**：`tc int` / `tcj int` 返回 40+ 行基础 typedef 前导，而不是 `int`
@@ -113,6 +121,8 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G4 JSON 输出参与 `~` / `|` 按行处理
 
+- **状态**：✅ 2026-11-13 已完成（`postprocess` 先拆行）。
+
 - **现状**：`src/gdare2/session.py:542` 对 `lines` 列表元素做过滤；
   JSON handler 返回“一个含 `\n` 的字符串元素”，导致过滤只匹配整块。
 - **证据**：`aflj~entry` 输出 2,909 行（未过滤）；`pdj 2~ENDBR` 同样未过滤。
@@ -128,6 +138,8 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 - **涉及**：`src/gdare2/session.py`。
 
 ### G5 修复 `-j` 对独立 JSON 命令无效
+
+- **状态**：✅ 2026-11-13 已完成（查找 spec 前解析 JSON 变体）。
 
 - **现状**：`src/gdare2/session.py:290` 先 `cmd.lookup()`，`:295` 才
   `_maybe_json()`；`f`→`fj` 映射后仍使用 `f` 的 handler。
@@ -451,20 +463,46 @@ gdare2 -L
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.0、Python 3.12.3、r2 5.5.0。
 
-| 用例 | 结果 |
-|---|---|
-| `pytest -q` | 169 passed, 36 deselected |
-| `iSS` vs `iS` | 输出完全相同（34 行）；r2 为 17 / 34 行 |
-| `tp int @ entry` | `AttributeError ... getBaseDataType` |
-| `tcj int` | 返回 40+ 行基础 typedef 前导 |
-| `aflj~entry` | 2,909 行，未过滤 |
-| `-j -qc f` | 文本输出；`fj` 才是 JSON |
-| `e scr.color=3; pd 2` | 无 ANSI 输出 |
-| `gdare2 -o 2000` | `unknown option -o` |
-| `L` / `i` / `aflq` / `ej` | `unknown or unsupported command` |
-| `pd 1 @@F` | 对 0x125000+ thunk 刷屏 `no instruction` |
-| `C` | 1,544 条，含 `(FDE)` 分析器注释 |
-| `pytest -q`（idare2 仓库） | 739 passed（对照基线） |
+| 用例 | 修复前 | 现状 |
+|---|---|---|
+| `pytest -q` | 169 passed | **176 passed** |
+| `iSS` vs `iS` | 输出完全相同（34 行） | `iSS` 13 个 program header，`iS` 34 个 block |
+| `tp int @ entry` | `AttributeError ... getBaseDataType` | 正常输出 `int size=4` |
+| `tcj int` | 40+ 行基础 typedef 前导 | 单行 `int` |
+| `tc Elf64_Ehdr` | 依赖 typedef + 结构体 | typedef + 结构体（无依赖前导） |
+| `aflj~entry` | 2,909 行，未过滤 | 1 行，`"name": "entry"` |
+| `-j -qc f` | 文本输出 | JSON 数组 |
+| `e scr.color=3; pd 2` | 无 ANSI 输出 | 未变（G6 待做） |
+| `gdare2 -o 2000` | `unknown option -o` | 未变（G8 待做） |
+| `L` / `i` / `aflq` / `ej` | `unknown or unsupported command` | 未变（G7 待做） |
+| `pd 1 @@F` | 对 0x125000+ thunk 刷屏 | 未变（G9a 待做） |
+| `C` | 1,544 条，含 `(FDE)` 注释 | 未变（G23 待做） |
+| `--loader-arg -loader-fileOffset 0` | argparse 报缺失参数 | 正常传递 |
+| `pytest -q`（idare2 仓库） | 739 passed | 对照基线 |
 
 > r2 为系统 5.5.0，项目的 parity 目标是 6.2.5；文本/颜色细节以 6.2.5 为准，
 > 本表只记录命令是否可用与结构差异。
+
+## 10. 实施记录
+
+### 2026-11-13：G1–G5 完成
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| G1 | 新增 `src/gdare2/formats/{__init__,elf}.py`；`cmd/info.py` 拆分 `iS`/`iSS` | `tests/test_formats_elf.py`；real_ghidra `test_segments_typed_reads_and_json_filter` |
+| G2 | `gdare2d/ops/types.py::_typed_values` 使用 `getattr` 并覆盖 `AbstractIntegerDataType` | 同上（`tp int; tpv int; tpx int`） |
+| G3 | `gdare2d/ops/types.py::_c_declaration_target` 按行筛选目标声明 | 同上（`tc int` / `tc Elf64_Ehdr`） |
+| G4 | `session.py::postprocess` 前插入 `_split_output_blocks` | `tests/test_session.py::test_json_filter_and_pipe_are_line_oriented` |
+| G5 | `session.py::invoke`/`_dispatch_iterator` 先映射 JSON 再查找 spec | `tests/test_session.py::test_json_default_resolves_separate_command_specs` |
+| 附带 | `gdare2d/__main__.py::_split_loader_args` | real_ghidra `test_loader_arguments_are_validated` |
+
+验证结果：
+
+- 离线 `pytest -q`：**176 passed**；
+- `-m real_ghidra`：**23 passed**（285.33s）；
+- `-m arch_matrix`：**2 passed**；
+- `-m parity`：12 skipped —— 本机 r2 5.5.0 与黄金文件的 6.2.5 不匹配，
+  是环境限制，需在 r2 6.2.5 环境重跑。
+
+未关闭项：G6–G24。下一批建议从 G7（`i`/`aflq`/`L`/`ej`）与 G9（迭代器/
+重复注册）开始，这两组仍是“文档已声明但实测不可用”的部分。

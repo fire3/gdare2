@@ -442,6 +442,24 @@ def test_json_default_for_info():
     assert payload["program"] == "demo"
 
 
+def test_json_filter_and_pipe_are_line_oriented():
+    session, _ = make_session()
+    filtered = session.run("iIj~arch")
+    assert filtered == ['  "arch": "x86",']
+    piped = session.run("iIj|head -1")
+    assert piped == ["{"]
+
+
+def test_json_default_resolves_separate_command_specs():
+    session, _ = make_session()
+    session.json_default = True
+    output = session.run("f")
+    assert output and output[0].lstrip().startswith("[")
+    # ``-j`` must not turn ``<cmd>?`` into the JSON variant.
+    help_lines = session.run("afl?")
+    assert "list functions" in help_lines[0]
+
+
 def test_temporary_seek_is_restored():
     session, _ = make_session()
     session.run("s 0x1000")

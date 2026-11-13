@@ -19,6 +19,36 @@ from gdare2d.runtime import GhidraRuntime
 from gdare2d.server import GdarHTTPServer, Handler
 
 
+def _split_loader_args(argv: list[str]) -> tuple[list[str], list[list[str]]]:
+    """Pull ``--loader-arg KEY VALUE`` out of *argv* before argparse.
+
+    Ghidra loader options are spelled ``-loader-fileOffset``; argparse treats a
+    value that starts with ``-`` as another option and rejects the pair.  The
+    public ``--loader-arg K V`` interface (DESIGN §8.4) is preserved by
+    extracting the pairs first.
+    """
+    rest: list[str] = []
+    pairs: list[list[str]] = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == "--loader-arg":
+            if index + 2 >= len(argv):
+                raise SystemExit("gdare2d: error: --loader-arg needs KEY VALUE")
+            pairs.append([argv[index + 1], argv[index + 2]])
+            index += 3
+            continue
+        if token.startswith("--loader-arg="):
+            if index + 1 >= len(argv):
+                raise SystemExit("gdare2d: error: --loader-arg needs a VALUE")
+            pairs.append([token.split("=", 1)[1], argv[index + 1]])
+            index += 2
+            continue
+        rest.append(token)
+        index += 1
+    return rest, pairs
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(prog="gdare2d")
     result.add_argument("--foreground", action="store_true")
@@ -56,7 +86,10 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parser().parse_args(argv)
+    raw = list(sys.argv[1:] if argv is None else argv)
+    rest, loader_args = _split_loader_args(raw)
+    args = parser().parse_args(rest)
+    args.loader_arg = loader_args
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",

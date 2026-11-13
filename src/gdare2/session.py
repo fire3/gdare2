@@ -287,21 +287,29 @@ class Session:
         return self.invoke(statement)
 
     def invoke(self, statement: Statement) -> list[str]:
-        spec = cmd.lookup(statement.cmd)
-        if spec is None:
-            raise cmd.unknown(statement.cmd)
         if statement.help:
+            spec = cmd.lookup(statement.cmd)
+            if spec is None:
+                raise cmd.unknown(statement.cmd)
             return cmd.help_for(spec)
+        original = cmd.lookup(statement.cmd)
+        if original is None:
+            raise cmd.unknown(statement.cmd)
         statement = self._maybe_json(statement)
+        spec = cmd.lookup(statement.cmd) or original
         return spec.handler(self, statement)
 
     def _dispatch_iterator(self, statement: Statement) -> list[str]:
-        spec = cmd.lookup(statement.cmd)
-        if spec is None:
-            raise cmd.unknown(statement.cmd)
         if statement.help:
+            spec = cmd.lookup(statement.cmd)
+            if spec is None:
+                raise cmd.unknown(statement.cmd)
             return cmd.help_for(spec)
+        original = cmd.lookup(statement.cmd)
+        if original is None:
+            raise cmd.unknown(statement.cmd)
         statement = self._maybe_json(statement)
+        spec = cmd.lookup(statement.cmd) or original
 
         sized = statement.iterator_size is not None
         iterator_spec = statement.iterator_size if sized else statement.iterator
@@ -478,6 +486,8 @@ class Session:
         return self.call_with_meta("iter_targets", kind=kind, ea=self.seek, pattern=pattern)
 
     def _maybe_json(self, statement: Statement) -> Statement:
+        if statement.help:
+            return statement
         if not self.json_default or statement.cmd.endswith("j"):
             return statement
         if statement.cmd == "f" and statement.args.strip():
@@ -539,6 +549,8 @@ class Session:
         return replace(statement, cmd=replacement)
 
     def postprocess(self, lines: list[str], statement: Statement) -> list[str]:
+        if statement.filter is not None or statement.pipe is not None:
+            lines = _split_output_blocks(lines)
         if statement.filter is not None:
             lines = grep.apply_spec(lines, statement.filter)
         if statement.pipe is not None:
@@ -602,6 +614,25 @@ class Session:
 
     def json(self, value: Any) -> list[str]:
         return [dumps(value)]
+
+
+def _split_output_blocks(lines: list[str]) -> list[str]:
+    """Split multi-line handler output before ``~``/``|`` see it.
+
+    JSON handlers return one string containing newlines.  radare2 filters the
+    rendered output line by line, so ``aflj~entry`` must match a single JSON
+    line instead of the whole document.
+    """
+    if not any("\n" in str(line) for line in lines):
+        return lines
+    output: list[str] = []
+    for line in lines:
+        text = str(line)
+        if "\n" not in text:
+            output.append(text)
+        else:
+            output.extend(text.splitlines())
+    return output
 
 
 def _batch_meta_warning(replies: list[Any]) -> str | None:

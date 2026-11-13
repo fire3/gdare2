@@ -90,6 +90,10 @@ def test_raw_binary_base_and_disassembly(env, tmp_path):
     assert "0x0000000000400000" in result.stdout
     assert "NOP" in result.stdout.upper()
 
+    segments = run(env, "-a", "x86", "-b", "64", "-B", "0x400000", "-qc", "iSS", str(target))
+    assert segments.returncode != 0
+    assert "not an ELF file" in segments.stderr
+
 
 def test_batch_function_iteration(env):
     target = "/bin/ls"
@@ -784,3 +788,55 @@ def test_izz_pattern_assembly_and_raw_search(env, tmp_path):
     )
     assert raw.returncode == 0, raw.stderr
     assert "0x0000000000000001" in raw.stdout
+
+
+def test_segments_typed_reads_and_json_filter(env):
+    from gdare2.formats.elf import read_segments
+
+    target = "/bin/ls"
+    segments = read_segments(target)
+
+    segments_json = run(env, "-j", "-qc", "iSSj", target)
+    assert segments_json.returncode == 0, segments_json.stderr
+    payload = json.loads(segments_json.stdout)
+    assert len(payload) == len(segments)
+    assert set(payload[0]) >= {"name", "size", "vsize", "perm", "paddr", "vaddr"}
+
+    segments_text = run(env, "-qc", "iSS", target)
+    assert segments_text.returncode == 0, segments_text.stderr
+    assert len(segments_text.stdout.splitlines()) == len(segments) + 1
+
+    sections_text = run(env, "-qc", "iS", target)
+    assert sections_text.returncode == 0, sections_text.stderr
+    assert sections_text.stdout != segments_text.stdout
+
+    info = run(env, "-j", "-qc", "iI", target)
+    assert info.returncode == 0, info.stderr
+    entry = int(json.loads(info.stdout)["entry"])
+
+    typed = run(
+        env,
+        "-qc",
+        f"s 0x{entry:x}; tp int; tpv int; tpx int f30f1efa",
+        target,
+    )
+    assert typed.returncode == 0, typed.stderr
+    assert "ERROR" not in typed.stderr
+    assert "size=4" in typed.stdout
+
+    tc_int = run(env, "-qc", "tc int", target)
+    assert tc_int.returncode == 0, tc_int.stderr
+    assert tc_int.stdout.strip()
+    assert "typedef unsigned char" not in tc_int.stdout
+
+    tc_struct = run(env, "-qc", "tc Elf64_Ehdr", target)
+    assert tc_struct.returncode == 0, tc_struct.stderr
+    assert "struct Elf64_Ehdr" in tc_struct.stdout
+    assert "typedef unsigned char" not in tc_struct.stdout
+
+    full = run(env, "-qc", "aflj", target)
+    assert full.returncode == 0, full.stderr
+    filtered = run(env, "-qc", "aflj~entry", target)
+    assert filtered.returncode == 0, filtered.stderr
+    assert len(filtered.stdout.splitlines()) < len(full.stdout.splitlines())
+    assert '"name": "entry"' in filtered.stdout

@@ -1,7 +1,7 @@
 # gdare2 开发进度
 
-更新时间：2026-11-08
-最近验证：2026-11-08
+更新时间：2026-11-13
+最近验证：2026-11-13
 
 ## 当前状态
 
@@ -14,15 +14,33 @@
 | M3 反编译/类型 | 基本完成 | `pdc/afv`、`t/ts/tu/te/tt/tf`、`td/tc/tfc/t-`、`tp/tpv/tpx`、`afs`、`C/CC/Cp` 已可用；复杂 C++ 类型与结构体值格式化仍受 Ghidra 限制 |
 | M4 写入 | 完成（v1 范围） | `wx/w/w0/wf/wd`、`wa/wa*/wa+`、`wi`、`w6d/w6e`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用 |
 | M5 兼容/体验 | 完成 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、`.gexec`、parity 黄金文件、22 配置架构矩阵、batch meta 已完成 |
+| v2 G1–G5 | 完成（2026-11-13） | `iSS`、`tp/tc`、JSON 过滤、`-j` 查找顺序与 loader-arg 修复；详见 [TASKS-v2.md](TASKS-v2.md) §10 |
 
-## 验证基线（2026-11-08 实测）
+## v2 G1–G5（2026-11-13）
+
+- **G1 `iSS`**：新增 `src/gdare2/formats/elf.py`，从输入文件解析 ELF
+  program headers；`iSS`/`iSSj` 不再 alias 到 `iS`，非 ELF 明确
+  `NOT_SUPPORTED`。
+- **G2 `tp`**：`_typed_values()` 用 `getattr` 取基础类型，修复
+  `IntegerDataType` 没有 `getBaseDataType()` 的崩溃；`tp/tpv/tpx` 现可读取
+  `int` 等内建类型。
+- **G3 `tc <name>`**：只保留声明目标类型的行（typedef/struct/union/enum），
+  内建类型回退 `getPrototypeString()`；`tc` 无参数保持全量。
+- **G4 JSON 过滤**：`postprocess()` 在 `~`/`|` 前按行拆分多行 handler 输出，
+  `aflj~entry`、`pdj~ENDBR` 与 r2 的逐行过滤一致。
+- **G5 `-j`**：`invoke()`/`_dispatch_iterator()` 先解析 JSON 变体再查找 spec；
+  `-j f` 现在返回 JSON，`<cmd>?` 帮助不受影响。
+- **附带修复**：`gdare2d` 在 argparse 之前提取 `--loader-arg KEY VALUE`，
+  `-loader-fileOffset` 这类以 `-` 开头的 Ghidra 选项不再被误判为缺失参数。
+
+## 验证基线（2026-11-13 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `169 passed`，0.29s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `22 passed`，425.39s |
-| r2 parity | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m parity` | `12 passed`，117.91s |
-| 架构矩阵 | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m arch_matrix` | `2 passed`，8.44s |
+| 离线 | `.venv/bin/python -m pytest -q` | `176 passed`，0.12s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `23 passed`，285.33s |
+| r2 parity | 同上 `-m parity` | `12 skipped`（本机 r2 5.5.0 与黄金文件 6.2.5 不匹配） |
+| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，5.79s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 

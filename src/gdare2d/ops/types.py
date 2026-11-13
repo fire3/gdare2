@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import fnmatch
+import re
 
 from gdare2.errors import GdarError, NotFoundError, NotFuncError, UsageError
 from gdare2d.context import to_addr
@@ -136,7 +137,7 @@ def type_c(
         return {
             "name": str(data_type.getName()),
             "kind": _type_kind(data_type),
-            "declaration": _c_declaration(ctx, data_type),
+            "declaration": _c_declaration_target(ctx, data_type),
         }
 
     result = []
@@ -227,12 +228,13 @@ def _typed_values(program, data_type, raw: bytes, length: int) -> list | None:
         Array,
         Enum,
         Pointer,
-        TypeDef,
     )
 
-    base = data_type.getBaseDataType()
-    if isinstance(data_type, TypeDef):
-        base = data_type.getBaseDataType()
+    base = data_type
+    get_base = getattr(data_type, "getBaseDataType", None)
+    if get_base is not None:
+        with contextlib.suppress(Exception):
+            base = get_base()
     order = "big" if program.getLanguage().isBigEndian() else "little"
     if isinstance(base, Enum):
         values = []
@@ -320,6 +322,56 @@ def _c_declaration(ctx, data_type) -> str:
     writer = StringWriter()
     DataTypeWriter(ctx.program.getDataTypeManager(), writer).write([data_type], ctx.monitor())
     return str(writer.toString()).strip()
+
+
+def _c_declaration_target(ctx, data_type) -> str:
+    """Return only the declaration of *data_type*, not its dependencies.
+
+    ``DataTypeWriter.write()`` emits every typedef the target depends on.  For
+    ``tc <name>`` radare2 prints the requested declaration, so keep only the
+    lines that define that name; built-ins with no generated declaration fall
+    back to ``getPrototypeString()``.
+    """
+    name = str(data_type.getName())
+    selected = _select_declarations(_c_declaration(ctx, data_type), name)
+    if selected:
+        return "\n".join(selected).strip()
+    prototype = getattr(data_type, "getPrototypeString", None)
+    if prototype is not None:
+        with contextlib.suppress(Exception):
+            text = str(prototype()).strip()
+            if text:
+                return text
+    return name
+
+
+def _select_declarations(text: str, name: str) -> list[str]:
+    """Pick the typedef/struct/union/enum lines that declare *name*."""
+    escaped = re.escape(name)
+    typedef = re.compile(rf"^typedef\b.*(?<![\w$]){escaped}\s*[,;*]")
+    pointer_typedef = re.compile(rf"^typedef\b.*\*\s*{escaped}\b")
+    open_block = re.compile(
+        rf"^(?:typedef\s+)?(?:struct|union|enum|class)\s+{escaped}\b.*\{{"
+    )
+    selected: list[str] = []
+    capturing = False
+    depth = 0
+    for line in text.splitlines():
+        stripped = line.strip()
+        if capturing:
+            selected.append(line)
+            depth += stripped.count("{") - stripped.count("}")
+            if depth <= 0:
+                capturing = False
+            continue
+        if open_block.match(stripped):
+            selected.append(line)
+            depth = stripped.count("{") - stripped.count("}")
+            capturing = depth > 0
+            continue
+        if typedef.match(stripped) or pointer_typedef.match(stripped):
+            selected.append(line)
+    return selected
 
 
 def _parse_signature(program, text: str):
