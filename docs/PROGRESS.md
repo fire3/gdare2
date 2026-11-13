@@ -17,6 +17,8 @@
 | v2 G1–G5 | 完成（2026-11-13） | `iSS`、`tp/tc`、JSON 过滤、`-j` 查找顺序与 loader-arg 修复；详见 [TASKS-v2.md](TASKS-v2.md) §10 |
 | v2 G7/G9 | 完成（2026-11-13） | `i`/`aflq`/`L`/`ej`/`e?`；迭代器跳过无指令/不可读目标、重复注册校验 |
 | v2 G6/G8/G10 | 完成（2026-11-13） | 颜色/注释/gutter/demangle/`cmd.batch`；`--list-offset` 分页；文档收尾 |
+| v2 G11 | 完成（2026-11-13） | `f*`/`C*`/`CC*`/`t*`/`s*`/`b*`/`iS*`/`ax*` 导出变体；`CCu base64`；`~` 转义修复 |
+| v2 G12 | 完成（2026-11-13） | `pf`/`pfj`/`pfs`/`pf.<name>`：标量、数组、偏移、命名格式、uleb128 |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -59,6 +61,29 @@
 - **`-o` 语义修正**：r2 的 `-o` 是按文件偏移映射，不是输出分页；gdare2
   明确拒绝并提示使用 `--list-offset`，避免静默错义。
 - **G10 文档**：COMMANDS/PROGRESS/DIVERGENCES/README/TASKS 同步。
+
+## v2 G11（2026-11-13）
+
+- **导出变体**：`f*` 输出 `f name size @ addr`；`C*`/`CC*`/`C*.` 输出
+  `CCu base64:`（plate/pre/repeatable 用 `Cp`/`Cb`/`Cr`）；`t*` 输出
+  `td '<declaration>'`（daemon `type_c` 新增 `compact`）；`s*` 输出
+  `f undo_<n> = addr`；`b*` 输出 `b 0x100`；`iS*` 输出
+  `f section.<name> size @ addr`。
+- **交叉引用全集**：daemon 新增 `xrefs_all`（ReferenceManager 全局迭代，
+  上限 10000）；客户端 `ax*`/`axlj`/`axlq`/`axlc`。`axj` 在 r2 6.2.5 是
+  写引用命令，gdare2 明确 `NOT_SUPPORTED`。
+- **注释回放**：`CCu` 与所有注释写入命令接受 `base64:` 前缀。
+- **解析修复**：`~` 过滤器中的反斜杠转义不再把分隔符本身吃掉
+  （`iS*~\.text` 可正常使用）。
+
+## v2 G12（2026-11-13）
+
+- 新增 `src/gdare2/pf.py`：r2 `pf` 格式子集的纯客户端解析/渲染；支持
+  `b c C w d i I x o q U f F g t p s S z Z n N u`、`[n]`（`[4]x` 与 `x[4]`）、
+  `. : , ;`、`e`、`0` union；`B D E G T X r ?` 明确报错。
+- `pf`/`pfj`/`pfs`/`pf.`/`pf.<name>`；命名格式存于 `Session.pf_formats`。
+- `CommandSpec.consumes_repeat` 让 `4pf xx` 由格式层分组。
+- `-j` 映射 `pf`→`pfj`、`pf.<name>`→`pfj.<name>`。
 
 ## 验证基线（2026-11-13 实测）
 

@@ -114,6 +114,11 @@ class FakeClient:
             return [{"from": 0x1000, "to": 0x4000, "type": "CALL"}]
         if op == "hashes":
             return {"md5": "abc", "sha256": "def", "path": "/demo", "format": "ELF"}
+        if op == "sections":
+            return [
+                {"addr": 0x1000, "size": 0x1000, "name": ".text", "perms": "r-x"},
+                {"addr": 0x3000, "size": 0x200, "name": ".data", "perms": "rw-"},
+            ]
         if op == "block_at":
             return {"name": ".text", "addr": 0x1000, "end": 0x1FFF, "size": 0x1000, "perms": "r-x"}
         if op == "basic_block":
@@ -467,6 +472,88 @@ def test_json_default_resolves_separate_command_specs():
     # ``-j`` must not turn ``<cmd>?`` into the JSON variant.
     help_lines = session.run("afl?")
     assert "list functions" in help_lines[0]
+
+
+def test_all_xrefs_variants():
+    class XrefClient(FakeClient):
+        def call(self, op, **args):
+            if op == "xrefs_all":
+                self.calls.append((op, args))
+                return [
+                    {"from": 0x1000, "to": 0x2000, "type": "UNCONDITIONAL_CALL"},
+                    {"from": 0x1004, "to": 0x3000, "type": "DATA"},
+                ]
+            return super().call(op, **args)
+
+    session, _ = make_session(XrefClient())
+    assert session.run("ax*") == [
+        "axC 0x0000000000001000 0x0000000000002000",
+        "axd 0x0000000000001004 0x0000000000003000",
+    ]
+    assert session.run("axlq")[1] == "0x0000000000001004 -> 0x0000000000003000  DATA"
+    assert session.run("axlc") == ["2"]
+    assert '"from": 4096' in session.run("axlj")[0]
+    session.run("axj 0x1000")
+    assert session.failed
+    assert "read-only for xrefs" in str(session.last_error)
+
+
+def test_export_variants_are_replayable():
+    session, _ = make_session()
+    flags = session.run("f*")
+    assert "f helper 0 @ 0x0000000000002000" in flags
+    replay, _ = make_session()
+    for line in flags:
+        replay.run(line)
+    assert replay.flag_store.get("helper").addr == 0x2000
+    assert replay.flag_store.get("main").addr == 0x1000
+
+    comments = session.run("C*")
+    assert comments == ["CCu base64:aGVsbG8= @ 0x0000000000001000"]
+    assert session.run("CC*") == comments
+    writable, client = make_session()
+    writable.readonly = False
+    writable.run(comments[0])
+    assert (
+        "comment_set",
+        {"allow_writes": True, "ea": 0x1000, "text": "hello", "kind": "eol"},
+    ) in client.calls
+
+    declarations = session.run("t*")
+    assert declarations == ["td 'struct demo_new { int field; };'"]
+    writable, client = make_session()
+    writable.readonly = False
+    writable.run(declarations[0])
+    assert (
+        "type_define",
+        {"allow_writes": True, "decl": "struct demo_new { int field; };"},
+    ) in client.calls
+
+    assert session.run("b*") == ["b 0x100"]
+    assert session.run("iS*") == [
+        "f section..text 4096 @ 0x0000000000001000",
+        "f section..data 512 @ 0x0000000000003000",
+    ]
+    session.run("s 0x2000")
+    assert session.run("s*") == ["f undo_0 = 0x0000000000001000"]
+
+
+def test_comment_base64_payload_roundtrip_and_errors():
+    session, client = make_session()
+    session.readonly = False
+    session.run("CCu base64:aGVsbG8= @ main")
+    assert (
+        "comment_set",
+        {"allow_writes": True, "ea": 0x2000, "text": "hello", "kind": "eol"},
+    ) in client.calls
+    session.run("Cp base64:cGxhdGU= @ main")
+    assert (
+        "comment_set",
+        {"allow_writes": True, "ea": 0x2000, "text": "plate", "kind": "plate"},
+    ) in client.calls
+    session.run("CCu base64:!!!")
+    assert session.failed
+    assert "invalid base64" in str(session.last_error)
 
 
 def test_file_info_config_and_function_addresses():

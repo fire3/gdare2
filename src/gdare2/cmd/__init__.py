@@ -22,6 +22,7 @@ class CommandSpec:
     handler: Handler
     detail: str = ""
     aliases: tuple[str, ...] = field(default_factory=tuple)
+    consumes_repeat: bool = False
 
 
 _COMMANDS: list[CommandSpec] = []
@@ -41,11 +42,14 @@ def command(
     summary: str,
     detail: str = "",
     aliases: tuple[str, ...] = (),
+    consumes_repeat: bool = False,
 ):
     """Decorator form of :func:`register`."""
 
     def decorate(handler: Handler) -> Handler:
-        register(CommandSpec(pattern, summary, handler, detail, aliases))
+        register(
+            CommandSpec(pattern, summary, handler, detail, aliases, consumes_repeat)
+        )
         return handler
 
     return decorate
@@ -81,6 +85,9 @@ def all_commands() -> list[CommandSpec]:
     return sorted(_COMMANDS, key=lambda spec: (-len(spec.pattern), spec.pattern))
 
 
+_PREFIX_BASES = (("pfj.", "pfj"), ("pfs.", "pfs"), ("pf.", "pf"))
+
+
 def lookup(cmd: str) -> CommandSpec | None:
     load_all()
     for spec in all_commands():
@@ -90,6 +97,11 @@ def lookup(cmd: str) -> CommandSpec | None:
         for spec in all_commands():
             if spec.pattern == "$":
                 return spec
+    for prefix, base in _PREFIX_BASES:
+        if cmd.startswith(prefix) and len(cmd) > len(prefix):
+            for spec in all_commands():
+                if spec.pattern == base:
+                    return spec
     return None
 
 

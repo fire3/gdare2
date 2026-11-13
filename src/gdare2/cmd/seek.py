@@ -49,10 +49,24 @@ def _seek_block_backward(session, statement):
     return []
 
 
+@command("s*", "list seek history as replayable undo flags")
+def _seek_commands(session, statement):
+    history = session.seek_history
+    return [
+        f"f undo_{index} = {session.format_addr(address)}"
+        for index, address in enumerate(reversed(history))
+    ]
+
+
 @command("s.", "seek relative to the current address")
 def _seek_relative(session, statement):
     session.seek_to(session.seek + session.eval(statement.args))
     return []
+
+
+@command("b*", "show the block size as a replayable command")
+def _blocksize_command(session, statement):
+    return [f"b {session.blocksize:#x}"]
 
 
 @command("sb", "seek to the containing basic block")

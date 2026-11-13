@@ -109,6 +109,22 @@ def _format_detail(session, payload):
     return lines
 
 
+@command("t*", "list types as replayable C declarations")
+def _types_commands(session, statement):
+    payload = session.call("type_c", name=None, limit=10000, compact=True)
+    if isinstance(payload, dict):
+        payload = [payload]
+    lines = []
+    declarable = {"struct", "union", "enum", "typedef"}
+    for item in payload:
+        if str(item.get("kind", "")) not in declarable:
+            continue
+        declaration = str(item.get("declaration", "")).rstrip()
+        if declaration:
+            lines.append(f"td {declaration!r}")
+    return lines
+
+
 @command("tf", "list or inspect function signatures", aliases=("tfj",))
 def _signatures(session, statement):
     name = statement.args.strip() or None

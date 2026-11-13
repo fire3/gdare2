@@ -82,6 +82,19 @@ def _segments(session, statement):
     return lines
 
 
+@command("iS*", "list memory blocks as replayable flag commands")
+def _sections_commands(session, statement):
+    payload = session.call("sections")
+    lines = []
+    for block in payload:
+        name = str(block.get("name") or "")
+        name = f"section.{name}" if name else "section.unnamed"
+        lines.append(
+            f"f {name} {int(block['size'])} @ {session.format_addr(int(block['addr']))}"
+        )
+    return lines
+
+
 @command("iS.", "show the memory block at seek")
 def _current_section(session, statement):
     payload = session.call("block_at", ea=session.seek)

@@ -2,9 +2,43 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+
 from gdare2.cmd import command, require_write
 from gdare2.errors import NotFoundError, UsageError
+from gdare2.escape import unquote_text
 from gdare2.jsonutil import dumps
+
+_KIND_COMMANDS = {
+    "eol": "CCu",
+    "pre": "Cb",
+    "plate": "Cp",
+    "repeatable": "Cr",
+}
+
+
+def _comment_text(text: str) -> str:
+    """Decode ``base64:`` payloads so ``C*`` output can round-trip."""
+    text = unquote_text(text)
+    if text.startswith("base64:"):
+        payload = text[len("base64:") :].strip()
+        try:
+            return base64.b64decode(payload, validate=True).decode("utf-8", errors="replace")
+        except (binascii.Error, ValueError):
+            raise UsageError("invalid base64 comment payload") from None
+    return text
+
+
+def _comment_lines(session, items) -> list[str]:
+    lines = []
+    for item in items:
+        opcode = _KIND_COMMANDS.get(str(item["kind"]), "CCu")
+        encoded = base64.b64encode(str(item["text"]).encode("utf-8")).decode("ascii")
+        lines.append(
+            f"{opcode} base64:{encoded} @ {session.format_addr(int(item['addr']))}"
+        )
+    return lines
 
 
 @command("C", "list comments", aliases=("Cj",))
@@ -32,12 +66,32 @@ def _comments_at_seek(session, statement):
 
 @command("CC", "set an end-of-line comment")
 def _set_comment(session, statement):
-    text = statement.args.strip()
+    text = _comment_text(statement.args)
     if not text:
         return _comments(session, statement)
     require_write(session)
     payload = session.call("comment_set", ea=session.seek, text=text, kind="eol")
     return [f"{session.format_addr(int(payload['addr']))} {payload['kind']} {payload['text']}"]
+
+
+@command("CCu", "set an end-of-line comment from text or base64")
+def _set_unique_comment(session, statement):
+    text = _comment_text(statement.args)
+    if not text:
+        raise UsageError("CCu needs comment text or base64:<data>")
+    require_write(session)
+    payload = session.call("comment_set", ea=session.seek, text=text, kind="eol")
+    return [f"{session.format_addr(int(payload['addr']))} {payload['kind']} {payload['text']}"]
+
+
+@command("C*", "list comments as replayable commands", aliases=("CC*", "C*."))
+def _comments_commands(session, statement):
+    if statement.cmd == "C*.":
+        payload = session.call("comments", ea=session.seek, limit=10000)
+    else:
+        payload = session.call("comments", limit=10000)
+        session.warn_truncated("comment list", len(payload))
+    return _comment_lines(session, payload)
 
 
 @command("CC-", "delete an end-of-line comment")
@@ -78,7 +132,7 @@ def _repeatable_comment(session, statement):
 
 def _set_kind(session, statement, kind):
     require_write(session)
-    text = statement.args.strip()
+    text = _comment_text(statement.args)
     if not text:
         raise UsageError(f"{kind} comment text is required")
     payload = session.call("comment_set", ea=session.seek, text=text, kind=kind)

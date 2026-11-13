@@ -128,6 +128,7 @@ class Session:
         self.last_error: GdarError | None = None
         self.quit_requested = False
         self.flag_store = FlagStore()
+        self.pf_formats: dict[str, tuple[str, tuple[str, ...]]] = {}
         self.flags_loaded = False
         self.tmp_range: tuple[int, int] | None = None
         self._names: dict[str, int | None] = {}
@@ -255,7 +256,11 @@ class Session:
         if statement.shell:
             return pipe.run_shell(statement.args)
         lines: list[str] = []
-        for _ in range(max(statement.repeat, 1)):
+        repeats = max(statement.repeat, 1)
+        spec = cmd.lookup(statement.cmd)
+        if spec is not None and spec.consumes_repeat:
+            repeats = 1
+        for _ in range(repeats):
             saved_seek = self.seek
             saved_blocksize = self.blocksize
             saved_range = self.tmp_range
@@ -519,6 +524,8 @@ class Session:
             return statement
         if statement.cmd == "e" and statement.args.strip():
             return statement
+        if statement.cmd.startswith("pf.") and len(statement.cmd) > 3:
+            return replace(statement, cmd="pfj" + statement.cmd[2:])
         mapping = {
             "i": "ij",
             "e": "ej",
@@ -571,6 +578,7 @@ class Session:
             "/v8": "/v8j",
             "x": "xj",
             "f": "fj",
+            "pf": "pfj",
         }
         replacement = mapping.get(statement.cmd)
         if replacement is None:

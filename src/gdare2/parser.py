@@ -32,13 +32,21 @@ class Statement:
 
 
 def _scan(text: str, char: str, *, from_right: bool = True) -> int:
-    """Find ``char`` outside quotes.  ``>`` also skips ``>>``-style runs."""
+    """Find ``char`` outside quotes and outside ``\\`` escapes.
+
+    Escapes are resolved left-to-right, then the delimiter search walks in the
+    requested direction.  Scanning escapes in the same direction as the search
+    would let ``~\\.text`` hide its own ``~`` (the backslash is to the right of
+    the delimiter but escapes the following character, not the preceding one).
+    """
+    length = len(text)
+    escaped_at = [False] * length
+    quoted_at = [False] * length
     quote: str | None = None
     escaped = False
-    indices = range(len(text) - 1, -1, -1) if from_right else range(len(text))
-    for index in indices:
-        current = text[index]
+    for index, current in enumerate(text):
         if escaped:
+            escaped_at[index] = True
             escaped = False
             continue
         if current == "\\":
@@ -47,11 +55,18 @@ def _scan(text: str, char: str, *, from_right: bool = True) -> int:
         if quote is not None:
             if current == quote:
                 quote = None
+            else:
+                quoted_at[index] = True
             continue
         if current in ("'", '"'):
             quote = current
+            quoted_at[index] = True
+
+    indices = range(length - 1, -1, -1) if from_right else range(length)
+    for index in indices:
+        if escaped_at[index] or quoted_at[index]:
             continue
-        if current == char:
+        if text[index] == char:
             return index
     return -1
 

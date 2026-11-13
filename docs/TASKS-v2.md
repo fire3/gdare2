@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G10（批次 A）已全部完成并验证；G11–G24 待做，
-> 详见 §10。
+> **进度（2026-11-13）**：G1–G12 已完成并验证（批次 A + G11/G12）；
+> G13–G24 待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -251,6 +251,10 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G11 输出为 r2 命令的变体
 
+- **状态**：✅ 2026-11-13 已完成（`f*`/`C*`/`CC*`/`C*.`/`t*`/`s*`/`b*`/
+  `iS*`/`ax*`/`axlj`/`axlq`/`axlc`；`axj` 明确 `NOT_SUPPORTED`，
+  因为 r2 6.2.5 中它是写命令）。
+
 - **缺失**：`f*`、`C*`、`CC*`、`t*`、`s*`、`b*`、`axj`/`ax*`、`axt*`、
   `iS*` 等。
 - **价值**：脚本/回归/迁移最常用；r2 的 `*` 变体是“可重放命令”，不需要
@@ -263,6 +267,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 - **涉及**：`cmd/{flags,comments,types,seek,xrefs}.py`。
 
 ### G12 `pf` 格式化打印
+
+- **状态**：✅ 2026-11-13 已完成（`pf`/`pfj`/`pfs`/`pf.`/`pf.<name>`；
+  标量、`[n]`（前缀与后缀）、偏移控制、`u`/`I`/`U`、命名格式）。
 
 - **现状**：无 `pf`；idare2 有 444 行实现 + `test_pf.py`。
 - **范围（v2 第一版）**：标量格式（`x b c d i u q X B C D I U Q`）、
@@ -504,6 +511,34 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G12 完成（`pf` 格式化打印）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| 解析/渲染 | 新增 `src/gdare2/pf.py`（基于 idare2 实现，扩展 `u`/`I`/`U` 与 `x[4]` 后缀数组） | `tests/test_pf.py`（23 项） |
+| 命令 | `cmd/print.py`：`pf`/`pfj`/`pfs`/`pf.`，前缀查找支持 `pf.<name>`/`pfj.<name>`/`pfs.<name>` | `test_pf.py` |
+| 命名格式 | `Session.pf_formats`；定义/应用/列表/JSON/大小 | `test_named_pf_formats_define_apply_and_inspect` |
+| 重复 | `CommandSpec.consumes_repeat`：`4pf xx` 由格式层分组，不再由会话循环重复 | `test_pf_repeat_and_json_output` |
+| `-j` | `pf`→`pfj`、`pf.<name>`→`pfj.<name>` | `test_pf_repeat_and_json_output` |
+
+验证：离线 **218 passed**；真实 Ghidra（`/bin/ls`）确认 `pf xx`、`pf 4xi`、
+`pf x[4]`、`pf [4]x`、`pf.<name>` 定义/应用/大小/JSON 均可用。
+
+### 2026-11-13：G11 完成（导出变体）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| `f*` | `cmd/flags.py`；`f` 参数改用 `shlex.split`，支持带引号的 flag 名回放 | `test_session.py::test_export_variants_are_replayable` |
+| `C*`/`CC*`/`C*.`/`CCu` | `cmd/comments.py`：base64 编解码、按 Ghidra kind 选 `CCu`/`Cp`/`Cb`/`Cr` | 同上；`test_comment_base64_payload_roundtrip_and_errors` |
+| `t*` | `cmd/types.py` + daemon `type_c(compact=True)`，只输出可声明的 struct/union/enum/typedef | 同上 |
+| `s*`/`b*` | `cmd/seek.py`：`f undo_<n> = addr`（r2 6.2.5 形状）/ `b 0x..` | 同上 |
+| `iS*` | `cmd/info.py`：`f section.<name> <size> @ addr` | 同上 |
+| `ax*`/`axlj`/`axlq`/`axlc` | daemon `ops/xrefs.py::xrefs_all`（`getReferenceIterator(minAddress)`）；`axj` 明确报 `NOT_SUPPORTED` | `test_all_xrefs_variants` |
+| `~` 转义 | `parser.py::_scan` 先左到右解析转义再按方向查找分隔符；`iS*~\.text` 现在正确切分 | `test_parser.py` |
+
+验证：离线 **195 passed**；真实 Ghidra 冒烟（`/bin/ls`）确认 `t*` 73 行
+合法声明、`axlc`/`ax*`/`axlq`/`axlj` 可用、`iS*` 输出可回放。
 
 ### 2026-11-13：G6/G8/G10 完成（批次 A 收尾）
 

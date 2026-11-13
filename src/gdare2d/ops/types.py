@@ -127,6 +127,7 @@ def type_c(
     name: str | None = None,
     kind: str | None = None,
     limit: int = MAX_TYPES,
+    compact: bool = False,
 ) -> dict | list[dict]:
     program = require_program(ctx)
     if limit <= 0 or limit > MAX_TYPES:
@@ -150,7 +151,11 @@ def type_c(
             {
                 "name": str(data_type.getName()),
                 "kind": _type_kind(data_type),
-                "declaration": _c_declaration(ctx, data_type),
+                "declaration": (
+                    _c_declaration_target(ctx, data_type)
+                    if compact
+                    else _c_declaration(ctx, data_type)
+                ),
             }
         )
     result.sort(key=lambda item: (item["kind"], item["name"]))

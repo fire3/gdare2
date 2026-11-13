@@ -281,6 +281,38 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
 保留数量，目标超过上限时会告警。`batch` 的 `meta` 目前汇总 `total/shown/errors`，
 子 op 自己的 `meta` 暂不逐项透传。
 
+### 11.4 导出变体（`*` 命令）
+
+- `f*`/`C*`/`t*`/`iS*`/`ax*` 尽量输出可回放命令，但形状与 r2 6.2.5 有差异：
+  r2 6.x 的 `f*`/`iS*` 会带前导 `'`（命令引用）并输出 `fs <space>`；
+  gdare2 没有 flag space，也不输出前导引号。
+- `C*` 使用 `CCu`/`Cp`/`Cb`/`Cr base64:`：r2 只有一个注释槽，gdare2 按
+  Ghidra 注释类型分命令；`Cp`/`Cb`/`Cr` 是 gdare2 扩展，不是 r2 语义。
+- `t*` 输出 `td '<declaration>'`，不是 r2 的 `tk name=type`；只覆盖
+  struct/union/enum/typedef，数组/指针/内建类型不输出。
+- `s*` 输出 `f undo_<n> = <addr>` 而不是 `s <addr>`，与 r2 6.2.5 一致；
+  回放会创建 flag，不会恢复 seek。
+- `ax*` 输出 r2 的 `axC`/`axc`/`axd` 命令，但 gdare2 不实现引用写入，
+  这些行只能在 r2 中回放。`axj` 在 r2 6.2.5 是写命令，gdare2 报
+  `NOT_SUPPORTED`；JSON/quiet/count 请用 `axlj`/`axlq`/`axlc`。
+- `axlj`/`axlq`/`axlc`/`ax*` 单次最多返回 10000 条引用，超出时告警；
+  这与 r2 的完整枚举不同。
+
+### 11.5 `pf` 格式化打印
+
+- 支持的字母表以 r2 的 `pf??` 为基础，但不是全部：`B D E G T X r ?` 明确报
+  unsupported，避免打印错误字节。
+- `I`（4 字节无符号十进制）与 `U`（8 字节无符号十进制）是 gdare2 的定义；
+  r2 6.2.5 的 `pf I`/`pf U` 没有输出。`u` 按 r2 实现为 uleb128。
+- 数组计数同时接受 r2 的 `[4]x` 前缀与任务书的 `x[4]` 后缀；r2 6.2.5 对
+  `x[4]` 只打印一个字段。
+- `pfs` 报告单个结构的字节数并忽略前缀重复数（与 idare2 一致）；r2 的
+  `pfs` 在某些输入上返回整块大小，不适合脚本。
+- 命名格式只存在于当前会话，`q`/daemon 重启后丢失；不支持
+  `pf.name.field=value` 与 `pf? name` 的定义查看。
+- `s`/`S` 指针字符串通过 `read_bytes` 读取，最多 256 字节；不可读时显示
+  `-> <invalid>`，不静默省略。
+
 ## 12. 不支持的命令
 
 以下命令 v1 明确不做，必须报 `unsupported`，不能回退到相似命令：

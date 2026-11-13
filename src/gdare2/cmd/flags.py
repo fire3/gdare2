@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shlex
+
 from gdare2.cmd import command, require_write
 from gdare2.errors import NotFoundError, UsageError
 from gdare2.flags import Flag
@@ -41,7 +43,12 @@ def _flags(session, statement):
             raise UsageError("f needs a flag name")
         _add(session, name, session.eval(value.strip()))
         return []
-    parts = text.split()
+    try:
+        parts = shlex.split(text)
+    except ValueError as exc:
+        raise UsageError(f"f cannot parse arguments: {exc}") from None
+    if not parts:
+        raise UsageError("f needs a flag name")
     name = parts[0]
     size = 0
     address = session.seek
@@ -57,6 +64,15 @@ def _flags(session, statement):
             size = value
     _add(session, name, address, size)
     return []
+
+
+@command("f*", "list flags as replayable commands")
+def _flags_commands(session, statement):
+    session.load_flags()
+    return [
+        f"f {flag.name} {int(flag.size)} @ {session.format_addr(int(flag.addr))}"
+        for flag in session.flag_store.values()
+    ]
 
 
 @command("fj", "list flags as JSON")

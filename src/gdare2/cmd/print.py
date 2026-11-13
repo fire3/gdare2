@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from gdare2 import pf as pf_format
 from gdare2.cmd import command
-from gdare2.errors import UsageError
+from gdare2.errors import GdarError, UsageError
 from gdare2.fmt.disasm import format_disasm
 from gdare2.fmt.memory import hexdump
 from gdare2.jsonutil import dumps
@@ -198,3 +199,132 @@ def _number(text: str, default: int) -> int:
         return int(text, 0)
     except ValueError:
         raise UsageError(f"expected a number, got {text!r}") from None
+
+
+PF_DETAIL = """pf <fmt> [name ...]      decode fields from memory
+pfj <fmt> [name ...]     decode fields as JSON
+pfs <fmt>                bytes consumed by one format
+pf.                      list named formats
+pf.<name>                apply a named format
+pf.<name> <fmt> [name..] define a named format
+Formats: b c C w d i I x o q U f F g t p s S z Z n N u, [n] arrays,
+. : , ; skips/rewinds, e endian swap, 0 prefix for unions.
+B D E G T X r ? are explicitly unsupported."""
+
+
+@command("pf", "print formatted data", detail=PF_DETAIL, consumes_repeat=True)
+def _pf(session, statement):
+    return _pf_command(session, statement)
+
+
+@command("pfj", "print formatted data as JSON", consumes_repeat=True)
+def _pf_json(session, statement):
+    return _pf_command(session, statement)
+
+
+@command("pfs", "report the size of a pf format", consumes_repeat=True)
+def _pf_size(session, statement):
+    return _pf_command(session, statement)
+
+
+@command("pf.", "list or apply named pf formats", detail=PF_DETAIL, consumes_repeat=True)
+def _pf_named(session, statement):
+    return _pf_command(session, statement)
+
+
+def _pf_mode(token: str):
+    if token == "pf":
+        return "", False, None
+    if token == "pfj":
+        return "j", False, None
+    if token == "pfs":
+        return "s", False, None
+    if token == "pf.":
+        return "", True, None
+    if token.startswith("pfj."):
+        return "j", True, token[4:] or None
+    if token.startswith("pfs."):
+        return "s", True, token[4:] or None
+    if token.startswith("pf."):
+        return "", True, token[3:] or None
+    return None, False, None
+
+
+def _pf_command(session, statement):
+    mode, dotted, named = _pf_mode(statement.cmd)
+    if mode is None:
+        raise UsageError(f"unsupported print modifier {statement.cmd!r} (see pf?)")
+    words = statement.args.split()
+    repeat = statement.repeat
+    if dotted:
+        if named is None:
+            if not words:
+                return _pf_list(session)
+            named, words = words[0], words[1:]
+        if words:
+            return _pf_define(session, named, words)
+        definition = session.pf_formats.get(named)
+        if definition is None:
+            raise UsageError(f"pf: no named format {named!r}")
+        text, names = definition
+    else:
+        if not words:
+            raise UsageError("pf needs a format string (see pf?)")
+        text, names = words[0], tuple(words[1:])
+
+    fmt = pf_format.parse_format(
+        text,
+        pointer_size=session.pointer_size,
+        names=names,
+        repeat=max(repeat, 1),
+        union=repeat == 0,
+    )
+    if mode == "s":
+        return [str(pf_format.format_size(fmt, include_repeat=False))]
+    return _pf_render(session, fmt, json_mode=mode == "j")
+
+
+def _pf_define(session, name: str, words: list[str]) -> list[str]:
+    if not words:
+        raise UsageError(f"pf.{name} needs a format string")
+    text, names = words[0], tuple(words[1:])
+    pf_format.parse_format(text, pointer_size=session.pointer_size, names=names)
+    session.pf_formats[name] = (text, names)
+    return []
+
+
+def _pf_list(session) -> list[str]:
+    lines = []
+    for name in sorted(session.pf_formats):
+        text, names = session.pf_formats[name]
+        suffix = (" " + " ".join(names)) if names else ""
+        lines.append(f"pf.{name} {text}{suffix}")
+    return lines
+
+
+def _pf_render(session, fmt, *, json_mode: bool) -> list[str]:
+    size = pf_format.format_size(fmt)
+    count = min(max(size + 64, session.blocksize), 1024 * 1024)
+    data = bytes(session.call("read_bytes", ea=session.seek, size=count))
+    rendered = pf_format.render(
+        data,
+        session.seek,
+        fmt,
+        endian=str(session.info.get("endian") or "little"),
+        format_addr=session.format_addr,
+        read_string=_pf_read_string(session),
+    )
+    if json_mode:
+        return [dumps(rendered.rows)]
+    return rendered.lines
+
+
+def _pf_read_string(session):
+    def read_string(address: int, size: int) -> str | None:
+        try:
+            raw = bytes(session.call("read_bytes", ea=address, size=size))
+        except GdarError:
+            return None
+        return raw.split(b"\x00", 1)[0].decode("utf-8", errors="replace")
+
+    return read_string
