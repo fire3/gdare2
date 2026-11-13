@@ -340,6 +340,16 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
 - `~?ea` 七段码、`~<>` XML、`~:)`/`~:))` C 解析、`~:}` 大括号缩进明确报
   unsupported，不静默返回原文本。
 
+### 11.8 rc 文件与补全
+
+- r2 的 rc 发现规则（`R2_RCFILE`、`~/.radare2rc`、`~/.config/radare2/rc`、
+  `rc.d`）不完全相同；gdare2 使用 `GDARE2_RCFILE`、`~/.gdare2rc`、
+  `$XDG_CONFIG_HOME/gdare2/rc{,.d/*}`，并额外加载从根到当前目录的
+  `.gdare2rc`。
+- `-N` 只跳过用户与项目 rc；`-NN` 跳过全部（包括 `GDARE2_RCFILE`）。
+- Tab 补全只覆盖命令、配置键、flag/函数名与 `$` 变量；搜索命中缓存与
+  r2 的 `$` 别名体系尚未纳入补全。
+
 ## 12. 不支持的命令
 
 以下命令 v1 明确不做，必须报 `unsupported`，不能回退到相似命令：

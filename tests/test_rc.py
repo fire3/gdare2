@@ -69,3 +69,59 @@ def test_rc_errors_do_not_mark_the_session_failed(monkeypatch):
     assert session.calls == ["bad-command"]
     assert session.failed is False
     assert session.last_error is None
+
+
+def test_rc_directories_and_project_ancestors(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    config = tmp_path / "config"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config))
+    monkeypatch.delenv(rc.ENV_OVERRIDE, raising=False)
+
+    system = config / "gdare2" / "rc"
+    system.parent.mkdir(parents=True)
+    system.write_text("e scr.color=1\n", encoding="utf-8")
+    rc_dir = config / "gdare2" / "rc.d"
+    rc_dir.mkdir()
+    (rc_dir / "20-second").write_text("e asm.lines=true\n", encoding="utf-8")
+    (rc_dir / "10-first").write_text("e asm.comments=true\n", encoding="utf-8")
+    (rc_dir / ".hidden").write_text("e bad=true\n", encoding="utf-8")
+
+    project = tmp_path / "project"
+    (project / "sub").mkdir(parents=True)
+    (project / ".gdare2rc").write_text("e scr.null=false\n", encoding="utf-8")
+    (project / "sub" / ".gdare2rc").write_text("e hex.cols=8\n", encoding="utf-8")
+
+    paths = rc.rc_paths(0, cwd=project / "sub")
+    assert [path.name for path in paths] == [
+        "rc",
+        "10-first",
+        "20-second",
+        ".gdare2rc",
+        ".gdare2rc",
+    ]
+    lines = []
+    for path in paths:
+        lines.extend(path.read_text(encoding="utf-8").splitlines())
+    assert lines == [
+        "e scr.color=1",
+        "e asm.comments=true",
+        "e asm.lines=true",
+        "e scr.null=false",
+        "e hex.cols=8",
+    ]
+    assert rc.rc_paths(1, cwd=project / "sub")[0] == system
+    assert all(path.name != ".gdare2rc" for path in rc.rc_paths(1, cwd=project / "sub"))
+
+
+def test_rcfile_override_and_skip(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    override = tmp_path / "custom.rc"
+    override.write_text("e asm.bytes=false\n", encoding="utf-8")
+    monkeypatch.setenv(rc.ENV_OVERRIDE, str(override))
+    assert rc.rc_paths(0) == [override]
+    assert rc.rc_paths(1) == [override]
+    assert rc.rc_paths(2) == []
+    monkeypatch.delenv(rc.ENV_OVERRIDE)

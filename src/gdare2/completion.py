@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 
@@ -14,10 +15,13 @@ def history_path() -> Path:
     return state_home / "gdare2" / "history"
 
 
-def complete_line(line: str, text: str) -> list[str]:
+def complete_line(line: str, text: str, session=None) -> list[str]:
     stripped = line.lstrip()
     if stripped.startswith("e ") or stripped == "e":
         return sorted(key.name for key in KEYS if key.name.startswith(text))
+    prefix = line[: len(line) - len(text)] if text and line.endswith(text) else ""
+    if prefix.strip():
+        return _argument_candidates(session, text)
     names: set[str] = set()
     for spec in cmd.all_commands():
         names.add(spec.pattern)
@@ -25,11 +29,27 @@ def complete_line(line: str, text: str) -> list[str]:
     return sorted(name for name in names if name.startswith(text))
 
 
-def make_completer():
+def _argument_candidates(session, text: str) -> list[str]:
+    """Complete flag/function names and ``$`` variables for command arguments."""
+    if session is None:
+        return []
+    candidates: set[str] = set()
+    if text.startswith("$"):
+        return sorted(
+            name for name in (f"${var}" for var in session.vars) if name.startswith(text)
+        )
+    with contextlib.suppress(Exception):
+        session.load_flags()
+    candidates.update(flag.name for flag in session.flag_store.values())
+    candidates.update(f"${name}" for name in session.vars)
+    return sorted(name for name in candidates if name.startswith(text))
+
+
+def make_completer(session=None):
     import readline
 
     def complete(text: str, state: int):
-        matches = complete_line(readline.get_line_buffer(), text)
+        matches = complete_line(readline.get_line_buffer(), text, session)
         if state < len(matches):
             return matches[state]
         return None
@@ -37,7 +57,7 @@ def make_completer():
     return complete
 
 
-def setup_readline():
+def setup_readline(session=None):
     try:
         import readline
     except ImportError:
@@ -50,7 +70,7 @@ def setup_readline():
         pass
     readline.set_history_length(2000)
     readline.set_completer_delims(" \t\n")
-    readline.set_completer(make_completer())
+    readline.set_completer(make_completer(session))
     readline.parse_and_bind("tab: complete")
     return path
 

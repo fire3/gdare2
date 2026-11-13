@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G13、G15 已完成并验证；G14/G16–G24
-> 待做，详见 §10。
+> **进度（2026-11-13）**：G1–G13、G15、G16 已完成并验证；
+> G14/G17–G24 待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -329,6 +329,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G16 补全与 rc 层级
 
+- **状态**：✅ 2026-11-13 已完成（fsrc/rc.d/项目祖先/`GDARE2_RCFILE`；
+  参数位置补全 flag/函数与 `$` 变量）。
+
 - **现状**：`completion.py:17` 只补命令名与 `e` 键；`rc.py:9` 只有两条路径。
 - **范围**：
   - 补全 flag、函数名、`$` 变量/别名、搜索命中缓存；
@@ -518,6 +521,16 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G16 完成（补全与 rc 层级）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| rc 层级 | `rc.py`：系统 rc + `rc.d/*`（排序）、`~/.gdare2rc`、根→cwd 的 `.gdare2rc` | `test_rc.py::test_rc_directories_and_project_ancestors` |
+| 覆盖/跳过 | `GDARE2_RCFILE`；`-N` 跳过用户/项目，`-NN` 全部跳过 | `test_rcfile_override_and_skip` |
+| 补全 | `completion.py`：参数位置补全 flag/函数/`$` 变量；`setup_readline(session)` | `tests/test_completion.py` |
+
+验证：离线 **235 passed**。
 
 ### 2026-11-13：G13 完成（`~` 过滤器 v2）
 

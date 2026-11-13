@@ -108,7 +108,7 @@ def main(argv_list: list[str] | None = None) -> int:
                     if session.quit_requested:
                         break
         else:
-            history_file = completion.setup_readline()
+            history_file = completion.setup_readline(session)
             _repl(session, quiet=options.quiet)
 
         if options.ephemeral:
