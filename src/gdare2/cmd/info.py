@@ -5,7 +5,13 @@ from __future__ import annotations
 from gdare2.arch_matrix import ARCH_MATRIX
 from gdare2.cmd import command
 from gdare2.errors import UnsupportedError
-from gdare2.formats.elf import ElfFormatError, read_segments
+from gdare2.formats.elf import (
+    ElfFormatError,
+    read_header,
+    read_needed,
+    read_relocations,
+    read_segments,
+)
 from gdare2.jsonutil import dumps
 
 
@@ -93,6 +99,105 @@ def _sections_commands(session, statement):
             f"f {name} {int(block['size'])} @ {session.format_addr(int(block['addr']))}"
         )
     return lines
+
+
+def _elf_target(session, command: str) -> str:
+    target = session.info.get("target")
+    if not target:
+        raise UnsupportedError(f"{command} needs the original file; this session has no target path")
+    return str(target)
+
+
+@command("ih", "show ELF header fields", aliases=("ihj",))
+def _elf_header(session, statement):
+    target = _elf_target(session, "ih")
+    try:
+        fields = read_header(target).fields()
+    except ElfFormatError as exc:
+        raise UnsupportedError(f"ih: {exc}") from exc
+    except OSError as exc:
+        raise UnsupportedError(f"ih cannot read {target}: {exc}") from exc
+    if statement.cmd.endswith("j"):
+        return _jsonify(fields)
+    return [
+        f"0x{int(item['vaddr']):08x} 0x{int(item['paddr']):08x} "
+        f"0x{int(item['value']):08x} {item['name']}"
+        for item in fields
+    ]
+
+
+@command("iH", "show a compact ELF header table", aliases=("iHj",))
+def _elf_header_compact(session, statement):
+    target = _elf_target(session, "iH")
+    try:
+        fields = read_header(target).fields()
+    except ElfFormatError as exc:
+        raise UnsupportedError(f"iH: {exc}") from exc
+    except OSError as exc:
+        raise UnsupportedError(f"iH cannot read {target}: {exc}") from exc
+    fields = [field for field in fields if field["name"] != "ELF"]
+    if statement.cmd.endswith("j"):
+        return _jsonify(fields)
+    return [
+        f"0x{int(item['vaddr']):08x}  {item['name']:<12} 0x{int(item['value']):x}"
+        for item in fields
+    ]
+
+
+@command("il", "list dynamic libraries (DT_NEEDED)", aliases=("ilj",))
+def _libraries(session, statement):
+    target = _elf_target(session, "il")
+    try:
+        names = read_needed(target)
+    except ElfFormatError as exc:
+        raise UnsupportedError(f"il: {exc}") from exc
+    except OSError as exc:
+        raise UnsupportedError(f"il cannot read {target}: {exc}") from exc
+    if statement.cmd.endswith("j"):
+        return _jsonify(names)
+    return names
+
+
+@command("ir", "list ELF relocations", aliases=("irj",))
+def _relocations(session, statement):
+    target = _elf_target(session, "ir")
+    try:
+        relocations = read_relocations(target)
+        segments = read_segments(target)
+    except ElfFormatError as exc:
+        raise UnsupportedError(f"ir: {exc}") from exc
+    except OSError as exc:
+        raise UnsupportedError(f"ir cannot read {target}: {exc}") from exc
+    rows = []
+    for relocation in relocations:
+        name = relocation.symbol or (
+            f"0x{relocation.addend:x}" if relocation.addend else ""
+        )
+        rows.append(
+            {
+                "vaddr": relocation.offset,
+                "paddr": _file_offset(segments, relocation.offset),
+                "type": relocation.type_name,
+                "ntype": relocation.type,
+                "name": name,
+            }
+        )
+    if statement.cmd.endswith("j"):
+        return _jsonify(rows)
+    lines = ["vaddr      paddr      type   ntype name"]
+    for row in rows:
+        lines.append(
+            f"0x{row['vaddr']:08x} 0x{row['paddr']:08x} "
+            f"{row['type']:<8} {row['ntype']:<5} {row['name']}"
+        )
+    return lines
+
+
+def _file_offset(segments, address: int) -> int:
+    for segment in segments:
+        if segment.vaddr <= address < segment.vaddr + max(segment.filesz, 1):
+            return segment.offset + (address - segment.vaddr)
+    return address
 
 
 @command("iS.", "show the memory block at seek")

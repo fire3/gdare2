@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G18（批次 A/B/C）已完成并验证；
-> G19–G24（批次 D）待做，详见 §10。
+> **进度（2026-11-13）**：G1–G19 已完成并验证；G20–G24（批次 D 剩余）
+> 待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -382,6 +382,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G19 轻量 ELF/PE 格式解析器
 
+- **状态**：✅ 2026-11-13 已完成（ELF64/32 的 `ih`/`iH`/`il`/`ir`；
+  PE 仍按 §8 明确不做）。
+
 - 为 `iSS`、`ih`/`iH`、`il`、`ir` 提供真实数据；优先 ELF64/ELF32，
   PE 可选。
 - 纯客户端、只读原始文件；不依赖 Ghidra 高层模型。
@@ -530,6 +533,16 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G19 完成（轻量 ELF 解析）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| 头/节/动态/重定位 | `formats/elf.py`：`read_header`/`read_sections`/`read_dynamic`/`read_needed`/`read_relocations` | `test_formats_elf.py`（合成 ELF） |
+| 命令 | `cmd/info.py`：`ih`/`ihj`/`iH`/`il`/`ilj`/`ir`/`irj`；`-j` 映射 | `test_session.py::test_elf_header_dynamic_and_relocation_commands` |
+| 真实文件验证 | `/bin/ls`：段 14、库 3、重定位 325，与 `readelf -l/-d/-r` 一致 | 手工 + real smoke |
+
+验证：离线 **313 passed**。
 
 ### 2026-11-13：G18 完成（测试与 CI）
 

@@ -368,6 +368,16 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
   收窄。
 - 地址宽度来自 `asm.bits`；gdare2 不做 r2 的 `asm.addrwidth` 覆盖。
 
+### 11.11 `ih`/`iH`/`il`/`ir` 是原始文件视图
+
+- 这四个命令与 `iSS` 一样读取输入文件，不读取 Ghidra `Program`；PIE/强制基址
+  下显示的是链接时地址。
+- `ih` 的 vaddr/paddr 都是文件偏移（ELF 头本身没有独立物理地址）；
+  `ir` 的 `paddr` 通过 `PT_LOAD` 把重定位 vaddr 映射回文件偏移。
+- 重定位类型名只为 x86-64、ARM、AArch64 建表；其他机器输出 `TYPE_<n>`。
+- `ilj`/`irj` 输出 JSON；r2 6.2.5 的 `ilj`/`irj` 为空，属于 gdare2 扩展。
+- 段/节/符号表损坏时明确报 `NOT_SUPPORTED`，不返回部分错误数据。
+
 ## 12. 不支持的命令
 
 以下命令 v1 明确不做，必须报 `unsupported`，不能回退到相似命令：

@@ -1292,3 +1292,48 @@ def test_cmd_batch_false_uses_individual_calls():
     operations = [op for op, _ in client.calls]
     assert "batch" not in operations
     assert operations.count("disasm") == 2
+
+
+def test_elf_header_dynamic_and_relocation_commands(tmp_path):
+    from test_formats_elf import _elf64_dynamic
+
+    target = tmp_path / "sample.elf"
+    target.write_bytes(_elf64_dynamic())
+    session, _ = make_session()
+    session.info["target"] = str(target)
+
+    header = session.run("ih")
+    assert any("EntryPoint" in line for line in header)
+    assert any("ELF" in line for line in header)
+    assert len(json.loads(session.run("ihj")[0])) == 14
+    assert any("Machine" in line for line in session.run("iH"))
+
+    assert session.run("il") == ["libc.so.6"]
+    assert json.loads(session.run("ilj")[0]) == ["libc.so.6"]
+
+    relocations = session.run("ir")
+    assert relocations[0].startswith("vaddr")
+    assert any("ADD_64" in line and "0x401234" in line for line in relocations)
+    assert any("JUMP_SLOT" in line and "puts" in line for line in relocations)
+    rows = json.loads(session.run("irj")[0])
+    assert rows[1] == {
+        "vaddr": 0x401008,
+        "paddr": 0x401008,
+        "type": "JUMP_SLOT",
+        "ntype": 7,
+        "name": "puts",
+    }
+
+    session.json_default = True
+    assert isinstance(json.loads(session.run("ir")[0]), list)
+
+
+def test_elf_commands_reject_non_elf_and_missing_target(tmp_path):
+    session, _ = make_session()
+    session.info["target"] = str(tmp_path / "missing.bin")
+    session.run("ih")
+    assert session.failed and "ih cannot read" in str(session.last_error)
+    session.failed = False
+    session.info["target"] = None
+    session.run("il")
+    assert session.failed and "no target path" in str(session.last_error)

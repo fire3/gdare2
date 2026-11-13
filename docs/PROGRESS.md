@@ -25,6 +25,7 @@
 | v2 G17 | 完成（2026-11-13） | 反引号替换；`@@f`/`@@F` 排除 external/thunk；`.cmd` 明确不做 |
 | v2 G14 | 完成（2026-11-13） | `px` r2 列布局；`hex.pairs/offset/ascii` 生效 |
 | v2 G18 | 完成（2026-11-13） | 离线 308 passed；`ruff check .` 干净；GitHub Actions CI |
+| v2 G19 | 完成（2026-11-13） | 客户端 ELF 解析：`ih`/`iH`/`il`/`ir`；/bin/ls 与 readelf 一致 |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -130,6 +131,13 @@
   `tests/test_info_formats.py`（ELF 段类型/权限/PN_XNUM/损坏头）。
 - `.github/workflows/ci.yml`：Python 3.12/3.13 上跑 `ruff check .` 与离线 pytest。
 - 全仓 `ruff check .` 清零；离线测试达到 **308 passed**。
+
+## v2 G19（2026-11-13）
+
+- `formats/elf.py` 扩展：头、节、动态段、DT_NEEDED、REL/RELA 重定位与符号名。
+- `ih`/`ihj`/`iH`/`il`/`ilj`/`ir`/`irj`；非 ELF 明确 `NOT_SUPPORTED`。
+- `/bin/ls`：14 个 program header、3 个 DT_NEEDED、325 条重定位，与
+  `readelf -l/-d/-r` 一致。
 
 ## 验证基线（2026-11-13 实测）
 

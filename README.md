@@ -19,7 +19,8 @@ GUI 附着。2026-11-13 的 v2 差距审计中，批次 A/B/C（G1–G18）已�
 `iSS`/`tp`/`tc`、JSON 过滤、`-j`、`i`/`aflq`/`L`/`ej`、颜色/注释、
 `--list-offset` 分页、`f*`/`C*`/`t*`/`iS*`/`ax*` 导出变体、`pf` 格式化、
 `~` 多列/排序、`p` 族只读命令、补全与 rc 层级、反引号替换、`px` 列布局、
-CI 与 308 项离线测试。批次 D（G19–G24，P2 发布工程化）尚未开始。
+CI 与 308 项离线测试；批次 D 的 G19（`ih`/`iH`/`il`/`ir` ELF 解析）已完成，
+G20–G24（rasm2 回退、发布工程化等）待做。
 状态见 [docs/PROGRESS.md](docs/PROGRESS.md)，后续任务见
 [docs/TASKS-v2.md](docs/TASKS-v2.md) 与 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
