@@ -177,7 +177,7 @@ def _project_data(session) -> dict:
     config = {
         key: value
         for key, value in session.config.items()
-        if not getattr(session.config, "explicit", None) or key in session.config.explicit
+        if key in session.config.explicit
     }
     return {
         "version": 1,
@@ -216,7 +216,12 @@ def _projects(session, statement):
     if token == "Po":
         if not path.is_file():
             raise NotFoundError(f"no such project: {path}")
-        data = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise UsageError(f"cannot read project {path}: {exc}") from exc
+        if not isinstance(data, dict):
+            raise UsageError(f"project {path} is not a gdare2 session snapshot")
         session.seek_to(int(data.get("seek", session.seek)))
         session.blocksize = int(data.get("blocksize", session.blocksize))
         for key, value in (data.get("config") or {}).items():
