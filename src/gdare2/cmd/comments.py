@@ -41,9 +41,17 @@ def _comment_lines(session, items) -> list[str]:
     return lines
 
 
+def _comment_query(session, **kwargs) -> list[dict]:
+    return session.call(
+        "comments",
+        include_all=session.config.get_bool("ghidra.comments.all"),
+        **kwargs,
+    )
+
+
 @command("C", "list comments", aliases=("Cj",))
 def _comments(session, statement):
-    payload = session.call("comments", limit=10000)
+    payload = _comment_query(session, limit=10000)
     session.warn_truncated("comment list", len(payload))
     if statement.cmd == "Cj":
         return [dumps(payload)]
@@ -55,7 +63,7 @@ def _comments(session, statement):
 
 @command("C.", "show comments at seek")
 def _comments_at_seek(session, statement):
-    payload = session.call("comments", ea=session.seek, limit=10000)
+    payload = _comment_query(session, ea=session.seek, limit=10000)
     if not payload:
         raise NotFoundError(f"no comment at {session.format_addr(session.seek)}")
     return [
@@ -87,9 +95,9 @@ def _set_unique_comment(session, statement):
 @command("C*", "list comments as replayable commands", aliases=("CC*", "C*."))
 def _comments_commands(session, statement):
     if statement.cmd == "C*.":
-        payload = session.call("comments", ea=session.seek, limit=10000)
+        payload = _comment_query(session, ea=session.seek, limit=10000)
     else:
-        payload = session.call("comments", limit=10000)
+        payload = _comment_query(session, limit=10000)
         session.warn_truncated("comment list", len(payload))
     return _comment_lines(session, payload)
 
@@ -103,7 +111,7 @@ def _delete_comment(session, statement):
 
 @command("CC.", "show the end-of-line comment at seek")
 def _comment_at_seek(session, statement):
-    payload = session.call("comments", ea=session.seek, limit=10000)
+    payload = _comment_query(session, ea=session.seek, limit=10000)
     matches = [item for item in payload if item["kind"] == "eol"]
     if not matches:
         raise NotFoundError(f"no EOL comment at {session.format_addr(session.seek)}")

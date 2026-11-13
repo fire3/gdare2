@@ -64,6 +64,12 @@ KEYS = (
     Key("ghidra.decompile.timeout", 30, INT, "decompiler timeout", minimum=1),
     Key("ghidra.analysis.wait", "wait", STR, "wait | poll | skip"),
     Key("ghidra.flags.write", False, BOOL, "write flags back to Ghidra symbols"),
+    Key(
+        "ghidra.comments.all",
+        False,
+        BOOL,
+        "list loader/analyzer comments as well as gdare2 comments",
+    ),
 )
 
 _BY_NAME = {key.name: key for key in KEYS}

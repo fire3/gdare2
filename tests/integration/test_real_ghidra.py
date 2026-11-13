@@ -197,7 +197,7 @@ def test_manual_analysis_writes_persist(env, tmp_path):
 
     verify = run(env, *base_args, "-qc", "px 5", str(target))
     assert verify.returncode == 0, verify.stderr
-    assert "90 90 c3" in verify.stdout
+    assert "9090 c3" in verify.stdout
 
 
 def test_decompile_and_variables(env):
@@ -337,7 +337,7 @@ def test_byte_writes_are_gated_and_persist(env, tmp_path):
 
     verify = run(env, *base_args, "-qc", "px 2", str(target))
     assert verify.returncode == 0, verify.stderr
-    assert "90 90" in verify.stdout
+    assert "9090" in verify.stdout
 
 
 def test_write_cache_undo_redo_and_masks(env, tmp_path):

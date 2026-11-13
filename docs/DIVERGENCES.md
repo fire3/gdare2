@@ -380,6 +380,26 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
 - `ilj`/`irj` 输出 JSON；r2 6.2.5 的 `ilj`/`irj` 为空，属于 gdare2 扩展。
 - 段/节/符号表损坏时明确报 `NOT_SUPPORTED`，不返回部分错误数据。
 
+### 11.12 `y`/`%`/`c`/`T`/`P` 语义
+
+- `y`（无后缀）yank 当前 block；`yy` 粘贴（idare2 约定）；r2 的 `yy` 是
+  yank、`yp` 是粘贴，gdare2 不复刻这套后缀表。
+- `%` 以 `os.environ` 播种；`%name=value` 只改会话环境，不影响真实进程环境。
+- `c`/`cc`/`c1` 接受“两个地址 + 长度”，不是 r2 的 `c <string>` 形式；
+  差异行格式为 `addr left != right`。
+- `T` 日志只在会话内存在，不写文件；消息 id 从 1 递增。
+- `P` 项目文件是 gdare2 自己的 JSON（`*.gdare2-prj`），不是 r2 项目；
+  只保存显式 config、数值变量、环境、局部 flag 与 seek/blocksize。
+- 前导 `'`/`"` 的字面命令不支持嵌套引号；`$(...)` 不支持嵌套括号。
+
+### 11.13 注释 sidecar
+
+- `C` 默认只显示 gdare2 写入的注释（sidecar），不显示 Ghidra 分析器/加载器
+  注释；`e ghidra.comments.all=true` 显示全部。这会让“刚打开项目时 `C` 为空”
+  显得与 r2 不同，是有意行为。
+- sidecar 记录 `(地址, 类型)`，不记录文本；注释文本仍以 Ghidra 为准。
+- 通过 Ghidra GUI 或非 gdare2 工具写入的注释不在 sidecar 中，默认不显示。
+
 ## 12. 不支持的命令
 
 以下命令 v1 明确不做，必须报 `unsupported`，不能回退到相似命令：

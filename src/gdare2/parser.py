@@ -29,6 +29,7 @@ class Statement:
     shell: bool = False
     iterator: str | None = None
     iterator_size: str | None = None
+    literal: bool = False
 
 
 def _scan(text: str, char: str, *, from_right: bool = True) -> int:
@@ -104,6 +105,19 @@ def parse(line: str) -> list[Statement]:
 def parse_statement(text: str) -> Statement:
     statement = Statement()
     text = text.strip()
+
+    # r2's leading quote runs the command without evaluating internals that
+    # would otherwise be interpreted as a command inside quotes.
+    if text[:1] in ("'", '"'):
+        marker = text[0]
+        statement.literal = True
+        text = text[1:]
+        if text.endswith(marker) and len(text) > 1:
+            text = text[:-1]
+        parts = text.split(None, 1)
+        statement.cmd = parts[0] if parts else ""
+        statement.args = parts[1] if len(parts) > 1 else ""
+        return statement
 
     # 1. redirection (rightmost top-level >, with >> treated as append)
     index = _scan(text, ">")

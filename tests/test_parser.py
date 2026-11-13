@@ -60,3 +60,18 @@ def test_escaped_redirection_is_not_a_redirect():
     statement = parser.parse_statement(r"?e a\>b")
     assert statement.redirect is None
     assert statement.cmd == "?e"
+
+
+def test_leading_quote_makes_the_command_literal():
+    statement = parser.parse_statement("'?e a~b@c")
+    assert statement.literal is True
+    assert statement.cmd == "?e"
+    assert statement.args == "a~b@c"
+    assert statement.filter is None
+    assert statement.tmpseek is None
+
+    statement = parser.parse_statement('"?e a|b>c')
+    assert statement.literal is True
+    assert statement.args == "a|b>c"
+    assert statement.pipe is None
+    assert statement.redirect is None

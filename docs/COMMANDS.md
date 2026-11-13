@@ -428,13 +428,13 @@
 
 | 类别 | 命令 |
 |---|---|
-| 定位/会话 | `s`、`s+`、`s-`、`s++`、`s--`、`s.`、`sb`、`sf`、`sF`、`so`、`sn`、`sp`、`s*`、`b`、`b*`、`q`、`?`、`?V`、`e`/`ej`/`e?`/`e??`、`L` |
-| 反汇编/内存 | `pd`、`pdj`、`pdi`、`pi`、`pdl`、`pD`、`pdf`、`pdfj`、`pdc`、`pdcj`、`pdb`、`pC`、`pA`；`px`、`pxw`、`pxq`、`pxd`、`pxu`、`pxj`、`p8`、`p8j`、`p8s`、`p8d`、`p8x`、`p8,`、`p8*`、`p8b`、`p8f`；`pv` 及 `pvj/1/2/4/8/u/d/p`；`ps`、`psz`、`psw`、`psp`、`psu`、`psx`、`psn`、`psj`；`pc`、`pf`/`pfj`/`pfs`/`pf.`/`pf.<name>`；`pdk`/`pdr` 明确 `NOT_SUPPORTED` |
+| 定位/会话 | `s`、`s+`、`s-`、`s++`、`s--`、`s.`、`sb`、`sf`、`sF`、`so`、`sn`、`sp`、`s*`、`b`、`b*`、`q`、`?`、`?V`、`e`/`ej`/`e?`/`e??`、`L`、`P`/`Ps`/`Po`/`P-`/`Pj`、`%`/`%j`/`%*`、`T`/`Tl`/`Tj`/`Tm`/`T*`/`T-` |
+| 反汇编/内存 | `pd`、`pdj`、`pdi`、`pi`、`pdl`、`pD`、`pdf`、`pdfj`、`pdc`、`pdcj`、`pdb`、`pC`、`pA`；`px`、`pxw`、`pxq`、`pxd`、`pxu`、`pxj`、`p8`、`p8j`、`p8s`、`p8d`、`p8x`、`p8,`、`p8*`、`p8b`、`p8f`；`pv` 及 `pvj/1/2/4/8/u/d/p`；`ps`、`psz`、`psw`、`psp`、`psu`、`psx`、`psn`、`psj`；`pc`、`pf`/`pfj`/`pfs`/`pf.`/`pf.<name>`；`y`/`yy`/`yx`/`yt`/`yf`/`y-`、`c`/`cc`/`c1`、`*`；`pdk`/`pdr` 明确 `NOT_SUPPORTED` |
 | 信息 | `i`、`iI`/`iIj`/`ij`、`iS`/`iSj`/`iS*`/`iSS`/`iSSj`、`iS.`、`ih`/`ihj`、`iH`、`il`/`ilj`、`ir`/`irj`、`it`/`itj`、`iM`、`is`/`isj`、`ii`/`iij`、`ie`/`iej`、`iz`/`izj` |
 | 分析/图 | `afl`/`aflj`、`aflq`、`afln`、`afl+`、`aflc`、`afc`/`afcj`、`afC`/`afCj`、`afi`/`afij`、`afv`/`afvj`、`af`/`aF`、`afn`、`afu`、`a8`、`ad`、`aa`/`aaa`、`afb`/`afbj`、`ab`/`abj`、`ao`/`aoj`、`ai`/`aij`、`agf`/`agfj`/`agfd` |
 | 交叉引用 | `axt`/`axtj`、`axf`/`axfj`、`afx`/`afxj`、`ax*`、`axlj`、`axlq`、`axlc`；`axj` 明确报 `NOT_SUPPORTED`（r2 中是写引用） |
 | 类型/签名 | `t`/`tj`、`t*`、`ts`/`tsj`、`tu`/`tuj`、`te`/`tej`、`tt`/`ttj`、`tf`/`tfj`、`td`、`tc`/`tcj`、`tfc`/`tfcj`、`t-`、`tf-`、`afs`/`afsj`、`tp`/`tpv`/`tpx` |
-| 注释 | `C`/`Cj`、`C*`/`CC*`/`C*.`、`C.`、`CC`、`CCu`、`CC-`、`CC.`、`Cd`、`Cb`、`Cp`、`Cr` |
+| 注释 | `C`/`Cj`、`C*`/`CC*`/`C*.`、`C.`、`CC`、`CCu`、`CC-`、`CC.`、`Cd`、`Cb`、`Cp`、`Cr`；默认只列 gdare2 写入的注释（`e ghidra.comments.all=true` 列全部） |
 | flags | `f`、`f*`、`fj`、`fq`、`f?`、`f-`、`fr`、`f.` |
 | 搜索 | `/`、`/j`、`/x`、`/xj`、`/p`、`/pj`、`/a`、`/aj`、`/w`、`/wj`、`/v` 及 `v1/2/4/8`、`/r`、`/rj`、`//`、`/+`、`/-`；`search.in=raw` |
 | 写入 | `w`、`wq`、`wx`、`w0`、`wf`、`wd`、`wc`、`wc+`、`wc-`、`u`、`U`、`wi` 及宽度/符号变量、`w6d`/`w6e` |

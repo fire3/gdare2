@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Callable
 from dataclasses import replace
@@ -22,6 +23,7 @@ DEFAULT_BLOCKSIZE = 0x100
 MAX_BATCH_TARGETS = 4096
 MAX_BACKTICK_DEPTH = 8
 _BACKTICK = re.compile(r"`([^`]*)`")
+_DOLLAR_SUBST = re.compile(r"\$\(([^()]*)\)")
 
 
 class _ProbeStop(Exception):
@@ -122,6 +124,10 @@ class Session:
         self.seek_history: list[int] = []
         self.seek_future: list[int] = []
         self.vars: dict[str, int] = {}
+        self.env: dict[str, str] = dict(os.environ)
+        self.yank: bytes = b""
+        self.text_log: list[tuple[int, str]] = []
+        self._log_counter = 0
         self.write_cache: list[dict[str, Any]] = []
         self.last_search: dict[str, Any] | None = None
         self.last_result = 0
@@ -265,7 +271,7 @@ class Session:
 
     def _expand_backticks(self, line: str) -> str:
         """Replace a backtick command with the first line of its output."""
-        if "`" not in line:
+        if "`" not in line and "$(" not in line:
             return line
         if line.count("`") % 2:
             raise UsageError("unterminated backtick substitution")
@@ -278,6 +284,7 @@ class Session:
                 produced = self.run(match.group(1))
                 return produced[0].strip() if produced else ""
 
+            line = _DOLLAR_SUBST.sub(replace_match, line)
             return _BACKTICK.sub(replace_match, line)
         finally:
             self._backtick_depth -= 1
@@ -670,6 +677,10 @@ class Session:
             patches=patches,
         )
         self.write_cache.clear()
+
+    def log(self, message: str) -> None:
+        self._log_counter += 1
+        self.text_log.append((self._log_counter, message))
 
     def stderr(self, text: str) -> None:
         import sys

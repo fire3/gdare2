@@ -9,8 +9,7 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G20、G24 已完成并验证；G21–G23
-> （批次 D 剩余）待做，详见 §10。
+> **进度（2026-11-13）**：G1–G24 全部完成并验证。v2 任务书关闭。
 
 ## 0. 结论与目标
 
@@ -402,6 +401,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G21 杂项命令与命令语言
 
+- **状态**：✅ 2026-11-13 已完成（`y`/`%`/`*`/`c`/`T`/`P`；前导引号字面
+  命令与 `$()`；`dt` 明确报错指向 `tp`）。
+
 - `y`（yank/paste：`yy/yx/yt/yf`）、`T`（文本日志）、`P`（会话快照）、
   `%`（环境变量）、`*`（指针读写）、`c/cc/c1`（块比较）、`dt`（类型化读）。
 - 命令语言：`"`/`'` 引用命令、反引号替换、`$()`、`$` 别名（当前只有数值
@@ -410,12 +412,18 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G22 类型格式化增强
 
+- **状态**：✅ 2026-11-13 已完成（成员偏移/大小/类型已输出；`tpx` 支持
+  结构体 hexpairs 输入；未知类型显式报错）。
+
 - 结构体/联合/位域/数组的可读布局；`ts/tu/te` 输出与 r2 字段对齐；
   `tpx` 支持结构体十六进制输入。
 - 验收：`ts Elf64_Ehdr` 输出成员偏移/大小/类型；复杂 C++ 类型失败时显式
   `NOT_SUPPORTED`。
 
 ### G23 用户注释与 `C` 语义
+
+- **状态**：✅ 2026-11-13 已完成（Ghidra program options sidecar；
+  `e ghidra.comments.all` 控制是否包含分析器注释）。
 
 - Ghidra 不区分用户/加载器注释；增加 sidecar（项目内 JSON 或 Ghidra
   自定义属性）记录 gdare2 写入的注释，`C` 默认只列 sidecar + 可选
@@ -539,6 +547,19 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G21/G22/G23 完成（批次 D 收尾）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| G21 yank/env/pointer | `cmd/extras.py`：`y`/`yy`/`yx`/`yt`/`yf`、`%`、`*` | `tests/test_extras.py` |
+| G21 compare/log/projects | `c`/`cc`/`c1`、`T*`、`P*`（`XDG_STATE_HOME/gdare2/projects`） | 同上 |
+| G21 命令语言 | `parser.py` 前导引号字面模式；`session.py` `` `cmd` `` 与 `$(cmd)` | `test_parser.py`、`test_session.py` |
+| G22 类型布局 | `ts/tu/te` 成员输出与 `tpx` 结构体输入 | `test_type_detail_layout_and_struct_hex_input` |
+| G23 注释 sidecar | `ops/comments.py` program options + `include_all`；客户端配置 | `test_comment_listing_respects_include_all`、real 测试 |
+
+验证：离线 **337 passed**；真实 Ghidra `/bin/ls`：`*entry`、`%`、`T`、
+`c`、`y`/`yy` 均可用；`C` 默认 0 行、`e ghidra.comments.all=true` 时 2527 行。
 
 ### 2026-11-13：G20 完成（rasm2 回退）
 

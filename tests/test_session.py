@@ -1337,3 +1337,37 @@ def test_elf_commands_reject_non_elf_and_missing_target(tmp_path):
     session.info["target"] = None
     session.run("il")
     assert session.failed and "no target path" in str(session.last_error)
+
+
+def test_comment_listing_respects_include_all():
+    session, client = make_session()
+    session.run("C")
+    call = [item for item in client.calls if item[0] == "comments"][-1]
+    assert call[1]["include_all"] is False
+    session.config.set("ghidra.comments.all", True)
+    session.run("C")
+    call = [item for item in client.calls if item[0] == "comments"][-1]
+    assert call[1]["include_all"] is True
+
+
+def test_type_detail_layout_and_struct_hex_input():
+    session, client = make_session()
+    lines = session.run("ts demo_struct")
+    assert "kind: struct" in lines
+    assert "size: 8" in lines
+    assert "+0000    4 int field_0" in lines
+
+    session.run("tpx demo_struct 41424344")
+    call = [item for item in client.calls if item[0] == "type_read"][-1]
+    assert call[1]["data"] == b"ABCD"
+
+
+def test_literal_commands_and_dollar_substitution():
+    session, _ = make_session()
+    session.run("'T hello~world")
+    assert session.run("Tm") == ["hello~world"]
+
+    session.run("s $(? 0x2000)")
+    assert session.seek == 0x2000
+    session.run("s `? 0x1000`")
+    assert session.seek == 0x1000

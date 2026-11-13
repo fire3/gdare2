@@ -7,7 +7,7 @@
 
 - 更新时间：2026-11-13
 - 当前基线：M0–M5 完成，v1 收尾完成（Phase A–C 全部关闭）；v2 批次 A/B/C
-  （G1–G18）已完成，P0/P1 命令面关闭
+  （G1–G24）已全部完成，P0/P1/P2 命令面与发布工程化关闭
 - 目标：维护已完成的 v1；不做 Ghidra GUI 附着（2026-11-08 决定）
 - **v2 任务**：v1 之后的兼容性补齐已拆分到
   [TASKS-v2.md](TASKS-v2.md)（2026-11-13 差距审计）；剩余 G19–G24 属 P2
@@ -16,7 +16,7 @@
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `308 passed`，0.20s |
+| 离线 | `.venv/bin/python -m pytest -q` | `337 passed`，0.50s |
 | 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`（一轮 gexec 偶发失败重跑通过） |
 | r2 parity | 同上 `-m parity` | `12 passed`，95.91s |
 | 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，7.56s |

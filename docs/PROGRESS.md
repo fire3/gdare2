@@ -28,6 +28,9 @@
 | v2 G19 | 完成（2026-11-13） | 客户端 ELF 解析：`ih`/`iH`/`il`/`ir`；/bin/ls 与 readelf 一致 |
 | v2 G24 | 完成（2026-11-13） | LICENSE/CHANGELOG/RELEASING/uv.lock/publish CI；动态版本 |
 | v2 G20 | 完成（2026-11-13） | `e asm.assembler=ghidra/rasm2/auto`；`pa/wa//a` 回退 rasm2 |
+| v2 G21 | 完成（2026-11-13） | `y`/`%`/`*`/`c`/`T`/`P`；前导引号与 `$()` |
+| v2 G22 | 完成（2026-11-13） | 类型成员布局与 `tpx` 结构体输入 |
+| v2 G23 | 完成（2026-11-13） | 注释 sidecar；`e ghidra.comments.all` |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -153,11 +156,18 @@
 - `pa`/`wa`/`wa*`/`wa+`/`waf`/`/a` 统一走后端选择；auto 回退输出 WARN。
 - 真实 rasm2 验证：x86 `mov eax, 1`、ARM/PPC/RISC-V 常见指令可汇编。
 
+## v2 G21/G22/G23（2026-11-13）
+
+- G21：`y`/`yy`/`yx`/`yt`/`yf`、`%`、`*`、`c`/`cc`/`c1`、`T*`、`P*`；
+  前导引号字面命令与 `$(cmd)` 替换；`dt` 明确报错。
+- G22：`ts`/`tu`/`te` 成员布局与 `tpx` 结构体 hexpairs 输入。
+- G23：Ghidra program options 中的注释 sidecar；`C` 默认只列用户注释。
+
 ## 验证基线（2026-11-13 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `308 passed`，0.20s |
+| 离线 | `.venv/bin/python -m pytest -q` | `337 passed`，0.50s |
 | 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，308.13s |
 | r2 parity | 同上 `-m parity` | `12 passed`（r2 6.2.5） |
 | 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，6.41s |

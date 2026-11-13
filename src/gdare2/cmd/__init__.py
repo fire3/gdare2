@@ -63,6 +63,7 @@ def load_all() -> None:
         analysis,
         assemble,
         comments,
+        extras,
         flags,
         info,
         meta,
@@ -85,7 +86,14 @@ def all_commands() -> list[CommandSpec]:
     return sorted(_COMMANDS, key=lambda spec: (-len(spec.pattern), spec.pattern))
 
 
-_PREFIX_BASES = (("pfj.", "pfj"), ("pfs.", "pfs"), ("pf.", "pf"))
+_PREFIX_BASES = (
+    ("pfj.", "pfj"),
+    ("pfs.", "pfs"),
+    ("pf.", "pf"),
+    ("%", "%"),
+    ("*", "*"),
+    ("y", "y"),
+)
 
 
 def lookup(cmd: str) -> CommandSpec | None:
