@@ -41,7 +41,12 @@ def format_instruction(
     colour = config.get_int("scr.color") > 0
     address = _paint(format_addr(int(item["addr"]), bits), "addr", colour)
     raw = item.get("bytes", b"")
-    hexbytes = " ".join(f"{byte:02x}" for byte in raw)
+    # r2 renders the byte block as one contiguous hexpair token and elides
+    # instructions longer than eight bytes, which keeps ``~[1]`` on the whole
+    # byte column instead of the first byte.
+    hexbytes = "".join(f"{byte:02x}" for byte in raw[:8])
+    if len(raw) > 8:
+        hexbytes += ".."
     text = str(item.get("text", ""))
     symbol = display_symbol(item, config) if show_symbol else ""
     comment = str(item.get("comment") or "") if config.get_bool("asm.comments") else ""

@@ -26,7 +26,7 @@ def test_basic_instruction_layout():
     config = Config()
     line = format_instruction(_item(), config, 64)
     assert line.startswith("0x0000000000001000")
-    assert "90 90" in line
+    assert "9090" in line
     assert line.endswith("NOP")
     assert "\x1b[" not in line
 
@@ -79,3 +79,19 @@ def test_hexdump_options():
     assert "08 09 0a 0b 0c 0d 0e 0f" in lines[2]
     no_header = hexdump(data, 0x1000, cols=8, header=False, bits=64)
     assert len(no_header) == 3
+
+
+def test_long_instruction_bytes_are_elided_like_r2():
+    config = Config()
+    line = format_instruction(_item(bytes=bytes(range(12))), config, 64)
+    assert "0001020304050607.." in line
+    assert "08090a0b" not in line
+
+
+def test_byte_block_is_one_column_for_filters():
+    from gdare2 import filter as grep
+
+    config = Config()
+    lines = format_disasm([_item()], config, 64)
+    assert grep.apply_spec(lines, "[1]") == ["9090"]
+    assert grep.apply_spec(lines, "[2]") == ["NOP"]
