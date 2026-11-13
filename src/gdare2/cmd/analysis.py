@@ -2,22 +2,45 @@
 
 from __future__ import annotations
 
+import fnmatch
+
 from gdare2.cmd import command, require_write
 from gdare2.errors import UsageError
 from gdare2.fmt.graph import format_ascii_graph, format_dot_graph
 from gdare2.jsonutil import dumps
 
 
+def _match_name(name: str, pattern: str) -> bool:
+    if not pattern:
+        return True
+    if any(char in pattern for char in "*?["):
+        return fnmatch.fnmatchcase(name, pattern)
+    return pattern in name
+
+
 @command("afl", "list functions", aliases=("aflj",))
 def _functions(session, statement):
     payload = session.call("functions", limit=10000)
     session.warn_truncated("function list", len(payload))
+    pattern = statement.args.strip()
+    if pattern:
+        payload = [item for item in payload if _match_name(str(item["name"]), pattern)]
     if statement.cmd.endswith("j"):
         return [dumps(payload)]
     return [
         f"{session.format_addr(int(item['addr']))} {int(item['size']):5d} {item['name']}"
         for item in payload
     ]
+
+
+@command("aflq", "list function addresses")
+def _function_addresses(session, statement):
+    payload = session.call("functions", limit=10000)
+    session.warn_truncated("function list", len(payload))
+    pattern = statement.args.strip()
+    if pattern:
+        payload = [item for item in payload if _match_name(str(item["name"]), pattern)]
+    return [session.format_addr(int(item["addr"])) for item in payload]
 
 
 @command("afln", "list function names")

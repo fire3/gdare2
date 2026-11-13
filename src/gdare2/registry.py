@@ -10,8 +10,9 @@ import re
 import tempfile
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 try:
     import fcntl
@@ -187,6 +188,16 @@ def find_any_live() -> dict[str, Any] | None:
         if live is not None:
             found.append(live)
     return found[0] if len(found) == 1 else None
+
+
+def live_instances() -> list[dict[str, Any]]:
+    """Return every live daemon state, newest registry order first."""
+    states: list[dict[str, Any]] = []
+    for state in iter_states():
+        live = live_instance(str(state["instance_id"]))
+        if live is not None:
+            states.append(live)
+    return states
 
 
 @contextlib.contextmanager

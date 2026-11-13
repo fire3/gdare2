@@ -225,11 +225,7 @@ def _read_script(path: str) -> list[str]:
 
 
 def _list_sessions() -> int:
-    states = []
-    for state in registry.iter_states():
-        live = registry.live_instance(str(state["instance_id"]))
-        if live is not None:
-            states.append(live)
+    states = registry.live_instances()
     if not states:
         print("no live gdare2 instances")
         return 0

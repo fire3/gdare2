@@ -409,10 +409,10 @@
 
 | 类别 | 命令 |
 |---|---|
-| 定位/会话 | `s`、`s+`、`s-`、`s++`、`s--`、`s.`、`sb`、`sf`、`sF`、`so`、`sn`、`sp`、`b`、`q`、`?`、`?V`、`e` |
+| 定位/会话 | `s`、`s+`、`s-`、`s++`、`s--`、`s.`、`sb`、`sf`、`sF`、`so`、`sn`、`sp`、`b`、`q`、`?`、`?V`、`e`/`ej`/`e?`/`e??`、`L` |
 | 反汇编/内存 | `pd`、`pdj`、`pdi`、`pi`、`pdl`、`pD`、`pdf`、`pdfj`、`pdc`、`pdcj`、`px`、`pxw`、`pxq`、`p8`、`p8j`、`pv` 及 `pvj/1/2/4/8`、`ps`、`pc` |
-| 信息 | `iI`/`iIj`/`ij`、`iS`/`iSj`/`iSS`/`iSSj`、`iS.`、`it`/`itj`、`iM`、`is`/`isj`、`ii`/`iij`、`ie`/`iej`、`iz`/`izj` |
-| 分析/图 | `afl`/`aflj`、`afln`、`afl+`、`aflc`、`afc`/`afcj`、`afC`/`afCj`、`afi`/`afij`、`afv`/`afvj`、`af`/`aF`、`afn`、`afu`、`a8`、`ad`、`aa`/`aaa`、`afb`/`afbj`、`ab`/`abj`、`ao`/`aoj`、`ai`/`aij`、`agf`/`agfj`/`agfd` |
+| 信息 | `i`、`iI`/`iIj`/`ij`、`iS`/`iSj`/`iSS`/`iSSj`、`iS.`、`it`/`itj`、`iM`、`is`/`isj`、`ii`/`iij`、`ie`/`iej`、`iz`/`izj` |
+| 分析/图 | `afl`/`aflj`、`aflq`、`afln`、`afl+`、`aflc`、`afc`/`afcj`、`afC`/`afCj`、`afi`/`afij`、`afv`/`afvj`、`af`/`aF`、`afn`、`afu`、`a8`、`ad`、`aa`/`aaa`、`afb`/`afbj`、`ab`/`abj`、`ao`/`aoj`、`ai`/`aij`、`agf`/`agfj`/`agfd` |
 | 交叉引用 | `axt`/`axtj`、`axf`/`axfj`、`afx`/`afxj` |
 | 类型/签名 | `t`/`tj`、`ts`/`tsj`、`tu`/`tuj`、`te`/`tej`、`tt`/`ttj`、`tf`/`tfj`、`td`、`tc`/`tcj`、`tfc`/`tfcj`、`t-`、`tf-`、`afs`/`afsj`、`tp`/`tpv`/`tpx` |
 | 注释 | `C`/`Cj`、`C.`、`CC`、`CC-`、`CC.`、`Cd`、`Cb`、`Cp`、`Cr` |
@@ -500,3 +500,15 @@
   JSON，`<cmd>?` 帮助不受影响。
 - 附带修复：`gdare2d --loader-arg -loader-xxx value` 不再被 argparse
   误判为缺失参数；`DESIGN §8.4` 的 `K V` 接口保持不变。
+
+### 14.7 2026-11-13 v2 G7/G9
+
+- 元命令：新增 `i`（文件信息，首行 `file`）、`aflq`（函数地址）、
+  `L`（列 live daemon，与 `-L` 共用 `registry.live_instances()`）、
+  `ej`（配置 JSON）、`e?`/`e??`（配置键表）；`-j` 支持 `i`/`e`。
+- `afl`/`aflq` 支持名称过滤：无通配符按子串，含 `*?[` 按 glob。
+- 迭代器：`@@F`/`@@S` 跳过无指令函数与不可读 block，汇总一条
+  `WARN: skipped N iterator target(s) without readable data`。
+- 注册表：重复 pattern 在导入期直接抛 `ValueError`；`wi` 只注册一次。
+- 语义复核：r2 的 `@@f` 是 functions；`@@s:from to step` 已实现，
+  `@@s:<symbol-pattern>` 是 gdare2 扩展。

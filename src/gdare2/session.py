@@ -361,6 +361,7 @@ class Session:
             self.stderr(warning)
 
         lines: list[str] = []
+        skipped = 0
         for target, reply in zip(targets, replies, strict=True):
             blocksize = self.blocksize
             if sized and int(target.get("size") or 0) > 0:
@@ -374,9 +375,22 @@ class Session:
             try:
                 lines.extend(spec.handler(view, statement))
             except GdarError as exc:
+                message = str(exc)
+                skipped_target = (
+                    exc.code == "NOT_FOUND" and "no instruction" in message
+                ) or (
+                    "Unable to read bytes" in message or "MemoryAccessException" in message
+                )
+                if skipped_target:
+                    # Function/section iterators include PLT thunks and
+                    # non-readable blocks; these are expected, not failures.
+                    skipped += 1
+                    continue
                 self.failed = True
                 self.last_error = exc
                 self.stderr(f"ERROR: {exc}")
+        if skipped:
+            self.stderr(f"WARN: skipped {skipped} iterator target(s) without readable data")
         return lines
 
     def _iterator_targets(
@@ -492,7 +506,11 @@ class Session:
             return statement
         if statement.cmd == "f" and statement.args.strip():
             return statement
+        if statement.cmd == "e" and statement.args.strip():
+            return statement
         mapping = {
+            "i": "ij",
+            "e": "ej",
             "iI": "iIj",
             "it": "itj",
             "pd": "pdj",

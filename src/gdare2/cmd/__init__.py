@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from gdare2.errors import ReadOnlyError, UnsupportedError
 
 if TYPE_CHECKING:
-    from gdare2.session import Session
     from gdare2.parser import Statement
+    from gdare2.session import Session
 
 Handler = Callable[["Session", "Statement"], list[str]]
 
@@ -28,6 +29,9 @@ _LOADED = False
 
 
 def register(spec: CommandSpec) -> CommandSpec:
+    for existing in _COMMANDS:
+        if existing.pattern == spec.pattern:
+            raise ValueError(f"duplicate command pattern {spec.pattern!r}")
     _COMMANDS.append(spec)
     return spec
 
@@ -41,7 +45,7 @@ def command(
     """Decorator form of :func:`register`."""
 
     def decorate(handler: Handler) -> Handler:
-        _COMMANDS.append(CommandSpec(pattern, summary, handler, detail, aliases))
+        register(CommandSpec(pattern, summary, handler, detail, aliases))
         return handler
 
     return decorate
@@ -59,12 +63,14 @@ def load_all() -> None:
         info,
         meta,
         misc,
-        print as print_cmd,
         search,
         seek,
         types,
         write,
         xrefs,
+    )
+    from gdare2.cmd import (  # noqa: F401
+        print as print_cmd,
     )
 
     _LOADED = True

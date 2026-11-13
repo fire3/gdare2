@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
+from gdare2 import cmd as cmd_module
+from gdare2 import registry
+from gdare2.cmd import CommandSpec, register
 from gdare2.config import Config
 from gdare2.session import Session
 
@@ -15,6 +20,7 @@ class FakeClient:
         if op == "info":
             return {
                 "program": "demo",
+                "target": "/bin/fake",
                 "arch": "x86",
                 "bits": 64,
                 "language": "x86:LE:64:default",
@@ -458,6 +464,102 @@ def test_json_default_resolves_separate_command_specs():
     # ``-j`` must not turn ``<cmd>?`` into the JSON variant.
     help_lines = session.run("afl?")
     assert "list functions" in help_lines[0]
+
+
+def test_file_info_config_and_function_addresses():
+    session, _ = make_session()
+    assert session.run("i")[0] == "file     /bin/fake"
+    assert "arch" in "\n".join(session.run("i"))
+
+    config_keys = session.run("e?")
+    assert any(line.startswith("asm.bytes =") for line in config_keys)
+    payload = json.loads("\n".join(session.run("ej")))
+    assert payload["asm.bytes"] is True
+
+    addresses = session.run("aflq")
+    assert addresses == ["0x0000000000001000"]
+    assert session.run("aflq main") == ["0x0000000000001000"]
+    assert session.run("afl main")[0].endswith("main")
+
+    session.json_default = True
+    assert session.run("e")[0].lstrip().startswith("{")
+    assert json.loads("\n".join(session.run("i")))["program"] == "demo"
+
+
+def test_list_daemon_instances(monkeypatch):
+    session, _ = make_session()
+    monkeypatch.setattr(
+        registry,
+        "live_instances",
+        lambda: [
+            {
+                "instance_id": "abc123",
+                "pid": 42,
+                "port": 4567,
+                "readonly": False,
+                "target": "/bin/fake",
+                "health": {"state": "ready"},
+            }
+        ],
+    )
+    lines = session.run("L")
+    assert lines[0].startswith("instance")
+    assert "abc123" in lines[1]
+    assert "/bin/fake" in lines[1]
+
+
+def test_duplicate_command_registration_is_rejected():
+    spec = CommandSpec("zz-test", "test", lambda session, statement: [])
+    register(spec)
+    try:
+        with pytest.raises(ValueError, match="duplicate command pattern"):
+            register(CommandSpec("zz-test", "test", lambda session, statement: []))
+    finally:
+        cmd_module._COMMANDS.remove(spec)
+    patterns = [item.pattern for item in cmd_module.all_commands()]
+    assert len(patterns) == len(set(patterns))
+
+
+def test_iterator_skips_targets_without_instructions(capsys):
+    class SkipClient(FakeClient):
+        def call(self, op, **args):
+            if op == "iter_targets":
+                return [{"addr": 0x1000, "size": 10}, {"addr": 0xDEAD, "size": 1}]
+            if op == "batch":
+                replies = []
+                for operation in args["ops"]:
+                    address = operation["args"]["ea"]
+                    if address == 0xDEAD:
+                        replies.append(
+                            {
+                                "ok": False,
+                                "error": {
+                                    "code": "NOT_FOUND",
+                                    "message": "no instruction at or after 0xdead",
+                                },
+                            }
+                        )
+                    else:
+                        replies.append(
+                            {
+                                "ok": True,
+                                "result": [
+                                    {
+                                        "addr": address,
+                                        "size": 2,
+                                        "bytes": b"\x90\x90",
+                                        "text": "NOP",
+                                    }
+                                ],
+                            }
+                        )
+                return replies
+            return super().call(op, **args)
+
+    session, _ = make_session(SkipClient())
+    lines = session.run("pd 1 @@F")
+    assert len(lines) == 1
+    assert "skipped 1" in capsys.readouterr().err
 
 
 def test_temporary_seek_is_restored():

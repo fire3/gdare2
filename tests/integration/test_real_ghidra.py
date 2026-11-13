@@ -840,3 +840,42 @@ def test_segments_typed_reads_and_json_filter(env):
     assert filtered.returncode == 0, filtered.stderr
     assert len(filtered.stdout.splitlines()) < len(full.stdout.splitlines())
     assert '"name": "entry"' in filtered.stdout
+
+
+def test_meta_commands_and_iterator_skip(env):
+    target = "/bin/ls"
+
+    file_info = run(env, "-qc", "i", target)
+    assert file_info.returncode == 0, file_info.stderr
+    assert "file" in file_info.stdout
+    assert target in file_info.stdout
+
+    info_json = run(env, "-j", "-qc", "i", target)
+    assert info_json.returncode == 0, info_json.stderr
+    assert json.loads(info_json.stdout)["program"]
+
+    functions = run(env, "-qc", "afl", target)
+    addresses = run(env, "-qc", "aflq", target)
+    assert addresses.returncode == 0, addresses.stderr
+    assert len(addresses.stdout.splitlines()) == len(functions.stdout.splitlines())
+    assert all(line.startswith("0x") for line in addresses.stdout.splitlines())
+
+    config_json = run(env, "-j", "-qc", "e", target)
+    assert config_json.returncode == 0, config_json.stderr
+    assert "asm.bytes" in json.loads(config_json.stdout)
+    config_keys = run(env, "-qc", "e?", target)
+    assert "asm.bytes" in config_keys.stdout
+
+    instances = run(env, "-qc", "L", target)
+    assert instances.returncode == 0, instances.stderr
+    assert "instance" in instances.stdout
+    assert target in instances.stdout
+
+    iteration = run(env, "-qc", "pd 1 @@F", target)
+    assert iteration.returncode == 0, iteration.stderr
+    assert "no instruction at or after" not in iteration.stderr
+    assert "WARN: skipped" in iteration.stderr
+
+    sections = run(env, "-qc", "px 4 @@S", target)
+    assert sections.returncode == 0, sections.stderr
+    assert "ERROR" not in sections.stderr

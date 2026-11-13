@@ -87,7 +87,6 @@ def _width(cmd: str) -> tuple[int, str]:
     return width, sign
 
 
-@command("wi", "read or write an integer at seek")
 def _wi(session, statement):
     width, sign = _width(statement.cmd)
     order = "big" if session.info.get("endian") == "big" else "little"

@@ -168,7 +168,7 @@ def parse_statement(text: str) -> Statement:
     parts = text.split(None, 1)
     cmd = parts[0]
     statement.args = parts[1] if len(parts) > 1 else ""
-    if cmd.endswith("?") and cmd not in ("?", "??", "???", "f?", "$?"):
+    if cmd.endswith("?") and cmd not in ("?", "??", "???", "f?", "$?", "e?"):
         statement.help = True
         cmd = cmd[:-1]
     elif cmd == "??":

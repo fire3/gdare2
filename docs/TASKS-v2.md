@@ -9,7 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G5 已完成并验证；G6–G24 待做，详见 §10。
+> **进度（2026-11-13）**：G1–G5、G7、G9 已完成并验证；G6/G8 待设计确认，
+> G10–G24 待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -172,6 +173,8 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G7 补齐 P0 元命令：`i`、`aflq`、`L`、`ej`
 
+- **状态**：✅ 2026-11-13 已完成（`i`/`aflq`/`L`/`ej`/`e?`/`e??`）。
+
 - **现状**：四条均 `unknown or unsupported command`，但
   `COMMANDS.md` 标 P0，`DIVERGENCES §2.4` 还承诺 `L`。
 - **方案**：
@@ -204,14 +207,17 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G9 健壮性小修
 
+- **状态**：✅ 2026-11-13 已完成（迭代器跳过无指令/不可读目标、重复注册校验、删除重复 `wi`）。
+
 - **G9a** `pd 1 @@F` 对无指令 thunk 刷屏：
   `_dispatch_iterator()` 逐目标捕获 `NO_INSTRUCTION`，跳过并汇总
   `WARN skipped N targets`；`@@S` 跳过不可读 block。
 - **G9b** 注册表重复：`cmd/assemble.py:90` 与 `:133` 重复注册 `wi`。
   在 `cmd.register()`/`command()` 装饰器中检测重复 pattern 并抛
   `ValueError`（参考 idare2 的做法），删除重复注册。
-- **G9c** `@@s` 语义：当前只接受 `@@s:from to step`；r2 的 `@@s <symbol>`
-  是“按符号迭代”。建议同时支持两种形式，或在 `COMMANDS.md` 标明差异。
+- **G9c** `@@s` 语义：r2 的语法是 `@@s:from to step`（已实现）；daemon
+  另外支持 `@@s:<symbol-pattern>` 的符号迭代（gdare2 扩展）。`@@f` 在 r2
+  中是 functions（大小写不敏感），不是 flags；gdare2 的行为已一致。
 - **验收**：重复注册在导入期直接失败；`pd 1 @@F` 无大段 error；`@@S`
   只输出可读块。
 - **测试**：`tests/test_registry.py` 增加重复检测；real_ghidra 断言
@@ -315,12 +321,14 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G17 迭代器语义对齐
 
-- **现状**：`@@f` 被当成 functions（r2 是 flags）；`@@s` 只接受 range；
-  `@@S` 对不可读块报错。
-- **范围**：`@@f`/`@@f:pat`（flags）、`@@s <symbol>`、`@@S`/`@@iS`（可读块）、
-  `@@b`（已有）、`@@F` 跳过无指令函数、反引号命令替换、`.cmd` 输出当命令。
-- **验收**：`pd 1 @@f` 在 flag 地址上迭代；`@@s entry` 可用；
-  `@@S` 无 `MemoryAccessException` 刷屏。
+- **现状（2026-11-13 复核）**：r2 的 `@@f` 就是 functions（`?@@` 输出
+  `x @@f` = "run 'x' on all functions"），gdare2 已一致；`@@s:from to step`
+  与 `@@S` 均已实现。G9 已让 `@@F`/`@@S` 跳过无指令/不可读目标。
+- **剩余范围**：反引号命令替换、`.cmd` 输出当命令、`@@/x` 等搜索迭代的
+  边界检查；`@@s:<symbol-pattern>` 目前是 gdare2 扩展，需在
+  `COMMANDS.md` 标注。
+- **验收**：`pd 1 @@f` 与 `pd 1 @@F` 行为一致；`@@S` 无
+  `MemoryAccessException` 刷屏；反引号替换有单测。
 - **测试**：`tests/test_session.py` 迭代器参数化 + real_ghidra。
 - **涉及**：`session.py`、`parser.py`。
 
@@ -474,8 +482,9 @@ gdare2 -L
 | `-j -qc f` | 文本输出 | JSON 数组 |
 | `e scr.color=3; pd 2` | 无 ANSI 输出 | 未变（G6 待做） |
 | `gdare2 -o 2000` | `unknown option -o` | 未变（G8 待做） |
-| `L` / `i` / `aflq` / `ej` | `unknown or unsupported command` | 未变（G7 待做） |
-| `pd 1 @@F` | 对 0x125000+ thunk 刷屏 | 未变（G9a 待做） |
+| `L` / `i` / `aflq` / `ej` | `unknown or unsupported command` | 全部可用（G7） |
+| `pd 1 @@F` | 对 0x125000+ thunk 刷屏 | 跳过 112 个无指令目标，仅一条 WARN |
+| `px 4 @@S` | 不可读块刷 `MemoryAccessException` | 跳过不可读块，无 ERROR |
 | `C` | 1,544 条，含 `(FDE)` 注释 | 未变（G23 待做） |
 | `--loader-arg -loader-fileOffset 0` | argparse 报缺失参数 | 正常传递 |
 | `pytest -q`（idare2 仓库） | 739 passed | 对照基线 |
@@ -484,6 +493,36 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G7 完成
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| G7 `i` | `cmd/info.py` 抽出 `_info_lines`，新增 `i`（首行 `file`） | `test_session.py::test_file_info_config_and_function_addresses`；real_ghidra `test_meta_commands_and_iterator_skip` |
+| G7 `aflq` | `cmd/analysis.py` 新增地址列表；`afl`/`aflq` 支持名称/glob 过滤 | 同上 |
+| G7 `L` | `registry.live_instances()` 共享给 CLI `-L` 和命令 `L` | `test_session.py::test_list_daemon_instances`；real_ghidra |
+| G7 `ej`/`e?` | `cmd/meta.py`：`e` 增加 `ej`；新增 `e?`/`e??`；parser 不再把 `e?` 当帮助 | `test_session.py`；real_ghidra |
+| `-j` 映射 | `session._maybe_json` 增加 `i→ij`、`e→ej`（带参数时仍按文本） | `test_session.py` |
+
+### 2026-11-13：G9 完成
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| G9a 迭代器跳过 | `session._dispatch_iterator` 跳过 `no instruction` 与不可读块，汇总 `WARN` | `test_session.py::test_iterator_skips_targets_without_instructions`；real_ghidra `pd 1 @@F`/`px 4 @@S` |
+| G9b 重复注册 | `cmd.register()` 检测重复 pattern；删除 `wi` 的重复注册 | `test_session.py::test_duplicate_command_registration_is_rejected` |
+| G9c 语义复核 | 确认 r2 `@@f` = functions、`@@s:from to step` 已实现；修正任务书描述 | 手工 `?@@` 对照 |
+
+验证结果（2026-11-13 第二轮）：
+
+- 离线 `pytest -q`：**180 passed**；
+- `-m real_ghidra`：**24 passed**（362.57s）；
+- `-m arch_matrix`：**2 passed**；
+- `-m parity`：12 skipped（本机 r2 5.5.0 与黄金文件 6.2.5 不匹配）。
+
+未关闭项：G6（颜色/渲染开关）、G8（分页续读，需要先修正 `-o` 与 r2 语义的
+冲突）、G10（文档收尾）、G11–G24。建议下一批先做 G6 与 G8 的设计确认：
+r2 的 `-o` 是"按文件偏移映射"，不是"输出分页"；G8 需要改用
+`--list-offset` 或 `e list.offset`，并在 `DIVERGENCES` 记录。
 
 ### 2026-11-13：G1–G5 完成
 

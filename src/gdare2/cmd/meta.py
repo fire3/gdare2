@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gdare2 import __version__
+from gdare2 import __version__, registry
 from gdare2.cmd import command, help_text, require_write
 from gdare2.errors import UsageError
 from gdare2.jsonutil import dumps
@@ -23,9 +23,11 @@ def _version(session, statement):
     return [f"gdare2 {__version__}", f"ghidra {health.get('ghidra_version', 'unknown')}"]
 
 
-@command("e", "get or set configuration")
+@command("e", "get or set configuration", aliases=("ej",))
 def _config(session, statement):
     args = statement.args.strip()
+    if statement.cmd.endswith("j") and not args:
+        return [dumps({name: value for name, value in session.config.items()})]
     if not args:
         return [f"{name} = {value}" for name, value in session.config.items()]
     if "=" in args:
@@ -33,6 +35,27 @@ def _config(session, statement):
         session.config.set(name.strip(), value.strip())
         return []
     return [str(session.config.get(args))]
+
+
+@command("e?", "list configuration keys", aliases=("e??",))
+def _config_keys(session, statement):
+    return [f"{name} = {value}" for name, value in session.config.items()]
+
+
+@command("L", "list live gdare2 daemon instances")
+def _list_daemons(session, statement):
+    states = registry.live_instances()
+    if not states:
+        return ["no live gdare2 instances"]
+    lines = ["instance          pid     port   state    readonly  target"]
+    for state in states:
+        health = state.get("health", {})
+        lines.append(
+            f"{state['instance_id']:<17} {state.get('pid', 0):<7} "
+            f"{state.get('port', 0):<6} {health.get('state', '?'):<8} "
+            f"{str(bool(state.get('readonly'))):<9} {state.get('target', '')}"
+        )
+    return lines
 
 
 @command("q", "quit", aliases=("q!",))

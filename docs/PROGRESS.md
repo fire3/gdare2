@@ -15,6 +15,7 @@
 | M4 写入 | 完成（v1 范围） | `wx/w/w0/wf/wd`、`wa/wa*/wa+`、`wi`、`w6d/w6e`、`u/U`、`io.cache`+`wc+`、事务与只读门控已可用 |
 | M5 兼容/体验 | 完成 | rc、readline、`-I/-i`、搜索、flags、脚本/变量、汇编、`.gexec`、parity 黄金文件、22 配置架构矩阵、batch meta 已完成 |
 | v2 G1–G5 | 完成（2026-11-13） | `iSS`、`tp/tc`、JSON 过滤、`-j` 查找顺序与 loader-arg 修复；详见 [TASKS-v2.md](TASKS-v2.md) §10 |
+| v2 G7/G9 | 完成（2026-11-13） | `i`/`aflq`/`L`/`ej`/`e?`；迭代器跳过无指令/不可读目标、重复注册校验 |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -33,14 +34,25 @@
 - **附带修复**：`gdare2d` 在 argparse 之前提取 `--loader-arg KEY VALUE`，
   `-loader-fileOffset` 这类以 `-` 开头的 Ghidra 选项不再被误判为缺失参数。
 
+## v2 G7/G9（2026-11-13）
+
+- **G7 元命令**：新增 `i`（文件信息，首行 `file`）、`aflq`（函数地址）、
+  `L`（列 live daemon，与 CLI `-L` 共用 `registry.live_instances()`）、
+  `ej`（配置 JSON）、`e?`/`e??`（配置键表）；`afl`/`aflq` 支持名称/glob 过滤；
+  `-j` 映射补充 `i→ij`、`e→ej`（带参数时保持文本）。
+- **G9 健壮性**：`@@F`/`@@S` 等迭代器跳过无指令函数和不可读 block，汇总为
+  一条 `WARN`；`cmd.register()` 拒绝重复 pattern，删除 `wi` 的重复注册。
+- **语义复核**：r2 的 `@@f` 是 functions（`?@@`），gdare2 行为已一致；
+  `@@s:from to step` 已实现，`@@s:<symbol-pattern>` 是 gdare2 扩展。
+
 ## 验证基线（2026-11-13 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `176 passed`，0.12s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `23 passed`，285.33s |
+| 离线 | `.venv/bin/python -m pytest -q` | `180 passed`，0.14s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，362.57s |
 | r2 parity | 同上 `-m parity` | `12 skipped`（本机 r2 5.5.0 与黄金文件 6.2.5 不匹配） |
-| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，5.79s |
+| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，6.20s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 

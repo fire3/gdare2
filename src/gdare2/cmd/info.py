@@ -18,6 +18,10 @@ def _info(session, statement):
     payload = session.call("info")
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
+    return _info_lines(session, payload)
+
+
+def _info_lines(session, payload: dict) -> list[str]:
     return [
         f"arch     {payload.get('arch')}",
         f"bits     {payload.get('bits')}",
@@ -31,6 +35,14 @@ def _info(session, statement):
         f"project  {payload.get('project')}",
         f"program  {payload.get('program')}",
     ]
+
+
+@command("i", "show information about the current file")
+def _file_info(session, statement):
+    payload = session.call("info")
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    return [f"file     {payload.get('target', '')}", *_info_lines(session, payload)]
 
 
 @command("iS", "list memory blocks", aliases=("iSj",))
