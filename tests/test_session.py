@@ -447,7 +447,7 @@ def test_pd_and_filter():
 def test_px_uses_block_size():
     session, client = make_session()
     lines = session.run("px 4")
-    assert "41 42 43 44" in lines[-1]
+    assert "4142 4344" in lines[-1]
     assert ("read_bytes", {"allow_writes": False, "ea": 0x1000, "size": 4}) in client.calls
 
 
@@ -1077,7 +1077,7 @@ def test_variables_last_output_and_script(tmp_path):
 def test_x_hexdump_variants():
     session, _ = make_session()
     assert session.run("x8 4") == ["41424344"]
-    assert "41 42 43 44" in "\n".join(session.run("x 4"))
+    assert "4142 4344" in "\n".join(session.run("x 4"))
     assert json.loads("\n".join(session.run("xj 4")))["bytes"] == "41424344"
     assert len(session.run("xw 4")) == 1
 

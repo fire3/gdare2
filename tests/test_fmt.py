@@ -76,9 +76,15 @@ def test_hexdump_options():
     lines = hexdump(data, 0x1000, cols=8, header=True, bits=64)
     assert lines[0].startswith("- offset -")
     assert lines[2].startswith("0x0000000000001008")
-    assert "08 09 0a 0b 0c 0d 0e 0f" in lines[2]
+    assert "0809 0a0b 0c0d 0e0f" in lines[2]
     no_header = hexdump(data, 0x1000, cols=8, header=False, bits=64)
     assert len(no_header) == 3
+    no_pairs = hexdump(data, 0x1000, cols=8, header=False, pairs=False, bits=64)
+    assert "08 09 0a 0b" in no_pairs[1]
+    no_offset = hexdump(data, 0x1000, cols=8, header=False, offset=False, bits=64)
+    assert no_offset[0].startswith("0001")
+    no_ascii = hexdump(data, 0x1000, cols=8, header=False, ascii=False, bits=64)
+    assert "." not in no_ascii[0].replace("0x", "")
 
 
 def test_long_instruction_bytes_are_elided_like_r2():

@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G13、G15–G17 已完成并验证；
-> G14、G18–G24 待做，详见 §10。
+> **进度（2026-11-13）**：G1–G18（除 G18 CI 收尾）已完成并验证；
+> G18–G24 待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -301,6 +301,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G14 渲染层与颜色
 
+- **状态**：✅ 2026-11-13 已完成（G6 的颜色/注释/gutter/demangle +
+  G13 的 `pd` 列布局 + 本轮的 `px` 列布局与 `hex.pairs/offset/ascii`）。
+
 - **现状**：`fmt/disasm.py` 40 行；无颜色、无 gutter、无 flag/comment 列；
   助记符大写、操作数无空格（`XOR EBP,EBP`）。
 - **范围**：
@@ -524,6 +527,16 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G14 完成（渲染层收尾）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| `px` 布局 | `fmt/memory.py` 重写：2 字节分组、r2 表头、ASCII 列对齐 | `test_fmt.py::test_hexdump_options` |
+| 配置生效 | `hex.pairs`/`hex.offset`/`hex.ascii`；`print.py` 传入 | 同上；`test_session.py` |
+| `pd` 列布局 | G13 已改为连续 hexpairs | `test_fmt.py` |
+
+验证：离线 **238 passed**；真实 Ghidra 与 r2 6.2.5 的 `px 16` 逐列一致。
 
 ### 2026-11-13：G17 完成（迭代器与命令替换）
 

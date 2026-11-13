@@ -360,6 +360,14 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
   `@@S` 仍会遍历数据块，遇到无指令目标时汇总一条 `WARN`。
 - `@@s:<symbol-pattern>` 是 gdare2 扩展（r2 的 `@@s` 无参数模式）。
 
+### 11.10 十六进制渲染
+
+- `px` 默认按 2 字节一组（r2 的 `hex.pairs=true`）；`e hex.pairs=false` 时
+  逐字节显示。表头使用每字节偏移的低位十六进制，和 r2 一致。
+- `hex.offset=false` 去掉地址列，`hex.ascii=false` 去掉 ASCII 列，表头同步
+  收窄。
+- 地址宽度来自 `asm.bits`；gdare2 不做 r2 的 `asm.addrwidth` 覆盖。
+
 ## 12. 不支持的命令
 
 以下命令 v1 明确不做，必须报 `unsupported`，不能回退到相似命令：

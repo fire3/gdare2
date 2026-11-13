@@ -117,6 +117,9 @@ def _x(session, statement):
         cols=session.config.get_int("hex.cols"),
         header=session.config.get_bool("hex.header"),
         bits=_bits(session),
+        pairs=session.config.get_bool("hex.pairs"),
+        offset=session.config.get_bool("hex.offset"),
+        ascii=session.config.get_bool("hex.ascii"),
     )
 
 
@@ -130,6 +133,9 @@ def _px(session, statement):
         cols=session.config.get_int("hex.cols"),
         header=session.config.get_bool("hex.header"),
         bits=_bits(session),
+        pairs=session.config.get_bool("hex.pairs"),
+        offset=session.config.get_bool("hex.offset"),
+        ascii=session.config.get_bool("hex.ascii"),
     )
 
 
