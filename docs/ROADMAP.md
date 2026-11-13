@@ -17,9 +17,9 @@
 | 套件 | 命令 | 结果 |
 |---|---|---|
 | 离线 | `.venv/bin/python -m pytest -q` | `337 passed`，0.50s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`（一轮 gexec 偶发失败重跑通过） |
-| r2 parity | 同上 `-m parity` | `12 passed`，95.91s |
-| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，7.56s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，439.74s |
+| r2 parity | 同上 `-m parity` | `12 passed`，96.21s |
+| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，7.92s |
 | lint | `ruff check .` | 干净 |
 
 ## 0.1 历史验证基线（2026-11-08）

@@ -168,9 +168,11 @@
 | 套件 | 命令 | 结果 |
 |---|---|---|
 | 离线 | `.venv/bin/python -m pytest -q` | `337 passed`，0.50s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，308.13s |
-| r2 parity | 同上 `-m parity` | `12 passed`（r2 6.2.5） |
-| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，6.41s |
+| lint | `ruff check .` | 干净 |
+| 构建 | `uv build` + `uvx twine check dist/*` | 两项 PASSED |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，439.74s |
+| r2 parity | 同上 `-m parity` | `12 passed`，96.21s（r2 6.2.5） |
+| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，7.92s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。
 
