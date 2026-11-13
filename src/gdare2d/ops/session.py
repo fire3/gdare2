@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from gdare2d.context import to_addr
 from gdare2d.dispatch import op
 from gdare2d.ops._helpers import require_program
 

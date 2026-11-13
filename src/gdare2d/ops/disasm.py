@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gdare2.errors import GdarError, NotFuncError, NotFoundError, UsageError
+from gdare2.errors import GdarError, NotFoundError, NotFuncError, UsageError
 from gdare2d.context import to_addr
 from gdare2d.dispatch import op
 from gdare2d.ops._helpers import (

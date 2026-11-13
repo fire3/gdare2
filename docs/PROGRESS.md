@@ -24,6 +24,7 @@
 | v2 G16 | 完成（2026-11-13） | rc 层级（rc.d/项目祖先/`GDARE2_RCFILE`）；参数补全 flag/函数/`$` 变量 |
 | v2 G17 | 完成（2026-11-13） | 反引号替换；`@@f`/`@@F` 排除 external/thunk；`.cmd` 明确不做 |
 | v2 G14 | 完成（2026-11-13） | `px` r2 列布局；`hex.pairs/offset/ascii` 生效 |
+| v2 G18 | 完成（2026-11-13） | 离线 308 passed；`ruff check .` 干净；GitHub Actions CI |
 
 ## v2 G1–G5（2026-11-13）
 
@@ -123,13 +124,20 @@
 - 新增并生效 `hex.pairs`/`hex.offset`/`hex.ascii`；`px`/`x` 同步。
 - `pd`/`pdi` 列布局在 G13 完成。
 
+## v2 G18（2026-11-13）
+
+- 新增 `tests/test_config.py`（配置默认值/强制转换/只读/reflect）与
+  `tests/test_info_formats.py`（ELF 段类型/权限/PN_XNUM/损坏头）。
+- `.github/workflows/ci.yml`：Python 3.12/3.13 上跑 `ruff check .` 与离线 pytest。
+- 全仓 `ruff check .` 清零；离线测试达到 **308 passed**。
+
 ## 验证基线（2026-11-13 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `190 passed`，0.20s |
+| 离线 | `.venv/bin/python -m pytest -q` | `308 passed`，0.20s |
 | 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，308.13s |
-| r2 parity | 同上 `-m parity` | `12 skipped`（本机 r2 5.5.0 与黄金文件 6.2.5 不匹配） |
+| r2 parity | 同上 `-m parity` | `12 passed`（r2 6.2.5） |
 | 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，6.41s |
 
 环境：Ghidra 12.2 PUBLIC、PyGhidra 3.2.x、Python 3.13.15、radare2 6.2.5。

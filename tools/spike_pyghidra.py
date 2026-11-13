@@ -100,7 +100,6 @@ def _find_main(program, functions):
 
 def _decompile(program, function) -> None:
     import pyghidra
-
     from ghidra.app.decompiler import DecompInterface
 
     interface = DecompInterface()

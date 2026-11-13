@@ -9,8 +9,8 @@
 > 对比方法：真实导入 `/bin/ls`，逐命令执行并核对 r2 输出；离线
 > `pytest -q` = 169 passed（idare2 当前仓库实测 739 passed）。
 >
-> **进度（2026-11-13）**：G1–G18（除 G18 CI 收尾）已完成并验证；
-> G18–G24 待做，详见 §10。
+> **进度（2026-11-13）**：G1–G18（批次 A/B/C）已完成并验证；
+> G19–G24（批次 D）待做，详见 §10。
 
 ## 0. 结论与目标
 
@@ -364,6 +364,9 @@ v2 的目标不是“命令数量追平 idare2”，而是：
 
 ### G18 测试与 CI 补齐
 
+- **状态**：✅ 2026-11-13 已完成（离线 308 passed；`ruff check .` 干净；
+  `.github/workflows/ci.yml` 覆盖 Python 3.12/3.13）。
+
 - **范围**：
   - 新增 `tests/test_config.py`、`test_completion.py`、`test_fmt.py`、
     `test_pf.py`、`test_info_formats.py`；
@@ -527,6 +530,19 @@ gdare2 -L
 > 本表只记录命令是否可用与结构差异。
 
 ## 10. 实施记录
+
+### 2026-11-13：G18 完成（测试与 CI）
+
+| 任务 | 代码 | 测试 |
+|---|---|---|
+| 配置测试 | `tests/test_config.py`：每个默认值、布尔/整数强制、只读与 reflect | 42 项 |
+| 格式测试 | `tests/test_info_formats.py`：段类型名、权限位、重名、PN_XNUM、损坏头 | 28 项 |
+| 补全测试 | `tests/test_completion.py`（G16 已加） | 4 项 |
+| `pf`/`fmt` | `tests/test_pf.py`、`tests/test_fmt.py`（G12/G13/G14 已加） | — |
+| CI | `.github/workflows/ci.yml`：Python 3.12/3.13 + `ruff check .` + 离线 pytest | — |
+| 全仓 lint | `ruff check --fix .` 清理历史遗留的 13 个 I/F/UP 问题 | — |
+
+验证：离线 **308 passed**；`ruff check .` 干净；parity **12 passed**。
 
 ### 2026-11-13：G14 完成（渲染层收尾）
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys
@@ -65,7 +64,7 @@ def ensure(options: Options) -> dict[str, Any]:
         check_protocol(live.get("health", {}))
         return live
     if not options.spawn:
-        raise ConnectionFailure(f"no live daemon for target; --no-spawn forbids starting one")
+        raise ConnectionFailure("no live daemon for target; --no-spawn forbids starting one")
 
     with registry.spawn_lock(ingest_id):
         live = registry.live_instance(ingest_id)

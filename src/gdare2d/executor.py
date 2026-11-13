@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import queue
 import threading
+from collections.abc import Callable
 from concurrent.futures import Future
-from typing import Any, Callable
+from typing import Any
 
 from gdare2.errors import NotReadyError
 
