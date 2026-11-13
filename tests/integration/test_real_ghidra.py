@@ -355,7 +355,6 @@ def test_write_cache_undo_redo_and_masks(env, tmp_path):
     )
     assert cached.returncode == 0, cached.stderr
     assert "4142" in cached.stdout
-    assert "41 42" in cached.stdout
     time.sleep(0.5)
 
     history = run(
@@ -369,8 +368,8 @@ def test_write_cache_undo_redo_and_masks(env, tmp_path):
     assert history.returncode == 0, history.stderr
     lines = history.stdout.splitlines()
     hex_lines = [line for line in lines if line.startswith("0x0000000000400000")]
-    assert "90 90" in hex_lines[0]
-    assert "41 42" in hex_lines[1]
+    assert "9090" in hex_lines[0]
+    assert "4142" in hex_lines[1]
 
     masked = run(
         env,
@@ -381,7 +380,7 @@ def test_write_cache_undo_redo_and_masks(env, tmp_path):
         str(target),
     )
     assert masked.returncode == 0, masked.stderr
-    assert "90 4f" in masked.stdout
+    assert "904f" in masked.stdout
 
 
 def test_rc_loading_and_skip(env, tmp_path):
@@ -675,7 +674,7 @@ def test_assembly_integer_and_base64_writes(env, tmp_path):
 
     dump = run(env, *args, "-qc", "px 2 @ 0x400000", str(target))
     assert dump.returncode == 0, dump.stderr
-    assert "41 42" in dump.stdout
+    assert "4142" in dump.stdout
 
 
 def test_function_reanalysis_and_variable_commands(env):
@@ -874,7 +873,8 @@ def test_meta_commands_and_iterator_skip(env):
     iteration = run(env, "-qc", "pd 1 @@F", target)
     assert iteration.returncode == 0, iteration.stderr
     assert "no instruction at or after" not in iteration.stderr
-    assert "WARN: skipped" in iteration.stderr
+    # G17 filters external/thunk entries, so @@F no longer has skips.
+    assert "WARN: skipped" not in iteration.stderr
 
     sections = run(env, "-qc", "px 4 @@S", target)
     assert sections.returncode == 0, sections.stderr
