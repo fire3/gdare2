@@ -141,6 +141,41 @@ def test_graph_and_address_info(env):
     assert "mapped: true" in details.stdout
 
 
+def test_call_graph(env):
+    target = "/bin/ls"
+    info = run(env, "-j", "-qc", "iI", target)
+    assert info.returncode == 0, info.stderr
+    entry = int(json.loads(info.stdout)["entry"])
+
+    json_graph = run(env, "-qc", f"s 0x{entry:x}; agCj", target)
+    assert json_graph.returncode == 0, json_graph.stderr
+    payload = json.loads(json_graph.stdout)
+    assert payload["depth"] == 1
+    addresses = {int(node["addr"]) for node in payload["nodes"]}
+    assert entry in addresses
+    for edge in payload["edges"]:
+        assert int(edge["src"]) in addresses
+        assert int(edge["dst"]) in addresses
+    external = [node for node in payload["nodes"] if node.get("external")]
+    assert all(int(node["addr"]) in addresses for node in external)
+
+    deep = run(env, "-qc", f"s 0x{entry:x}; agC 2", target)
+    assert deep.returncode == 0, deep.stderr
+    deep_payload = json.loads(
+        run(env, "-j", "-qc", f"s 0x{entry:x}; agCj 2", target).stdout
+    )
+    assert deep_payload["depth"] == 2
+
+    dot = run(env, "-qc", f"s 0x{entry:x}; agCd", target)
+    assert dot.returncode == 0, dot.stderr
+    assert dot.stdout.startswith("digraph callgraph {")
+    assert "->" in dot.stdout
+
+    plain = run(env, "-qc", f"s 0x{entry:x}; agC", target)
+    assert plain.returncode == 0, plain.stderr
+    assert "0x0000000000" in plain.stdout
+
+
 def test_function_writes_are_gated_and_persist(env):
     target = "/bin/ls"
     info = run(env, "-j", "-qc", "iI", target)

@@ -60,6 +60,29 @@ def format_dot_graph(graph: dict) -> list[str]:
     return lines
 
 
+def format_dot_callgraph(payload: dict) -> list[str]:
+    """Render an agCj call-graph payload as Graphviz DOT."""
+    nodes = {int(node["addr"]): node for node in payload.get("nodes") or []}
+    lines = [
+        "digraph callgraph {",
+        "  node [shape=box, fontname=\"monospace\"];",
+        "  edge [fontname=\"monospace\"];",
+    ]
+    for addr in sorted(nodes):
+        node = nodes[addr]
+        label = _dot_escape(str(node.get("name") or f"0x{addr:x}"), line_end=False)
+        attrs = f"label=\"{label}\""
+        if node.get("external"):
+            attrs += ", style=dashed"
+        lines.append(f'  "0x{addr:x}" [{attrs}];')
+    for edge in payload.get("edges") or []:
+        source = f"0x{int(edge['src']):x}"
+        target = f"0x{int(edge['dst']):x}"
+        lines.append(f'  "{source}" -> "{target}";')
+    lines.append("}")
+    return lines
+
+
 def _dot_escape(text: str, *, line_end: bool = True) -> str:
     escaped = (
         text.replace("\\", "\\\\")

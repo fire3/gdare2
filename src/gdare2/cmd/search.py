@@ -28,6 +28,12 @@ def _search_hex(session, statement):
     return _search(session, statement, data, mask)
 
 
+@command("/b", "search backward for hexpairs", aliases=("/bj",))
+def _search_backward(session, statement):
+    data, mask = parse_hexpairs(statement.args)
+    return _execute(session, statement, data, mask, cursor=session.seek, forward=False)
+
+
 @command("/i", "search text ignoring case", aliases=("/ij",))
 def _search_ignore_case(session, statement):
     return _search(
@@ -59,6 +65,34 @@ def _search_assembly(session, statement):
         raise UsageError("/a needs assembly text")
     payload = assembler.assemble(session, session.seek, statement.args)
     return _search(session, statement, bytes(payload["bytes"]), None)
+
+
+@command("/F", "search for the contents of a file", aliases=("/Fj",))
+def _search_file(session, statement):
+    words = statement.args.split()
+    if not words:
+        raise UsageError("/F needs a file path")
+    path = Path(words[0])
+    try:
+        blob = path.read_bytes()
+    except OSError as exc:
+        raise UsageError(f"/F cannot read {words[0]}: {exc}") from exc
+    if len(words) > 1:
+        blob = _file_window(blob, words[1], words[2] if len(words) > 2 else None)
+    return _search(session, statement, blob, None)
+
+
+def _file_window(blob: bytes, offset_text: str, size_text: str | None) -> bytes:
+    try:
+        offset = int(offset_text, 0)
+        size = int(size_text, 0) if size_text is not None else None
+    except ValueError:
+        raise UsageError("/F offset and size must be numeric") from None
+    if offset < 0 or (size is not None and size < 0):
+        raise UsageError("/F offset and size must not be negative")
+    if size is None:
+        return blob[offset:]
+    return blob[offset : offset + size]
 
 
 @command("/w", "search for UTF-16 text", aliases=("/wj",))
@@ -210,6 +244,8 @@ def _execute(
     upper = int(session.config.get_int("search.to")) or None
     scope = scope or session.config.get_str("search.in")
     op = "search_raw" if scope == "raw" else "search"
+    maxhits = int(session.config.get_int("search.maxhits"))
+    limit = min(DEFAULT_LIMIT, maxhits) if maxhits > 0 else DEFAULT_LIMIT
     args = {
         "data": data,
         "mask": mask,
@@ -217,7 +253,7 @@ def _execute(
         "to_addr": upper,
         "cursor": int(cursor),
         "forward": forward,
-        "limit": DEFAULT_LIMIT,
+        "limit": limit,
         "offset": 0,
         "ignore_case": bool(ignore_case),
         "delta": bool(delta),
@@ -373,3 +409,73 @@ def _search_rop(session, statement):
     if statement.cmd.endswith("j"):
         return [dumps({"hits": rows})]
     return [f"{session.format_addr(int(item['addr']))} {item['gadget']}" for item in rows]
+
+
+# Searches r2 offers but gdare2 cannot map onto Ghidra memory search. They stay
+# registered so scripts get an explicit rejection instead of an unknown-command
+# error (per-command decisions are recorded in docs/TASKS-v3.md V12).
+
+
+@command("/e", "match a regex over memory bytes (not supported)")
+def _search_regex_memory(session, statement):
+    raise UnsupportedError("/e regex byte search is not supported; use /r for regex over defined strings")
+
+
+@command("/E", "search addresses matching an esil expression (not supported)")
+def _search_esil(session, statement):
+    raise UnsupportedError(
+        "/E esil-expression search is not supported; use /x with a .. wildcard mask for partial matching"
+    )
+
+
+@command("/f", "forward search modifier (not supported)")
+def _search_forward_modifier(session, statement):
+    raise UnsupportedError("/f is a forward-search modifier; searches already run forward by default")
+
+
+@command(
+    "/g",
+    "search ROP/COP/JOP gadgets by op string (not supported)",
+    aliases=("/gR", "/gC", "/gJ"),
+)
+def _search_gadget_ops(session, statement):
+    raise UnsupportedError("/g gadget search by op string is not supported; use /R for return gadgets")
+
+
+@command("/h", "find a block matching a digest (not supported)")
+def _search_digest(session, statement):
+    raise UnsupportedError("/h digest block search is not supported")
+
+
+@command("/o", "show the offset of n instructions backward (not supported)")
+def _search_instruction_offset(session, statement):
+    raise UnsupportedError("/o instruction-offset lookup is not supported")
+
+
+@command("/O", "show the offset of n instructions backward (not supported)")
+def _search_instruction_offset_fallback(session, statement):
+    raise UnsupportedError("/O mirrors /o; instruction-offset lookup is not supported")
+
+
+@command("/P", "search similar blocks (not supported)")
+def _search_similar_blocks(session, statement):
+    raise UnsupportedError("/P similar-block search is not supported")
+
+
+@command("/s", "find sections by block entropy (not supported)", aliases=("/sj",))
+def _search_entropy(session, statement):
+    raise UnsupportedError("/s entropy section search is not supported")
+
+
+@command(
+    "/V",
+    "search for a value inside a range (not supported)",
+    aliases=("/V1", "/V2", "/V4", "/V8"),
+)
+def _search_value_range(session, statement):
+    raise UnsupportedError("/V value-in-range search is not supported")
+
+
+@command("/!", "inverse search modifier (not supported)")
+def _search_inverse(session, statement):
+    raise UnsupportedError("/! inverse search is not supported")

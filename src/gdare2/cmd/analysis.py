@@ -5,8 +5,8 @@ from __future__ import annotations
 import fnmatch
 
 from gdare2.cmd import command, require_write
-from gdare2.errors import UsageError
-from gdare2.fmt.graph import format_ascii_graph, format_dot_graph
+from gdare2.errors import UnsupportedError, UsageError
+from gdare2.fmt.graph import format_ascii_graph, format_dot_callgraph, format_dot_graph
 from gdare2.jsonutil import dumps
 
 
@@ -302,3 +302,66 @@ def _graph(session, statement):
     if statement.cmd == "agfd":
         return format_dot_graph(payload)
     return format_ascii_graph(payload, session.config, int(session.info.get("bits") or 32))
+
+
+@command("ag", "render the current function graph as DOT")
+def _graph_dot(session, statement):
+    payload = session.call("graph", ea=session.seek)
+    return format_dot_graph(payload)
+
+
+@command("agC", "show the call graph of the current function", aliases=("agCj", "agCd"))
+def _call_graph(session, statement):
+    args = statement.args.strip()
+    try:
+        depth = int(args, 0) if args else 1
+    except ValueError:
+        raise UsageError("agC needs a numeric depth") from None
+    if depth < 0:
+        raise UsageError("agC depth must not be negative")
+    payload = session.call("call_graph", ea=session.seek, depth=depth)
+    if statement.cmd == "agCd":
+        return format_dot_callgraph(payload)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    nodes = {int(node["addr"]): node for node in payload.get("nodes") or []}
+    lines = []
+    for addr in sorted(nodes):
+        node = nodes[addr]
+        marker = " (external)" if node.get("external") else ""
+        lines.append(f"{session.format_addr(addr)} {node['name']}{marker}")
+    for edge in payload.get("edges") or []:
+        source = nodes.get(int(edge["src"])) or {"name": f"0x{int(edge['src']):x}"}
+        target = nodes.get(int(edge["dst"])) or {"name": f"0x{int(edge['dst']):x}"}
+        lines.append(f"{source['name']} -> {target['name']}")
+    return lines
+
+
+@command("agd", "render the function graph as DOT (not supported)")
+def _graph_dot_unsupported(session, statement):
+    raise UnsupportedError("agd is not implemented; use agfd for the DOT function graph")
+
+
+@command("agj", "render the function graph as JSON (not supported)")
+def _graph_json_unsupported(session, statement):
+    raise UnsupportedError("agj is not implemented; use agfj for the JSON function graph")
+
+
+@command("ag*", "render graphs as commands for scripting (not supported)")
+def _graph_commands_unsupported(session, statement):
+    raise UnsupportedError("ag* is not implemented; use agCj/agCd")
+
+
+@command("ag-", "delete a graph node (not supported)")
+def _graph_delete_unsupported(session, statement):
+    raise UnsupportedError("ag- is not implemented; graphs are derived from the function model")
+
+
+@command("agR", "render the global reference graph (not supported)")
+def _graph_refs_unsupported(session, statement):
+    raise UnsupportedError("agR is not implemented; no global reference graph")
+
+
+@command("agX", "export graphs to a file (not supported)")
+def _graph_export_unsupported(session, statement):
+    raise UnsupportedError("agX is not implemented; use agCd > file.dot to export DOT")
