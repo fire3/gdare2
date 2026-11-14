@@ -5,8 +5,8 @@ from __future__ import annotations
 import shlex
 
 from gdare2.cmd import command, require_write
-from gdare2.errors import NotFoundError, UsageError
-from gdare2.flags import Flag
+from gdare2.errors import NotFoundError, UnsupportedError, UsageError
+from gdare2.flags import DEFAULT_SPACE, Flag
 from gdare2.fmt.memory import hexdump
 from gdare2.jsonutil import dumps
 
@@ -240,3 +240,221 @@ def _entries(session) -> list[dict]:
         }
         for flag in session.flag_store.values()
     ]
+
+
+# -- V9: range and resolution helpers ----------------------------------------
+
+
+def _range_bounds(session, statement, usage: str) -> tuple[int, int]:
+    words = statement.args.split()
+    if len(words) != 2:
+        raise UsageError(usage)
+    start = session.eval(words[0])
+    stop = session.eval(words[1])
+    if start > stop:
+        start, stop = stop, start
+    return start, stop
+
+
+def _flag_command(session, flag: Flag) -> str:
+    return (
+        f"f {flag.name} {int(flag.size)} @ {session.format_addr(int(flag.addr))}"
+    )
+
+
+@command(
+    "fc",
+    "list or count flags in an address range",
+    detail="Usage: fc [from to]  - with two addresses list one 'f' command per flag,\nwithout arguments print the number of flags in the current space",
+)
+def _flags_count(session, statement):
+    session.load_flags()
+    if not statement.args.strip():
+        return [str(len(session.flag_store.values()))]
+    start, stop = _range_bounds(session, statement, "fc needs a from and a to address")
+    return [
+        _flag_command(session, flag)
+        for flag in session.flag_store.all_values()
+        if start <= int(flag.addr) <= stop
+    ]
+
+
+@command("fo", "list flags overlapping an address range")
+def _flags_overlap(session, statement):
+    session.load_flags()
+    start, stop = _range_bounds(session, statement, "fo needs a from and a to address")
+    lines = []
+    for flag in session.flag_store.all_values():
+        address = int(flag.addr)
+        size = int(flag.size)
+        end = address + (size if size > 0 else 1)
+        if end <= start or address > stop:
+            continue
+        lines.append(_flag_command(session, flag))
+    return lines
+
+
+@command("fd", "resolve a flag name to its address")
+def _flag_address(session, statement):
+    session.load_flags()
+    name = statement.args.strip()
+    if name:
+        flag = session.flag_store.get(name)
+        if flag is None:
+            raise NotFoundError(f"fd: no flag {name!r}")
+    else:
+        matches = session.flag_store.at(session.seek)
+        if not matches:
+            raise NotFoundError(f"fd: no flag at {session.format_addr(session.seek)}")
+        flag = matches[0]
+    return [session.format_addr(int(flag.addr))]
+
+
+# -- V9: explicit not-supported variants --------------------------------------
+
+
+@command("fb", "set the base address for new flags (not supported)")
+def _flag_base_unsupported(session, statement):
+    raise UnsupportedError(
+        "fb (base address for relative flag moves) has no Ghidra mapping; use f name @ addr"
+    )
+
+
+@command("fe", "create enumerated flags (not supported)")
+def _flag_enum_unsupported(session, statement):
+    raise UnsupportedError(
+        "fe (enumerated flag creation) has no Ghidra mapping; create flags with f in a loop"
+    )
+
+
+@command("ff", "distance in bytes to the next flag (not supported)")
+def _flag_distance_unsupported(session, statement):
+    raise UnsupportedError(
+        "ff (distance to the next flag) has no Ghidra mapping; compare flag addresses with f"
+    )
+
+
+@command("fg", "bring core jobs to the foreground (not supported)")
+def _flag_jobs_unsupported(session, statement):
+    raise UnsupportedError(
+        "fg (foreground core tasks) is an interactive r2 job feature; gdare2 runs synchronously"
+    )
+
+
+@command("fi", "show flags in the current block or range (not supported)")
+def _flag_block_unsupported(session, statement):
+    raise UnsupportedError("fi (flags in block or range) is covered by fc and fo")
+
+
+@command("fC", "set a comment for a flag (not supported)")
+def _flag_comment_unsupported(session, statement):
+    raise UnsupportedError(
+        "fC (per-flag comments) has no Ghidra mapping; use CC for address comments"
+    )
+
+
+@command("fO", "flag as ordinals (not supported)")
+def _flag_ordinals_unsupported(session, statement):
+    raise UnsupportedError("fO (flag ordinals) has no Ghidra mapping")
+
+
+@command("fR", "relocate flags matching a mask (not supported)")
+def _flag_relocate_unsupported(session, statement):
+    raise UnsupportedError("fR (flag relocation by mask) has no Ghidra mapping")
+
+
+@command("fV", "visual flag marks (not supported)")
+def _flag_marks_unsupported(session, statement):
+    raise UnsupportedError("fV (visual flag marks) has no Ghidra mapping")
+
+
+# -- V10: flag spaces ---------------------------------------------------------
+
+
+def _space_line(current: str, space: str) -> str:
+    marker = "*" if space == current else " "
+    return f"{marker} {space}"
+
+
+@command(
+    "fs",
+    "list or select flag spaces",
+    detail="Usage: fs [space]  - without an argument list the known spaces and mark\nthe selected one; with an argument switch to it, creating it implicitly",
+)
+def _flag_spaces(session, statement):
+    session.load_flags()
+    name = statement.args.strip()
+    if name:
+        session.flag_store.set_space(name)
+        return []
+    current = session.flag_store.space
+    return [_space_line(current, space) for space in session.flag_store.spaces()]
+
+
+@command("fsj", "list flag spaces as JSON")
+def _flag_spaces_json(session, statement):
+    session.load_flags()
+    store = session.flag_store
+    return [dumps({"current": store.space, "spaces": store.spaces()})]
+
+
+@command(
+    "fs*",
+    "list flag spaces as replayable commands",
+    detail="Emits one 'fs <space>' line per space with the selected space last,\nso replaying the output restores the selection",
+)
+def _flag_spaces_commands(session, statement):
+    session.load_flags()
+    store = session.flag_store
+    current = store.space
+    ordered = [space for space in store.spaces() if space != current]
+    ordered.append(current)
+    return [f"fs {space}" for space in ordered]
+
+
+@command("fsq", "list flag space names")
+def _flag_spaces_quiet(session, statement):
+    session.load_flags()
+    return list(session.flag_store.spaces())
+
+
+@command(
+    "fs-",
+    "delete an empty flag space",
+    detail="Usage: fs- [space]  - defaults to the selected space; spaces that still\nhold flags are rejected so deletion stays explicit",
+)
+def _flag_space_delete(session, statement):
+    session.load_flags()
+    name = statement.args.strip() or session.flag_store.space
+    if name == DEFAULT_SPACE:
+        raise UsageError("fs- cannot delete the default flag space '*'")
+    if name not in session.flag_store.spaces():
+        raise NotFoundError(f"fs-: no such flag space {name!r}")
+    if any(flag.space == name for flag in session.flag_store.all_values()):
+        raise UsageError(
+            f"fs-: flag space {name!r} still holds flags; delete or move them first"
+        )
+    session.flag_store.remove_space(name)
+    if session.flag_store.space == name:
+        session.flag_store.set_space(DEFAULT_SPACE)
+    return []
+
+
+@command(
+    "fsr",
+    "rename a flag space",
+    detail="Usage: fsr [old] new  - with one argument rename the selected space;\nflags in the old space move to the new one",
+)
+def _flag_space_rename(session, statement):
+    session.load_flags()
+    parts = statement.args.split()
+    if len(parts) == 1:
+        old, new = session.flag_store.space, parts[0]
+    elif len(parts) == 2:
+        old, new = parts
+    else:
+        raise UsageError("fsr needs an old and a new space name")
+    if old not in session.flag_store.spaces():
+        raise NotFoundError(f"fsr: no such flag space {old!r}")
+    session.flag_store.rename_space(old, new)
+    return []

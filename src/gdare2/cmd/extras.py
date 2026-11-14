@@ -8,15 +8,39 @@ import shlex
 from pathlib import Path
 
 from gdare2.cmd import command, require_write
-from gdare2.errors import NotFoundError, UsageError
-from gdare2.flags import Flag
+from gdare2.errors import NotFoundError, UnsupportedError, UsageError
+from gdare2.flags import DEFAULT_SPACE, Flag
 from gdare2.jsonutil import dumps
 
 PROJECT_SUFFIX = ".gdare2-prj"
 
 
 # -- yank ------------------------------------------------------------------
-@command("y", "yank bytes, hexpairs, text or a file", detail="yy pastes the clipboard")
+@command(
+    "y",
+    "yank bytes, hexpairs, text or a file",
+    detail=(
+        "yy pastes the clipboard; yx sets hexpairs; yt sets text; yf reads a file;"
+        " y- clears it; yj prints the buffer as JSON; y* prints a replayable yx line;"
+        " yp pastes and prints hexpairs; yq pastes quietly; ys/yw yank NUL-terminated"
+        " narrow/wide (UTF-16) strings; yz keeps the trailing NUL"
+    ),
+    aliases=(
+        "yy",
+        "y-",
+        "yx",
+        "yt",
+        "yf",
+        "yj",
+        "y*",
+        "yp",
+        "yq",
+        "ys",
+        "yw",
+        "yz",
+        "y!",
+    ),
+)
 def _yank(session, statement):
     token = statement.cmd
     argument = statement.args.strip()
@@ -44,6 +68,39 @@ def _yank(session, statement):
         except OSError as exc:
             raise UsageError(f"cannot read {argument}: {exc}") from exc
         return []
+    if token == "yj":
+        data = bytes(session.yank)
+        return [dumps({"length": len(data), "bytes": data.hex()})]
+    if token == "y*":
+        data = bytes(session.yank)
+        return [f"yx {data.hex()}"] if data else []
+    if token == "yp":
+        return [_paste_data(session).hex()]
+    if token == "yq":
+        return _paste(session, echo=False)
+    if token == "y!":
+        raise UnsupportedError(
+            "y! needs an external clipboard integration; use yt/yx/yf to fill the buffer"
+        )
+    if token == "ys":
+        raw = bytes(
+            session.call("read_bytes", ea=session.seek, size=_yank_length(session, argument))
+        )
+        session.yank = raw.split(b"\x00", 1)[0].decode("latin-1").encode("latin-1")
+        return [f"-- yanked {len(session.yank)} byte(s) --"]
+    if token == "yw":
+        raw = bytes(
+            session.call("read_bytes", ea=session.seek, size=_yank_length(session, argument))
+        )
+        codec = "utf-16-be" if session.info.get("endian") == "big" else "utf-16-le"
+        raw = raw[: len(raw) - len(raw) % 2]
+        session.yank = raw.decode(codec, errors="replace").split("\x00", 1)[0].encode(codec)
+        return [f"-- yanked {len(session.yank)} byte(s) --"]
+    if token == "yz":
+        session.yank = bytes(
+            session.call("read_bytes", ea=session.seek, size=_yank_length(session, argument))
+        )
+        return [f"-- yanked {len(session.yank)} byte(s) including the terminator --"]
     if token != "y":
         raise UsageError(f"unsupported yank command {token!r} (see y?)")
     length = session.eval(argument) if argument else session.blocksize
@@ -53,12 +110,27 @@ def _yank(session, statement):
     return [f"-- yanked {len(session.yank)} byte(s) --"]
 
 
-def _paste(session) -> list[str]:
+def _yank_length(session, argument: str) -> int:
+    length = session.eval(argument) if argument else session.blocksize
+    if length <= 0:
+        raise UsageError("yank length must be positive")
+    return length
+
+
+def _paste_data(session) -> bytes:
     if not session.yank:
         raise UsageError("nothing yanked")
     require_write(session)
-    session.call("write_bytes", ea=session.seek, data=session.yank)
-    return [f"-- pasted {len(session.yank)} byte(s) --"]
+    data = bytes(session.yank)
+    session.call("write_bytes", ea=session.seek, data=data)
+    return data
+
+
+def _paste(session, *, echo: bool = True) -> list[str]:
+    data = _paste_data(session)
+    if not echo:
+        return []
+    return [f"-- pasted {len(data)} byte(s) --"]
 
 
 # -- environment -----------------------------------------------------------
@@ -127,6 +199,112 @@ def _compare(session, statement):
             if statement.cmd == "c1":
                 break
     return lines
+
+
+def _compare_operands(session, statement) -> tuple[int, int, int]:
+    words = statement.args.split()
+    if len(words) < 3:
+        raise UsageError(f"{statement.cmd} needs two addresses and a length")
+    first = session.eval(words[0])
+    second = session.eval(words[1])
+    length = session.eval(words[2])
+    if length <= 0:
+        raise UsageError("compare length must be positive")
+    return first, second, length
+
+
+def _compare_words(session, statement, width: int) -> list[str]:
+    first, second, length = _compare_operands(session, statement)
+    left = bytes(session.call("read_bytes", ea=first, size=length))
+    right = bytes(session.call("read_bytes", ea=second, size=length))
+    order = "big" if session.info.get("endian") == "big" else "little"
+    addr_width = 16 if int(session.info.get("bits") or 32) == 64 else 8
+    lines = []
+    for offset in range(0, min(len(left), len(right)) - width + 1, width):
+        lval = int.from_bytes(left[offset : offset + width], order)
+        rval = int.from_bytes(right[offset : offset + width], order)
+        if lval != rval:
+            lines.append(
+                f"0x{first + offset:0{addr_width}x}"
+                f" 0x{lval:0{width * 2}x} != 0x{rval:0{width * 2}x}"
+            )
+    return lines
+
+
+@command("c2", "compare two blocks 2 bytes at a time")
+def _compare_word2(session, statement):
+    return _compare_words(session, statement, 2)
+
+
+@command("c4", "compare two blocks 4 bytes at a time")
+def _compare_word4(session, statement):
+    return _compare_words(session, statement, 4)
+
+
+@command("c8", "compare two blocks 8 bytes at a time")
+def _compare_word8(session, statement):
+    return _compare_words(session, statement, 8)
+
+
+@command("cJ", "compare two blocks and emit a JSON diff")
+def _compare_json(session, statement):
+    first, second, length = _compare_operands(session, statement)
+    left = bytes(session.call("read_bytes", ea=first, size=length))
+    right = bytes(session.call("read_bytes", ea=second, size=length))
+    differences = [
+        {"addr": first + index, "from": left[index], "to": right[index]}
+        for index in range(min(len(left), len(right)))
+        if left[index] != right[index]
+    ]
+    return [dumps({"same": not differences, "differences": differences})]
+
+
+def _ascii_guess(byte: int) -> str:
+    return chr(byte) if 0x20 <= byte < 0x7F else "."
+
+
+@command("cv", "compare two blocks with an annotated byte diff")
+def _compare_verbose(session, statement):
+    first, second, length = _compare_operands(session, statement)
+    left = bytes(session.call("read_bytes", ea=first, size=length))
+    right = bytes(session.call("read_bytes", ea=second, size=length))
+    addr_width = 16 if int(session.info.get("bits") or 32) == 64 else 8
+    return [
+        f"0x{first + index:0{addr_width}x} "
+        f"(0x{left[index]:02x} != 0x{right[index]:02x}) "
+        f"{_ascii_guess(left[index])} {_ascii_guess(right[index])}"
+        for index in range(min(len(left), len(right)))
+        if left[index] != right[index]
+    ]
+
+
+@command("ca", "compare decompiler ASTs (unsupported)")
+def _compare_ast_unsupported(session, statement):
+    raise UnsupportedError(
+        "ca compares decompiler ASTs; gdare2 has no AST/type model; use c/cc/cJ for byte diffs"
+    )
+
+
+@command("cd", "compare against an r2 patch directory (unsupported)")
+def _compare_dir_unsupported(session, statement):
+    raise UnsupportedError("cd applies r2 patch directories; not applicable to a Ghidra session")
+
+
+@command("cf", "compare against an r2 patch file (unsupported)")
+def _compare_file_unsupported(session, statement):
+    raise UnsupportedError(
+        "cf applies r2 patch files; not applicable to a Ghidra session; use c/cJ for block diffs"
+    )
+
+
+@command("cX", "interactive hexdiff view (unsupported)")
+def _compare_hexdiff_unsupported(session, statement):
+    raise UnsupportedError("cX needs a terminal hexdiff UI; use c/cv/cJ for textual diffs")
+
+
+@command("cV", "interactive visual diff view (unsupported)")
+def _compare_visual_unsupported(session, statement):
+    raise UnsupportedError("cV needs a terminal visual diff UI; use c/cv/cJ for textual diffs")
 
 
 # -- text log --------------------------------------------------------------
@@ -202,7 +380,7 @@ def _project_data(session) -> dict:
         if key in session.config.explicit
     }
     return {
-        "version": 1,
+        "version": 2,
         "seek": session.seek,
         "blocksize": session.blocksize,
         "notes": session.project_notes,
@@ -210,8 +388,13 @@ def _project_data(session) -> dict:
         "vars": dict(session.vars),
         "env": dict(session.env),
         "flags": [
-            {"name": flag.name, "addr": int(flag.addr), "size": int(flag.size)}
-            for flag in session.flag_store.values()
+            {
+                "name": flag.name,
+                "addr": int(flag.addr),
+                "size": int(flag.size),
+                "space": flag.space,
+            }
+            for flag in session.flag_store.all_values()
             if flag.local
         ],
         "hidden_ranges": [list(item) for item in session.hidden_ranges],
@@ -297,9 +480,18 @@ def _projects(session, statement):
         session.vars.update({key: int(value) for key, value in (data.get("vars") or {}).items()})
         session.env.update({key: str(value) for key, value in (data.get("env") or {}).items()})
         session.project_notes = str(data.get("notes") or "")
+        # Load daemon flags first so a later load_flags() cannot wipe the
+        # project's local flags; the snapshot flags are layered on top.
+        session.load_flags()
         for item in data.get("flags") or []:
             session.flag_store.add(
-                Flag(item["name"], int(item["addr"]), size=int(item.get("size", 0)), local=True)
+                Flag(
+                    item["name"],
+                    int(item["addr"]),
+                    size=int(item.get("size", 0)),
+                    local=True,
+                    space=str(item.get("space") or DEFAULT_SPACE),
+                )
             )
         session.hidden_ranges = [
             (int(item[0]), int(item[1])) for item in data.get("hidden_ranges") or []

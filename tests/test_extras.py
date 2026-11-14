@@ -8,7 +8,17 @@ import os
 from test_session import FakeClient, make_session
 
 from gdare2 import cmd as cmd_module  # noqa: F401  (loads command modules lazily)
-from gdare2.errors import UsageError
+from gdare2.errors import UnsupportedError, UsageError
+
+
+class DiffClient(FakeClient):
+    """Serves different blocks at 0x1000 and 0x2000 so compares produce diffs."""
+
+    def call(self, op, **args):
+        if op == "read_bytes":
+            self.calls.append((op, args))
+            return b"ABCD" if args["ea"] == 0x1000 else b"AXCD"
+        return super().call(op, **args)
 
 
 def test_yank_and_paste_variants(tmp_path):
@@ -44,6 +54,98 @@ def test_yank_requires_writes_for_paste():
     assert session.failed
     assert isinstance(session.last_error, Exception)
     assert "read-only" in str(session.last_error)
+
+
+def test_yank_json_and_replay_variants():
+    session, _ = make_session()
+    session.run("y 4")
+    assert json.loads(session.run("yj")[0]) == {"length": 4, "bytes": "41424344"}
+    replay = session.run("y*")
+    assert replay == ["yx 41424344"]
+    fresh, _ = make_session()
+    assert fresh.run(replay[0]) == []
+    assert fresh.yank == session.yank
+    session.run("y-")
+    assert json.loads(session.run("yj")[0]) == {"length": 0, "bytes": ""}
+    assert session.run("y*") == []
+
+
+def test_yank_paste_print_variants():
+    session, client = make_session()
+    session.run("yx 4142")
+    session.readonly = False
+    assert session.run("yp") == ["4142"]
+    assert ("write_bytes", {"allow_writes": True, "ea": 0x1000, "data": b"AB"}) in client.calls
+    assert session.run("yq") == []
+    assert client.calls[-1] == ("write_bytes", {"allow_writes": True, "ea": 0x1000, "data": b"AB"})
+
+
+def test_yank_paste_variants_require_writes():
+    session, _ = make_session()
+    session.run("yx 4142")
+    session.run("yp")
+    assert session.failed and "read-only" in str(session.last_error)
+    session.failed = False
+    session.run("yq")
+    assert session.failed and "read-only" in str(session.last_error)
+
+
+def test_yank_string_variants():
+    class TextClient(FakeClient):
+        def call(self, op, **args):
+            if op == "read_bytes":
+                self.calls.append((op, args))
+                return b"hello\x00world"[: args["size"]]
+            return super().call(op, **args)
+
+    session, _ = make_session(TextClient())
+    assert session.run("ys 4") == ["-- yanked 4 byte(s) --"]
+    assert session.yank == b"hell"
+    assert session.run("ys") == ["-- yanked 5 byte(s) --"]
+    assert session.yank == b"hello"
+    assert session.run("yz 6") == ["-- yanked 6 byte(s) including the terminator --"]
+    assert session.yank == b"hello\x00"
+    session.run("yz 0")
+    assert session.failed and "positive" in str(session.last_error)
+
+
+def test_yank_wide_string_variants():
+    class WideClient(FakeClient):
+        def call(self, op, **args):
+            if op == "read_bytes":
+                self.calls.append((op, args))
+                return b"h\x00i\x00\x00\x00"[: args["size"]]
+            return super().call(op, **args)
+
+    session, _ = make_session(WideClient())
+    assert session.run("yw 6") == ["-- yanked 4 byte(s) --"]
+    assert session.yank == b"h\x00i\x00"
+    session.run("yw 5")
+    assert session.yank == b"h\x00i\x00"  # odd trailing byte is dropped
+
+
+def test_yank_wide_string_is_endian_aware():
+    class RawClient(FakeClient):
+        def call(self, op, **args):
+            if op == "read_bytes":
+                self.calls.append((op, args))
+                return b"\x00\xd8\x00h"[: args["size"]]
+            return super().call(op, **args)
+
+    session, _ = make_session(RawClient())
+    session.info["endian"] = "big"
+    # Big-endian decodes 0x00d8 as U+00D8, while little-endian would hit an
+    # unpaired surrogate and replace it, so this pins the codec choice.
+    assert session.run("yw 4") == ["-- yanked 4 byte(s) --"]
+    assert session.yank == b"\x00\xd8\x00h"
+
+
+def test_yank_clipboard_is_explicitly_unsupported():
+    session, _ = make_session()
+    session.run("y!")
+    assert session.failed
+    assert isinstance(session.last_error, UnsupportedError)
+    assert "clipboard" in str(session.last_error)
 
 
 def test_environment_commands():
@@ -92,6 +194,44 @@ def test_compare_commands():
     ]
     session.run("c 0x1000")
     assert session.failed and "two addresses and a length" in str(session.last_error)
+
+
+def test_compare_word_variants():
+    session, _ = make_session(DiffClient())
+    assert session.run("c2 0x1000 0x2000 4") == ["0x0000000000001000 0x4241 != 0x5841"]
+    assert session.run("c4 0x1000 0x2000 4") == [
+        "0x0000000000001000 0x44434241 != 0x44435841"
+    ]
+    assert session.run("c8 0x1000 0x2000 4") == []  # shorter than one word
+    session.info["endian"] = "big"
+    assert session.run("c2 0x1000 0x2000 2") == ["0x0000000000001000 0x4142 != 0x4158"]
+    session.failed = False
+    session.run("c2 0x1000")
+    assert session.failed and "two addresses and a length" in str(session.last_error)
+
+
+def test_compare_json_and_verbose():
+    session, _ = make_session(DiffClient())
+    payload = json.loads(session.run("cJ 0x1000 0x2000 4")[0])
+    assert payload == {
+        "same": False,
+        "differences": [{"addr": 0x1001, "from": 0x42, "to": 0x58}],
+    }
+    assert json.loads(session.run("cJ 0x1000 0x1000 4")[0]) == {
+        "same": True,
+        "differences": [],
+    }
+    assert session.run("cv 0x1000 0x2000 4") == ["0x0000000000001001 (0x42 != 0x58) B X"]
+
+
+def test_compare_unsupported_variants():
+    session, _ = make_session()
+    for token in ("ca", "cd", "cf", "cX", "cV"):
+        session.failed = False
+        session.run(token)
+        assert session.failed, token
+        assert isinstance(session.last_error, UnsupportedError), token
+        assert session.last_error.code == "NOT_SUPPORTED"
 
 
 def test_text_log_variants():

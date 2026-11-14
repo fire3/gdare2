@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from gdare2.cmd import command
-from gdare2.errors import NotFoundError, UsageError
+from gdare2.errors import NotFoundError, UnsupportedError, UsageError
 from gdare2.jsonutil import dumps
 
 
@@ -101,7 +101,7 @@ def _blocksize_json(session, statement):
     return [dumps({"blocksize": session.blocksize, "blocksize_limit": session.max_blocksize})]
 
 
-@command("bf", "set the block size from a flag")
+@command("bf", "set the block size from a flag", aliases=("fm",))
 def _blocksize_flag(session, statement):
     text = statement.args.strip()
     if not text:
@@ -210,3 +210,60 @@ def _blocksize(session, statement):
         raise UsageError(f"block size exceeds bm limit {session.max_blocksize}")
     session.blocksize = value
     return []
+
+
+@command(
+    "sa",
+    "seek to the block-size aligned address",
+    detail="Aligns the seek (or the given address) down to a multiple of the block size",
+)
+def _seek_aligned(session, statement):
+    text = statement.args.strip()
+    if session.blocksize <= 0:
+        raise UsageError("sa needs a positive block size")
+    address = session.eval(text) if text else session.seek
+    session.seek_to(address - (address % session.blocksize))
+    return []
+
+
+@command("sC", "seek to the first comment containing text")
+def _seek_comment(session, statement):
+    text = statement.args.strip()
+    if not text:
+        raise UsageError("sC needs comment text to search")
+    payload = session.call(
+        "comments",
+        include_all=session.config.get_bool("ghidra.comments.all"),
+        limit=10000,
+    )
+    needle = text.lower()
+    for item in payload:
+        if needle in str(item.get("text") or "").lower():
+            session.seek_to(int(item["addr"]))
+            return []
+    raise NotFoundError(f"sC: no comment containing {text!r}")
+
+
+@command("sd", "show the delta between the seek and the image base")
+def _seek_delta(session, statement):
+    text = statement.args.strip()
+    address = session.eval(text) if text else session.seek
+    base = int(session.info.get("image_base") or 0)
+    delta = address - base
+    return [f"-0x{-delta:x}" if delta < 0 else session.format_addr(delta)]
+
+
+@command("sr", "seek to a register value (not supported)")
+def _seek_register(session, statement):
+    raise UnsupportedError(
+        "sr needs live register state; static analysis has no registers,"
+        " use @s:<name> to seek to a symbol"
+    )
+
+
+@command("ss", "seek to a source line (not supported)")
+def _seek_source(session, statement):
+    raise UnsupportedError(
+        "ss (seek to a source line) has no Ghidra line mapping;"
+        " record lines with CL and seek with s"
+    )

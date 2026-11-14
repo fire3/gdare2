@@ -13,6 +13,7 @@ from itertools import zip_longest
 from gdare2 import pf as pf_format
 from gdare2.cmd import command
 from gdare2.errors import GdarError, UnsupportedError, UsageError
+from gdare2.fmt import codegen
 from gdare2.fmt import strings as stringfmt
 from gdare2.fmt.disasm import format_disasm, format_instruction
 from gdare2.fmt.memory import hexdump
@@ -473,6 +474,105 @@ def _pc(session, statement):
     size = _range_size(session, _number(statement.args, session.blocksize))
     data = bytes(session.call("read_bytes", ea=session.seek, size=size))
     return [", ".join(f"0x{byte:02x}" for byte in data)]
+
+
+def _pc_payload(session, statement) -> bytes:
+    """Read the block for the ``pc`` code generators; length must be positive."""
+    text = statement.args.strip()
+    size = _range_size(session, session.eval(text) if text else session.blocksize)
+    if size <= 0:
+        raise UsageError("pc needs a positive byte length")
+    return bytes(session.call("read_bytes", ea=session.seek, size=size))
+
+
+@command("pcb", "print the block as a binary bit string")
+def _pc_binary(session, statement):
+    return codegen.format_binary(_pc_payload(session, statement), session.seek)
+
+
+@command("pcc", "print the block as a C char array")
+def _pc_c_char(session, statement):
+    return codegen.format_c_char(_pc_payload(session, statement), session.seek)
+
+
+@command("pcd", "print the block as a C decimal byte array")
+def _pc_c_decimal(session, statement):
+    return codegen.format_c_decimal(_pc_payload(session, statement), session.seek)
+
+
+@command("pcF", "print the block as a Fortran array")
+def _pc_fortran(session, statement):
+    return codegen.format_fortran(_pc_payload(session, statement), session.seek)
+
+
+@command("pcg", "print the block as a Go slice")
+def _pc_go(session, statement):
+    return codegen.format_go(_pc_payload(session, statement), session.seek)
+
+
+@command("pci", "print the block as a C include byte array")
+def _pc_c_include(session, statement):
+    return codegen.format_c_include(_pc_payload(session, statement), session.seek)
+
+
+@command("pcJ", "print the block as a JSON array of bytes")
+def _pc_json(session, statement):
+    return codegen.format_json(_pc_payload(session, statement), session.seek)
+
+
+@command("pcq", "print the block as quiet hexpairs")
+def _pc_quiet(session, statement):
+    return codegen.format_hexpairs(_pc_payload(session, statement), session.seek)
+
+
+@command("pcr", "print the block as a Rust array")
+def _pc_rust(session, statement):
+    return codegen.format_rust(_pc_payload(session, statement), session.seek)
+
+
+@command("pcS", "print the block as a Swift array")
+def _pc_swift(session, statement):
+    return codegen.format_swift(_pc_payload(session, statement), session.seek)
+
+
+@command("pct", "print the block as a TypeScript array")
+def _pc_typescript(session, statement):
+    return codegen.format_typescript(_pc_payload(session, statement), session.seek)
+
+
+@command("pcu", "print the block as shell hexpairs")
+def _pc_shell(session, statement):
+    return codegen.format_shell(_pc_payload(session, statement), session.seek)
+
+
+@command("pcv", "print the block as a Verilog byte array")
+def _pc_verilog(session, statement):
+    return codegen.format_verilog(_pc_payload(session, statement), session.seek)
+
+
+@command("pcw", "print the block as a WASM data segment")
+def _pc_wasm(session, statement):
+    return codegen.format_wasm(_pc_payload(session, statement), session.seek)
+
+
+@command("pcz", "print the block as a C string with a trailing NUL")
+def _pc_c_string(session, statement):
+    return codegen.format_c_string(_pc_payload(session, statement), session.seek)
+
+
+@command("pcA", "print the block as a .c file (not supported; see TASKS-v3 V6)")
+def _pc_c_file(session, statement):
+    raise UnsupportedError("pcA is not supported; see TASKS-v3 V6")
+
+
+@command("pcl", "print the block as a LaTeX array (not supported; see TASKS-v3 V6)")
+def _pc_latex(session, statement):
+    raise UnsupportedError("pcl is not supported; see TASKS-v3 V6")
+
+
+@command("pcE", "print the block (not supported; see TASKS-v3 V6)")
+def _pc_escaped(session, statement):
+    raise UnsupportedError("pcE is not supported; see TASKS-v3 V6")
 
 
 def _number(text: str, default: int) -> int:

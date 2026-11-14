@@ -21,6 +21,8 @@ class FlagStore:
     def __init__(self) -> None:
         self._flags: dict[str, Flag] = {}
         self._space: str = DEFAULT_SPACE
+        # Spaces created by switching before any flag lives in them.
+        self._created: set[str] = set()
 
     @property
     def space(self) -> str:
@@ -28,12 +30,18 @@ class FlagStore:
 
     def set_space(self, name: str) -> None:
         self._space = name or DEFAULT_SPACE
+        self._created.add(self._space)
 
     def spaces(self) -> list[str]:
-        return sorted({flag.space for flag in self._flags.values()} | {DEFAULT_SPACE})
+        return sorted(
+            {flag.space for flag in self._flags.values()}
+            | self._created
+            | {DEFAULT_SPACE}
+        )
 
     def clear(self) -> None:
         self._flags.clear()
+        self._created.clear()
         self._space = DEFAULT_SPACE
 
     def add(self, flag: Flag) -> Flag:
@@ -56,6 +64,21 @@ class FlagStore:
         flag.name = new
         self._flags[new] = flag
         return flag
+
+    def remove_space(self, name: str) -> None:
+        """Forget a flag space; only meaningful for one that holds no flags."""
+        self._created.discard(name)
+
+    def rename_space(self, old: str, new: str) -> None:
+        """Re-assign every flag of space ``old`` to space ``new``."""
+        for flag in self._flags.values():
+            if flag.space == old:
+                flag.space = new
+        self._created.discard(old)
+        if new:
+            self._created.add(new)
+        if self._space == old:
+            self._space = new
 
     def values(self) -> list[Flag]:
         return sorted(
