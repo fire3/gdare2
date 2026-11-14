@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from gdare2.cmd import command, require_write
 from gdare2.cmd.write import parse_hexpairs
-from gdare2.errors import UsageError
+from gdare2.errors import NotFoundError, UnsupportedError, UsageError
 from gdare2.escape import unquote_text
 from gdare2.jsonutil import dumps
 
@@ -218,6 +220,123 @@ def _delete_signature_type(session, statement):
         raise UsageError("tf- needs a function type name or glob")
     payload = session.call("type_delete", name=name, kind="function")
     return [f"removed {name}" for name in payload.get("removed", [])]
+
+
+@command("tn", "list or set no-return marks", aliases=("tn-", "tn-*"))
+def _no_return(session, statement):
+    token = statement.cmd
+    text = statement.args.strip()
+    if token == "tn-*":
+        session.no_return_marks.clear()
+        return []
+    if token == "tn-" and not text:
+        raise UsageError("tn- needs at least one address or symbol")
+    if token == "tn" and not text:
+        return [session.format_addr(address) for address in sorted(session.no_return_marks)]
+    if not text:
+        raise UsageError("tn needs an address or symbol")
+    words = text.split()
+    if token == "tn-" and len(words) != 1:
+        raise UsageError("tn- takes one address or symbol")
+    addresses = [session.eval(word) for word in words]
+    if token == "tn-":
+        for address in addresses:
+            session.no_return_marks.discard(address)
+        return []
+    session.no_return_marks.update(addresses)
+    return []
+
+
+@command("to", "load C types from a header file")
+def _load_types(session, statement):
+    require_write(session)
+    path_text = statement.args.strip()
+    if not path_text:
+        raise UsageError("to needs a header file path")
+    if path_text == "-":
+        raise UnsupportedError("to - needs an interactive editor; pass a header file")
+    path = Path(path_text).expanduser()
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        raise UsageError(f"to cannot read {path}: {exc}") from exc
+    if not text.strip():
+        raise UsageError(f"to: {path} is empty")
+    payload = session.call("type_define", decl=text)
+    return [f"{payload['name']} {payload['kind']} size={payload['length']}"]
+
+
+@command("tk", "list type names and kinds", aliases=("tkj",))
+def _type_keys(session, statement):
+    payload = session.call("types", limit=10000)
+    rows = sorted((str(item["name"]), str(item["kind"])) for item in payload)
+    if statement.cmd.endswith("j"):
+        return [dumps([{"name": name, "kind": kind} for name, kind in rows])]
+    return [f"{name}={kind}" for name, kind in rows]
+
+
+@command(
+    "tl",
+    "manage type links",
+    aliases=("tlj", "tl*", "tll", "tllj", "tl-", "tl-*", "tls"),
+)
+def _type_links(session, statement):
+    token = statement.cmd
+    text = statement.args.strip()
+    if token == "tl-*":
+        session.type_links.clear()
+        return []
+    if token == "tl-" and not text:
+        raise UsageError("tl- needs an address")
+    if token in ("tl-", "tls"):
+        address = session.eval(text) if text else session.seek
+        if token == "tls":
+            name = session.type_links.get(address)
+            if name is None:
+                raise NotFoundError(f"no type link at {session.format_addr(address)}")
+            return [f"{session.format_addr(address)} {name}"]
+        session.type_links.pop(address, None)
+        return []
+    if token in ("tl", "tlj", "tl*", "tll", "tllj") and not text:
+        rows = sorted(session.type_links.items())
+        if token in ("tlj", "tllj"):
+            return [dumps([{"addr": addr, "type": name} for addr, name in rows])]
+        if token == "tl*":
+            return [
+                f"tl {name} = {session.format_addr(addr)}" for addr, name in rows
+            ]
+        if token == "tll":
+            return [f"{session.format_addr(addr)} {name}" for addr, name in rows]
+        return [f"{session.format_addr(addr)} {name}" for addr, name in rows]
+    if not text:
+        raise UsageError("tl needs a type name")
+    require_write(session)
+    name = text
+    address = session.seek
+    if "=" in text:
+        name, _, value = text.partition("=")
+        name = name.strip()
+        address = session.eval(value.strip())
+    elif statement.tmpseek is None and " " in text:
+        head, tail = text.rsplit(None, 1)
+        try:
+            address = session.eval(tail)
+            name = head
+        except Exception:
+            pass
+    if not name:
+        raise UsageError("tl needs a type name")
+    session.type_links[int(address)] = name
+    return []
+
+
+@command("tx", "print type declarations")
+def _type_output(session, statement):
+    name = statement.args.strip() or None
+    payload = session.call("type_c", name=name, limit=10000)
+    if isinstance(payload, dict):
+        return [str(payload.get("declaration", "")).rstrip()]
+    return [str(item.get("declaration", "")).rstrip() for item in payload]
 
 
 @command("afs", "get or set the function signature at seek", aliases=("afsj",))

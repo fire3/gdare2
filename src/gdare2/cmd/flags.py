@@ -7,6 +7,7 @@ import shlex
 from gdare2.cmd import command, require_write
 from gdare2.errors import NotFoundError, UsageError
 from gdare2.flags import Flag
+from gdare2.fmt.memory import hexdump
 from gdare2.jsonutil import dumps
 
 
@@ -138,6 +139,77 @@ def _flags_local(session, statement):
         for flag in session.flag_store.values()
         if flag.local
     ]
+
+
+@command("fn", "list flags with their real names", aliases=("fnj",))
+def _flag_names(session, statement):
+    session.load_flags()
+    pattern = statement.args.strip()
+    flags = [
+        flag
+        for flag in session.flag_store.values()
+        if not pattern or pattern in flag.name
+    ]
+    if statement.cmd.endswith("j"):
+        return [
+            dumps(
+                [
+                    {
+                        "name": flag.name,
+                        "realname": flag.name,
+                        "size": int(flag.size),
+                        "offset": int(flag.addr),
+                    }
+                    for flag in flags
+                ]
+            )
+        ]
+    return [_format(session, flag) for flag in flags]
+
+
+@command("fN", "show the real flag name at seek")
+def _flag_realname(session, statement):
+    session.load_flags()
+    name = statement.args.strip()
+    if name:
+        flag = session.flag_store.get(name)
+        if flag is None:
+            raise NotFoundError(f"flag {name!r} not found")
+        return [flag.name]
+    matches = session.flag_store.at(session.seek)
+    if not matches:
+        raise NotFoundError(f"no flag at {session.format_addr(session.seek)}")
+    return [matches[0].name]
+
+
+@command("fx", "hexdump the bytes covered by a flag")
+def _flag_hexdump(session, statement):
+    session.load_flags()
+    name = statement.args.strip()
+    if name:
+        flag = session.flag_store.get(name)
+        if flag is None:
+            address = session.eval(name)
+            matches = session.flag_store.at(address)
+            flag = matches[0] if matches else None
+        if flag is None:
+            raise NotFoundError(f"fx: no flag {name!r}")
+    else:
+        matches = session.flag_store.at(session.seek)
+        flag = matches[0] if matches else None
+    address = int(flag.addr) if flag is not None else session.seek
+    size = int(flag.size) if flag is not None and int(flag.size) > 0 else 64
+    data = bytes(session.call("read_bytes", ea=address, size=size))
+    return hexdump(
+        data,
+        address,
+        cols=session.config.get_int("hex.cols"),
+        header=session.config.get_bool("hex.header"),
+        bits=int(session.info.get("bits") or 32),
+        pairs=session.config.get_bool("hex.pairs"),
+        offset=session.config.get_bool("hex.offset"),
+        ascii=session.config.get_bool("hex.ascii"),
+    )
 
 
 def _list(session, statement) -> list[str]:

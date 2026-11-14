@@ -121,6 +121,7 @@ class Session:
         self.pointer_size = max(1, int(info.get("bits", 32)) // 8)
         self.seek = int(info.get("entry") or info.get("image_base") or 0)
         self.blocksize = DEFAULT_BLOCKSIZE
+        self.max_blocksize = 50 * 1024 * 1024
         self.seek_history: list[int] = []
         self.seek_future: list[int] = []
         self.vars: dict[str, int] = {}
@@ -139,6 +140,14 @@ class Session:
         self.quit_requested = False
         self.flag_store = FlagStore()
         self.pf_formats: dict[str, tuple[str, tuple[str, ...]]] = {}
+        self.hidden_ranges: list[tuple[int, int]] = []
+        self.strings: dict[int, dict[str, Any]] = {}
+        self.magic: dict[int, str] = {}
+        self.type_comments: dict[int, str] = {}
+        self.source_lines: dict[int, str] = {}
+        self.type_links: dict[int, str] = {}
+        self.no_return_marks: set[int] = set()
+        self.project_notes: str = ""
         self.flags_loaded = False
         self.tmp_range: tuple[int, int] | None = None
         self._names: dict[str, int | None] = {}
@@ -557,9 +566,20 @@ class Session:
             return statement
         if not self.json_default or statement.cmd.endswith("j"):
             return statement
-        if statement.cmd == "f" and statement.args.strip():
-            return statement
-        if statement.cmd == "e" and statement.args.strip():
+        if statement.args.strip() and statement.cmd in {
+            "b",
+            "e",
+            "f",
+            "T",
+            "P",
+            "Cs",
+            "Cm",
+            "Ct",
+            "CL",
+            "tl",
+            "tn",
+            "to",
+        }:
             return statement
         if statement.cmd.startswith("pf.") and len(statement.cmd) > 3:
             return replace(statement, cmd="pfj" + statement.cmd[2:])
@@ -620,6 +640,32 @@ class Session:
             "x": "xj",
             "f": "fj",
             "pf": "pfj",
+            "pj": "pjj",
+            "fn": "fnj",
+            "b": "bj",
+            "p=": "p=j",
+            "e*": "e*j",
+            "iD": "iDj",
+            "iC": "iCj",
+            "iV": "iVj",
+            "iv": "ivj",
+            "iT": "iTj",
+            "iee": "ieej",
+            "ies": "iesj",
+            "Cs": "Csj",
+            "Cm": "Cmj",
+            "Ct": "Ctj",
+            "CL": "CLj",
+            "tk": "tkj",
+            "tl": "tlj",
+            "T": "Tj",
+            "P": "Pj",
+            "/i": "/ij",
+            "/m": "/mj",
+            "/d": "/dj",
+            "/c": "/cj",
+            "/z": "/zj",
+            "/R": "/Rj",
         }
         replacement = mapping.get(statement.cmd)
         if replacement is None:

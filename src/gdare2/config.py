@@ -113,6 +113,28 @@ class Config:
     def items(self) -> list[tuple[str, Any]]:
         return [(key.name, self._values[key.name]) for key in KEYS]
 
+    def reset(self) -> None:
+        """Restore every key to its default and forget explicit settings."""
+        self._values = {key.name: key.default for key in KEYS}
+        self.explicit.clear()
+
+    def key(self, name: str) -> Key:
+        key = _BY_NAME.get(name)
+        if key is None:
+            raise UsageError(f"unknown configuration key {name!r}")
+        return key
+
+    def invert_bool(self, name: str) -> bool:
+        key = self.key(name)
+        if key.kind != BOOL:
+            raise UsageError(f"e! {name}: expected a boolean key")
+        if key.readonly:
+            raise UsageError(f"e! {name} is read-only: it reflects the Ghidra program")
+        value = not bool(self._values[name])
+        self._values[name] = value
+        self.explicit.add(name)
+        return value
+
 
 def _coerce(key: Key, value: Any) -> Any:
     if key.kind == BOOL:

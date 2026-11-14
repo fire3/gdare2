@@ -91,3 +91,35 @@ def symbol_delete(ctx, name: str | None = None, ea: int | None = None) -> dict:
     if not symbol.delete():
         raise GdarError(f"could not delete symbol {payload['name']!r}")
     return payload
+
+
+@op("demangle")
+def demangle(ctx, text: str, language: str | None = None) -> dict:
+    """Demangle a symbol using Ghidra's demangler registry."""
+    program = require_program(ctx)
+    value = text.strip()
+    if not value:
+        raise UsageError("iD needs a symbol name")
+    from ghidra.app.util.demangler import DemanglerUtil
+
+    demangled = DemanglerUtil.demangle(program, value)
+    if demangled is None:
+        return {"text": value, "name": value, "signature": value, "language": language or ""}
+    name = str(
+        demangled.getDemangledName()
+        or demangled.getName()
+        or value
+    )
+    signature = ""
+    get_signature = getattr(demangled, "getSignature", None)
+    if get_signature is not None:
+        try:
+            signature = str(get_signature() or "")
+        except Exception:
+            signature = ""
+    return {
+        "text": value,
+        "name": name,
+        "signature": signature or name,
+        "language": language or "",
+    }

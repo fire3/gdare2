@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from gdare2 import assembler
 from gdare2.cmd import command
 from gdare2.cmd.write import parse_hexpairs
-from gdare2.errors import UsageError
+from gdare2.errors import UnsupportedError, UsageError
 from gdare2.escape import text_bytes
+from gdare2.formats import magic
+from gdare2.formats.elf import PT_LOAD, ElfFormatError, read_segments
 from gdare2.jsonutil import dumps
 
 DEFAULT_LIMIT = 4096
@@ -23,6 +26,25 @@ def _search_text(session, statement):
 def _search_hex(session, statement):
     data, mask = parse_hexpairs(statement.args)
     return _search(session, statement, data, mask)
+
+
+@command("/i", "search text ignoring case", aliases=("/ij",))
+def _search_ignore_case(session, statement):
+    return _search(
+        session,
+        statement,
+        text_bytes(statement.args),
+        None,
+        ignore_case=True,
+    )
+
+
+@command("/d", "search for a deltified byte sequence", aliases=("/dj",))
+def _search_delta(session, statement):
+    data, mask = parse_hexpairs(statement.args)
+    if mask is not None:
+        raise UsageError("/d does not support wildcard masks")
+    return _search(session, statement, data, None, delta=True)
 
 
 @command("/p", "search for a hex pattern", aliases=("/pj",))
@@ -141,16 +163,35 @@ def _repeat(session, statement, *, forward: bool):
         cursor=cursor,
         forward=forward,
         scope=state.get("scope"),
+        ignore_case=bool(state.get("ignore_case")),
+        delta=bool(state.get("delta")),
     )
 
 
-def _search(session, statement, data: bytes, mask: bytes | None) -> list[str]:
+def _search(
+    session,
+    statement,
+    data: bytes,
+    mask: bytes | None,
+    *,
+    ignore_case: bool = False,
+    delta: bool = False,
+) -> list[str]:
     if not data:
         raise UsageError("search pattern is empty")
     lower = int(session.config.get_int("search.from")) or None
     scope = session.config.get_str("search.in")
     cursor = lower if lower is not None else (0 if scope == "raw" else session.seek)
-    return _execute(session, statement, data, mask, cursor=cursor, forward=True)
+    return _execute(
+        session,
+        statement,
+        data,
+        mask,
+        cursor=cursor,
+        forward=True,
+        ignore_case=ignore_case,
+        delta=delta,
+    )
 
 
 def _execute(
@@ -162,6 +203,8 @@ def _execute(
     cursor: int,
     forward: bool,
     scope: str | None = None,
+    ignore_case: bool = False,
+    delta: bool = False,
 ) -> list[str]:
     lower = int(session.config.get_int("search.from")) or None
     upper = int(session.config.get_int("search.to")) or None
@@ -176,6 +219,8 @@ def _execute(
         "forward": forward,
         "limit": DEFAULT_LIMIT,
         "offset": 0,
+        "ignore_case": bool(ignore_case),
+        "delta": bool(delta),
     }
     if op == "search":
         args["scope"] = scope
@@ -203,6 +248,8 @@ def _execute(
         "data": data,
         "mask": mask,
         "scope": scope,
+        "ignore_case": bool(ignore_case),
+        "delta": bool(delta),
         "last": hits[0] if hits else int(cursor),
     }
     if statement.cmd.endswith("j"):
@@ -224,3 +271,105 @@ def _value_width(cmd: str) -> int:
     if width not in (1, 2, 4, 8):
         raise UsageError("/v width must be 1, 2, 4 or 8")
     return width
+
+
+@command("/z", "search strings by length", aliases=("/zj",))
+def _search_string_size(session, statement):
+    words = statement.args.split()
+    if len(words) != 2:
+        raise UsageError("/z needs min and max string lengths")
+    try:
+        minimum, maximum = int(words[0], 0), int(words[1], 0)
+    except ValueError:
+        raise UsageError("/z needs numeric string lengths") from None
+    if minimum < 0 or maximum < minimum:
+        raise UsageError("/z needs 0 <= min <= max")
+    payload = session.call("strings", limit=10000)
+    hits = [
+        int(item["addr"])
+        for item in payload
+        if minimum <= int(item.get("length") or len(str(item.get("string", "")))) <= maximum
+    ]
+    if hits:
+        session.last_result = hits[0]
+        session.seek_to(hits[0])
+    if statement.cmd.endswith("j"):
+        return [dumps({"hits": hits, "meta": {"shown": len(hits), "total": len(hits), "truncated": False}})]
+    return [session.format_addr(hit) for hit in hits]
+
+
+def _target_bytes(session, command: str) -> bytes:
+    target = session.info.get("target")
+    if not target:
+        raise UnsupportedError(f"{command} needs the original file; this session has no target path")
+    try:
+        return Path(str(target)).read_bytes()
+    except OSError as exc:
+        raise UnsupportedError(f"{command} cannot read {target}: {exc}") from exc
+
+
+def _file_offset_to_vaddr(target: str, offset: int) -> int:
+    try:
+        segments = read_segments(target)
+    except (ElfFormatError, OSError):
+        return offset
+    for segment in segments:
+        if segment.type != PT_LOAD:
+            continue
+        if segment.offset <= offset < segment.offset + max(segment.filesz, 1):
+            return segment.vaddr + (offset - segment.offset)
+    return offset
+
+
+@command("/m", "search for known magic signatures", aliases=("/mj",))
+def _search_magic(session, statement):
+    target = str(session.info.get("target") or "")
+    hits = magic.scan(_target_bytes(session, "/m"))
+    rows = [
+        {"addr": _file_offset_to_vaddr(target, int(item["offset"])), "name": item["name"]}
+        for item in hits
+    ]
+    if statement.cmd.endswith("j"):
+        return [dumps({"hits": rows})]
+    return [f"{session.format_addr(int(item['addr']))} {item['name']}" for item in rows]
+
+
+@command("/c", "search for crypto material", aliases=("/cj",))
+def _search_crypto(session, statement):
+    target = str(session.info.get("target") or "")
+    hits = magic.scan(_target_bytes(session, "/c"), crypto=True)
+    rows = [
+        {"addr": _file_offset_to_vaddr(target, int(item["offset"])), "name": item["name"]}
+        for item in hits
+    ]
+    if statement.cmd.endswith("j"):
+        return [dumps({"hits": rows})]
+    return [f"{session.format_addr(int(item['addr']))} {item['name']}" for item in rows]
+
+
+@command("/R", "search for return-oriented gadgets", aliases=("/Rj", "/Rq", "/R/"))
+def _search_rop(session, statement):
+    pattern = statement.args.strip()
+    if pattern:
+        try:
+            regex = re.compile(pattern)
+        except re.error as exc:
+            raise UsageError(f"invalid gadget regex: {exc}") from exc
+    else:
+        regex = None
+    target = str(session.info.get("target") or "")
+    blob = _target_bytes(session, "/R")
+    rows = []
+    for offset in range(len(blob) - 1):
+        if blob[offset] not in (0xC3, 0xC2):
+            continue
+        gadget = "ret" if blob[offset] == 0xC3 else f"ret 0x{int.from_bytes(blob[offset + 1:offset + 3], 'little'):x}"
+        address = _file_offset_to_vaddr(target, offset)
+        if regex is not None and regex.search(gadget) is None:
+            continue
+        rows.append({"addr": address, "gadget": gadget, "size": 1 if blob[offset] == 0xC3 else 3})
+        if len(rows) >= 4096:
+            break
+    if statement.cmd.endswith("j"):
+        return [dumps({"hits": rows})]
+    return [f"{session.format_addr(int(item['addr']))} {item['gadget']}" for item in rows]

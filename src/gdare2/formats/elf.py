@@ -482,6 +482,165 @@ def read_needed(path: str | Path) -> list[str]:
     return names
 
 
+SHT_NOTE = 7
+SHT_GNU_VERDEF = 0x6FFFFFFD
+SHT_GNU_VERNEED = 0x6FFFFFFE
+SHT_GNU_VERSYM = 0x6FFFFFFF
+
+
+def read_build_id(path: str | Path) -> str:
+    """Return the GNU build-id as lowercase hex, or an empty string."""
+    data = _load(path)
+    for section in read_sections(path):
+        if section.type != SHT_NOTE:
+            continue
+        body = _slice(data, section.offset, section.size, "note section")
+        offset = 0
+        while offset + 12 <= len(body):
+            namesz, descsz, note_type = struct.unpack_from("<III", body, offset)
+            offset += 12
+            name = body[offset : offset + namesz].rstrip(b"\x00")
+            offset += (namesz + 3) & ~3
+            desc = body[offset : offset + descsz]
+            offset += (descsz + 3) & ~3
+            if name == b"GNU" and note_type == 3 and desc:
+                return desc.hex()
+    return ""
+
+
+def read_versions(path: str | Path) -> list[dict]:
+    """Return symbol-version entries from ``.gnu.version``.
+
+    The result is intentionally close to radare2's ``iV`` output: each row
+    carries the symbol-table index, the raw version index and the resolved
+    version name (``*local*``/``*global*`` for the two reserved values).
+    """
+    data = _load(path)
+    sections = read_sections(path)
+    by_name = {section.name: section for section in sections}
+    versions = by_name.get(".gnu.version")
+    if versions is None:
+        versions = next((item for item in sections if item.type == SHT_GNU_VERSYM), None)
+    if versions is None:
+        return []
+    dynstr = by_name.get(".dynstr")
+    if dynstr is None:
+        dynstr = next((item for item in sections if item.name == ".dynstr"), None)
+    strings = (
+        _slice(data, dynstr.offset, dynstr.size, "dynamic string table")
+        if dynstr is not None
+        else b""
+    )
+
+    names: dict[int, str] = {0: "*local*", 1: "*global*"}
+    need = by_name.get(".gnu.version_r") or next(
+        (item for item in sections if item.type == SHT_GNU_VERNEED), None
+    )
+    if need is not None:
+        body = _slice(data, need.offset, need.size, "version need section")
+        offset = 0
+        while offset + 16 <= len(body):
+            _version, count, _file, aux, nxt = struct.unpack_from("<HHIII", body, offset)
+            aux_base = offset + int(aux)
+            for _ in range(count):
+                if aux_base + 16 > len(body):
+                    break
+                _hash, _flags, other, name_offset, aux_next = struct.unpack_from(
+                    "<IHHII", body, aux_base
+                )
+                names[int(other)] = _cstring(strings, int(name_offset))
+                if not aux_next:
+                    break
+                aux_base += int(aux_next)
+            if not nxt:
+                break
+            offset += int(nxt)
+
+    definition = by_name.get(".gnu.version_d") or next(
+        (item for item in sections if item.type == SHT_GNU_VERDEF), None
+    )
+    if definition is not None:
+        body = _slice(data, definition.offset, definition.size, "version definition section")
+        offset = 0
+        while offset + 20 <= len(body):
+            _version, _flags, index, _count, _hash, aux, nxt = struct.unpack_from(
+                "<HHHHIII", body, offset
+            )
+            aux_base = offset + int(aux)
+            if aux_base + 8 <= len(body):
+                name_offset, _aux_next = struct.unpack_from("<II", body, aux_base)
+                names[int(index)] = _cstring(strings, int(name_offset))
+            if not nxt:
+                break
+            offset += int(nxt)
+
+    body = _slice(data, versions.offset, versions.size, "version symbol section")
+    rows = []
+    for index in range(len(body) // 2):
+        (raw,) = struct.unpack_from("<H", body, index * 2)
+        hidden = bool(raw & 0x8000)
+        version_index = raw & 0x7FFF
+        rows.append(
+            {
+                "index": index,
+                "version": version_index,
+                "name": names.get(version_index, str(version_index)),
+                "hidden": hidden,
+            }
+        )
+    return rows
+
+
+def read_init_fini(path: str | Path) -> list[dict]:
+    """Return constructors/destructors from ELF array sections."""
+    data = _load(path)
+    header = read_header(path)
+    segments = read_segments(path)
+    sections = read_sections(path)
+    pointer_size = 8 if header.is_64 else 4
+    result: list[dict] = []
+    for section in sections:
+        if section.name in (".init", ".fini"):
+            result.append(
+                {
+                    "vaddr": section.addr,
+                    "paddr": section.offset,
+                    "type": section.name.lstrip("."),
+                }
+            )
+            continue
+        kind = {
+            ".preinit_array": "preinit",
+            ".init_array": "init",
+            ".fini_array": "fini",
+        }.get(section.name)
+        if kind is None:
+            continue
+        body = _slice(data, section.offset, section.size, f"{section.name} section")
+        for index in range(len(body) // pointer_size):
+            raw = body[index * pointer_size : (index + 1) * pointer_size]
+            address = int.from_bytes(
+                raw, "little" if header.order == "<" else "big", signed=False
+            )
+            result.append(
+                {
+                    "vaddr": address,
+                    "paddr": _file_offset_for_segments(segments, address),
+                    "type": kind,
+                }
+            )
+    return result
+
+
+def _file_offset_for_segments(segments: list[Segment], address: int) -> int:
+    for segment in segments:
+        if segment.type == PT_LOAD and segment.vaddr <= address < segment.vaddr + max(
+            segment.filesz, 1
+        ):
+            return segment.offset + (address - segment.vaddr)
+    return address
+
+
 def read_relocations(path: str | Path) -> list[Relocation]:
     data = _load(path)
     header = read_header(path)

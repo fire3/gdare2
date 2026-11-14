@@ -10,6 +10,17 @@ v2 compatibility batches A–C (G1–G18) and the first batch-D item (G19).
 
 ### Added
 
+- Expanded radare2 command compatibility: `p6`/`p=`/`pj`/`pr`/`ph`/`pwd`,
+  `pdq`/`pdC`/`pdJ`/`pd,`, `s:`/`s=`, `fn`/`fN`/`fx`, `e*`/`e-`/`e!`/`env`/
+  `es`/`et`/`ev`, `bj`/`bf`/`bm`, `iD`/`iC`/`iV`/`iv`/`iT`/`iee`/`ies`,
+  `Ch`/`Cs`/`Cm`/`Cf`/`Ct`/`CL`, and `tn`/`to`/`tk`/`tl`/`tx`.
+- Search variants `/i`, `/d`, `/z`, `/m`, `/c` and `/R`; `/m` and `/c` share a
+  deterministic built-in magic/crypto signature scanner.
+- Write commands `wt`/`wv`/`wr`/`ws`/`ww`, including width and float variants
+  for `wv`.
+- Project snapshots now preserve hidden ranges, string/magic metadata, type
+  comments, source lines, type links, no-return marks and notes; `Pc` emits
+  replay commands for all of them.
 - PyPI-ready packaging: PEP 639 license metadata, a required
   `pyghidra>=3.2.0` runtime dependency, a `dev` dependency group, self-hosted
   README badges, packaging regression tests, and TestPyPI/PyPI Trusted

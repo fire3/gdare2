@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
+import json
+import math
+import os
 from itertools import zip_longest
 
 from gdare2 import pf as pf_format
 from gdare2.cmd import command
 from gdare2.errors import GdarError, UnsupportedError, UsageError
 from gdare2.fmt import strings as stringfmt
-from gdare2.fmt.disasm import format_disasm
+from gdare2.fmt.disasm import format_disasm, format_instruction
 from gdare2.fmt.memory import hexdump
 from gdare2.jsonutil import dumps
 
@@ -54,6 +60,57 @@ def _pd(session, statement):
 def _pd_backward(session, count: int) -> list[str]:
     items = session.call("disasm_back", ea=session.seek, count=count)
     return format_disasm(items, session.config, _bits(session))
+
+
+@command("pdq", "disassemble N instructions as address and text")
+def _pd_quiet(session, statement):
+    count = _number(statement.args, 1)
+    items = session.call("disasm", ea=session.seek, count=max(count, 0))
+    return [
+        f"{session.format_addr(int(item['addr']))} {item.get('text', '')}".rstrip()
+        for item in items
+    ]
+
+
+@command("pdC", "show comments in N instructions")
+def _pd_comments(session, statement):
+    count = _number(statement.args, 1)
+    items = session.call("disasm", ea=session.seek, count=max(count, 0))
+    return [
+        f"{session.format_addr(int(item['addr']))} {item['comment']}"
+        for item in items
+        if item.get("comment")
+    ]
+
+
+@command("pdJ", "disassemble N instructions as rendered JSON lines")
+def _pd_json_lines(session, statement):
+    count = _number(statement.args, 1)
+    items = session.call("disasm", ea=session.seek, count=max(count, 0))
+    payload = [
+        {
+            "offset": int(item["addr"]),
+            "text": format_instruction(item, session.config, _bits(session)),
+        }
+        for item in items
+    ]
+    return [dumps(payload)]
+
+
+@command("pd,", "disassemble N instructions as a table")
+def _pd_table(session, statement):
+    count = _number(statement.args, 1)
+    items = session.call("disasm", ea=session.seek, count=max(count, 0))
+    lines = ["name   addr       bytes    disasm       comment esil refs xrefs"]
+    lines.append("-" * 78)
+    for item in items:
+        raw = bytes(item.get("bytes", b"")).hex()
+        name = str(item.get("symbol") or "")
+        lines.append(
+            f"{name:<6} {session.format_addr(int(item['addr']))} {raw:<8} "
+            f"{item.get('text', ''):<12} {item.get('comment', ''):<7}"
+        )
+    return lines
 
 
 @command("pi", "print instruction text only")
@@ -266,6 +323,142 @@ def _pv(session, statement):
 def _signed_value(value: int, width: int) -> int:
     limit = 1 << (width * 8)
     return value - limit if value >= limit >> 1 else value
+
+
+@command("p6", "base64-encode or decode memory", aliases=("p6e", "p6d"))
+def _p6(session, statement):
+    text = statement.args.strip()
+    if statement.cmd == "p6d":
+        if not text:
+            raise UsageError("p6d needs base64 text")
+        try:
+            data = base64.b64decode("".join(text.split()), validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise UsageError(f"invalid base64: {exc}") from exc
+        return [data.decode("latin-1")]
+    size = _range_size(session, _number(text, session.blocksize))
+    data = bytes(session.call("read_bytes", ea=session.seek, size=size))
+    return [base64.b64encode(data).decode("ascii")]
+
+
+@command(
+    "p=",
+    "summarize bytes (counts, entropy and printable ratio)",
+    aliases=("p=d", "p=e", "p=p", "p=j", "p=dj", "p=ej", "p=pj"),
+)
+def _p_stats(session, statement):
+    mode = statement.cmd[2:] if statement.cmd != "p=" else ""
+    as_json = mode.endswith("j")
+    mode = mode.removesuffix("j")
+    words = statement.args.split()
+    if len(words) >= 2:
+        start = session.eval(words[0])
+        stop = session.eval(words[1])
+        size = max(0, stop - start + 1)
+        address = start
+    else:
+        size = _range_size(session, _number(statement.args, session.blocksize))
+        address = session.seek
+    data = bytes(session.call("read_bytes", ea=address, size=size))
+    unique = len(set(data))
+    minimum = min(data, default=0)
+    maximum = max(data, default=0)
+    printable = sum(1 for byte in data if 0x20 <= byte < 0x7F)
+    entropy = 0.0
+    if data:
+        counts = {byte: data.count(byte) for byte in set(data)}
+        entropy = -sum(
+            (count / len(data)) * math.log2(count / len(data)) for count in counts.values()
+        )
+    payload = {
+        "addr": address,
+        "size": len(data),
+        "min": minimum,
+        "max": maximum,
+        "unique": unique,
+        "range": maximum - minimum,
+        "printable": printable,
+        "entropy": round(entropy, 6),
+    }
+    if as_json:
+        return [dumps(payload)]
+    if mode == "e":
+        return [f"entropy: {payload['entropy']:.6f}"]
+    if mode == "p":
+        ratio = (printable / len(data) * 100.0) if data else 0.0
+        return [f"printable: {printable} / {len(data)} ({ratio:.2f}%)"]
+    return [
+        f"min:              {minimum:3d}  0x{minimum:x}",
+        f"max:              {maximum:3d}  0x{maximum:x}",
+        f"unique (count):   {unique:3d}  0x{unique:x}",
+        f"range (max-min):  {payload['range']:3d}  0x{payload['range']:x}",
+        f"size (of block):  {len(data):3d}  0x{len(data):x}",
+    ]
+
+
+@command("pj", "pretty-print JSON stored in memory", aliases=("pjj", "pj.", "pj.."))
+def _print_json_block(session, statement):
+    if statement.cmd in ("pj.", "pj.."):
+        address = 0
+        size = max(0, session.seek - address)
+    else:
+        address = session.seek
+        size = _range_size(session, _number(statement.args, session.blocksize))
+    data = bytes(session.call("read_bytes", ea=address, size=size))
+    text = data.decode("utf-8", errors="replace").strip().rstrip("\x00")
+    try:
+        value = json.loads(text)
+    except ValueError as exc:
+        raise UsageError(f"pj: memory at {session.format_addr(address)} is not JSON: {exc}") from exc
+    return [dumps(value)]
+
+
+@command("pr", "print raw bytes", aliases=("prx",))
+def _p_raw(session, statement):
+    size = _range_size(session, _number(statement.args, session.blocksize))
+    data = bytes(session.call("read_bytes", ea=session.seek, size=size))
+    if statement.cmd == "prx":
+        printable = "".join(chr(byte) if 0x20 <= byte < 0x7F else "." for byte in data)
+        return [
+            "- offset -   0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+            f"{session.format_addr(session.seek)} {printable}",
+        ]
+    return [data.decode("latin-1")]
+
+
+_HASHES = {
+    "md5": hashlib.md5,
+    "sha1": hashlib.sha1,
+    "sha256": hashlib.sha256,
+    "sha384": hashlib.sha384,
+    "sha512": hashlib.sha512,
+}
+
+
+@command("ph", "hash the current block", aliases=("ph=",))
+def _p_hash(session, statement):
+    words = statement.args.split()
+    if not words:
+        return [f"{name} " for name in _HASHES] + ["crc32 adler32"]
+    algorithm = words[0].lower()
+    size = _range_size(session, _number(words[1] if len(words) > 1 else "", session.blocksize))
+    data = bytes(session.call("read_bytes", ea=session.seek, size=size))
+    if algorithm in _HASHES:
+        return [_HASHES[algorithm](data).hexdigest()]
+    if algorithm == "crc32":
+        import zlib
+
+        return [f"{zlib.crc32(data) & 0xFFFFFFFF:08x}"]
+    if algorithm == "adler32":
+        import zlib
+
+        return [f"{zlib.adler32(data) & 0xFFFFFFFF:08x}"]
+    raise UsageError(f"ph: unsupported hash {algorithm!r}")
+
+
+@command("pwd", "print the current working directory")
+def _pwd(session, statement):
+    return [os.getcwd()]
 
 
 @command("ps", "print a string")

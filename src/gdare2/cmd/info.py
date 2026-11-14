@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from gdare2.arch_matrix import ARCH_MATRIX
 from gdare2.cmd import command
 from gdare2.errors import UnsupportedError
 from gdare2.formats.elf import (
     ElfFormatError,
+    read_build_id,
     read_header,
+    read_init_fini,
     read_needed,
     read_relocations,
     read_segments,
+    read_versions,
 )
+from gdare2.formats.magic import scan as scan_magic
 from gdare2.jsonutil import dumps
 
 
@@ -290,6 +296,169 @@ def _entries(session, statement):
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item.get('name', '')}" for item in payload]
+
+
+@command("iD", "demangle a symbol or list demangler languages", aliases=("iDj",))
+def _demangle(session, statement):
+    languages = ("c++", "java", "objc", "swift", "dlang", "msvc", "rust")
+    text = statement.args.strip()
+    if not text:
+        if statement.cmd.endswith("j"):
+            return [dumps(list(languages))]
+        return list(languages)
+    words = text.split(None, 1)
+    language = None
+    if len(words) == 2 and words[0].lower() in languages:
+        language, text = words[0], words[1]
+    payload = session.call("demangle", text=text, language=language)
+    if statement.cmd.endswith("j"):
+        return [dumps(payload)]
+    lines = [str(payload.get("name") or payload.get("text") or text)]
+    signature = str(payload.get("signature") or "")
+    if signature and signature != lines[0]:
+        lines.append(signature)
+    return lines
+
+
+@command("iC", "show executable signature information", aliases=("iCj",))
+def _signature_info(session, statement):
+    payload = dict(session.call("hashes"))
+    target = session.info.get("target")
+    build_id = ""
+    if target:
+        try:
+            build_id = read_build_id(str(target))
+        except (ElfFormatError, OSError):
+            build_id = ""
+    payload["build_id"] = build_id
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    return [
+        f"path     {payload.get('path', '')}",
+        f"format   {payload.get('format', '')}",
+        f"md5      {payload.get('md5', '')}",
+        f"sha256   {payload.get('sha256', '')}",
+        f"build-id {build_id}",
+    ]
+
+
+@command("iV", "show ELF version symbols", aliases=("iVj",))
+def _version_info(session, statement):
+    target = _elf_target(session, "iV")
+    try:
+        rows = read_versions(target)
+    except ElfFormatError as exc:
+        raise UnsupportedError(f"iV: {exc}") from exc
+    except OSError as exc:
+        raise UnsupportedError(f"iV cannot read {target}: {exc}") from exc
+    if statement.cmd.endswith("j"):
+        return _jsonify(rows)
+    return [
+        f"0x{int(row['index']):08x}: {row['version']} ({row['name']})"
+        + (" [hidden]" if row["hidden"] else "")
+        for row in rows
+    ]
+
+
+@command("iv", "show detailed binary information", aliases=("ivj",))
+def _binary_info(session, statement):
+    hashes = session.call("hashes")
+    sections = session.call("sections")
+    payload = {
+        "file": session.info.get("target", ""),
+        "format": hashes.get("format") or session.info.get("format", ""),
+        "arch": session.info.get("arch", ""),
+        "bits": int(session.info.get("bits") or 0),
+        "endian": session.info.get("endian", ""),
+        "language": session.info.get("language", ""),
+        "image_base": int(session.info.get("image_base") or 0),
+        "entry": int(session.info.get("entry") or 0),
+        "size": int(session.info.get("filesize") or 0),
+        "sections": len(sections),
+        "md5": hashes.get("md5", ""),
+        "sha256": hashes.get("sha256", ""),
+    }
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    return [
+        f"file     {payload['file']}",
+        f"format   {payload['format']}",
+        f"arch     {payload['arch']}",
+        f"bits     {payload['bits']}",
+        f"endian   {payload['endian']}",
+        f"language {payload['language']}",
+        f"baddr    {session.format_addr(payload['image_base'])}",
+        f"entry    {session.format_addr(payload['entry'])}",
+        f"size     {payload['size']}",
+        f"sections {payload['sections']}",
+        f"md5      {payload['md5']}",
+        f"sha256   {payload['sha256']}",
+    ]
+
+
+def _target_bytes(session, command: str) -> bytes:
+    target = _elf_target(session, command)
+    try:
+        return Path(target).read_bytes()
+    except OSError as exc:
+        raise UnsupportedError(f"{command} cannot read {target}: {exc}") from exc
+
+
+@command("iT", "show file signature matches", aliases=("iTj",))
+def _file_signatures(session, statement):
+    payload = scan_magic(_target_bytes(session, "iT"))
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    return [f"0x{int(item['offset']):08x} {item['name']}" for item in payload]
+
+
+@command("iee", "show constructors and destructors", aliases=("ieej",))
+def _constructors(session, statement):
+    target = _elf_target(session, "iee")
+    try:
+        payload = read_init_fini(target)
+    except ElfFormatError as exc:
+        raise UnsupportedError(f"iee: {exc}") from exc
+    except OSError as exc:
+        raise UnsupportedError(f"iee cannot read {target}: {exc}") from exc
+    if statement.cmd.endswith("j"):
+        return _jsonify(payload)
+    lines = ["[Constructors]"] if payload else []
+    for item in payload:
+        lines.append(
+            f"vaddr={item['vaddr']:#x} paddr={item['paddr']:#x} type={item['type']}"
+        )
+    return lines
+
+
+@command("ies", "show entrypoints and symbols", aliases=("iesj",))
+def _entry_symbols(session, statement):
+    entries = session.call("entries")
+    symbols, meta = session.call_with_meta("symbols", **session.list_args(10000))
+    session.warn_list_meta("symbol list", meta)
+    rows = [
+        {"vaddr": int(item["addr"]), "name": item.get("name", ""), "type": "entry"}
+        for item in entries
+    ]
+    seen = {(row["vaddr"], row["name"]) for row in rows}
+    for item in symbols:
+        row = {
+            "vaddr": int(item["addr"]),
+            "name": item.get("name", ""),
+            "type": "symbol",
+        }
+        key = (row["vaddr"], row["name"])
+        if key not in seen:
+            rows.append(row)
+            seen.add(key)
+    if statement.cmd.endswith("j"):
+        return _jsonify(rows)
+    lines = [f"{len(entries)} entrypoints", "[Entrypoints]"]
+    for item in entries:
+        lines.append(f"vaddr={int(item['addr']):#x} type=program name={item.get('name', '')}")
+    if symbols:
+        lines.append(f"{len(symbols)} symbols")
+    return lines
 
 
 @command("izz", "scan the whole file for strings", aliases=("izzj",))

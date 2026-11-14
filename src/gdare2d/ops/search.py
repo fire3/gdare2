@@ -23,6 +23,8 @@ def search_raw(
     forward: bool = True,
     limit: int = 4096,
     offset: int = 0,
+    ignore_case: bool = False,
+    delta: bool = False,
 ) -> OpResult:
     program = require_program(ctx)
     raw = bytes(data)
@@ -58,7 +60,13 @@ def search_raw(
             lower = max(lower, int(cursor))
         else:
             upper = min(upper, int(cursor))
-    if upper < lower:
+    if ignore_case or delta:
+        scanner = _scan_transform
+        hits = scanner(
+            blob, raw, mask_bytes, lower, upper, bool(forward), offset + limit + 1,
+            ignore_case=bool(ignore_case), delta=bool(delta),
+        )
+    elif upper < lower:
         hits = []
     elif forward:
         hits = _scan_raw(blob, raw, mask_bytes, lower, upper, True, offset + limit + 1)
@@ -108,6 +116,8 @@ def search(
     limit: int = 4096,
     offset: int = 0,
     scope: str = "io.maps",
+    ignore_case: bool = False,
+    delta: bool = False,
 ) -> OpResult:
     program = require_program(ctx)
     raw = bytes(data)
@@ -124,6 +134,33 @@ def search(
         raise UsageError("search offset must not be negative")
     if scope not in ("io.maps", "bin.sections"):
         raise UnsupportedError(f"search.in={scope!r} is not supported; use io.maps")
+
+    if ignore_case or delta:
+        hits = _search_blocks(
+            program,
+            raw,
+            mask_bytes,
+            from_addr,
+            to_addr,
+            cursor,
+            bool(forward),
+            offset + limit + 1,
+            ignore_case=bool(ignore_case),
+            delta=bool(delta),
+            monitor=ctx.monitor(),
+        )
+        page = hits[offset : offset + limit]
+        return OpResult(
+            {"hits": page},
+            {
+                "shown": len(page),
+                "offset": offset,
+                "limit": limit,
+                "truncated": len(hits) > offset + limit,
+                "scope": scope,
+                "forward": bool(forward),
+            },
+        )
 
     ranges = _ranges(program, from_addr, to_addr, cursor, bool(forward))
     memory = program.getMemory()
@@ -182,3 +219,106 @@ def _ranges(program, from_addr, to_addr, cursor, forward: bool) -> list[tuple[in
             ranges.append((lower, upper))
     ranges.sort(reverse=not forward)
     return ranges
+
+
+def _scan_transform(
+    blob: bytes,
+    pattern: bytes,
+    mask: bytes | None,
+    lower: int,
+    upper: int,
+    forward: bool,
+    wanted: int,
+    *,
+    ignore_case: bool,
+    delta: bool,
+) -> list[int]:
+    if upper < lower:
+        return []
+    positions = range(upper, lower - 1, -1) if not forward else range(lower, upper + 1)
+    hits: list[int] = []
+    for position in positions:
+        if len(hits) >= wanted:
+            break
+        candidate = blob[position : position + len(pattern)]
+        if len(candidate) < len(pattern):
+            continue
+        if delta:
+            base = candidate[0]
+            expected = bytearray(len(pattern))
+            current = base
+            for index, step in enumerate(pattern):
+                expected[index] = current & 0xFF
+                current += step
+            if candidate == bytes(expected):
+                hits.append(position)
+            continue
+        if mask is None:
+            matched = (
+                candidate.lower() == pattern.lower() if ignore_case else candidate == pattern
+            )
+        else:
+            matched = all(
+                (value & keep) == (expected & keep)
+                for value, expected, keep in zip(candidate, pattern, mask, strict=True)
+            )
+        if matched:
+            hits.append(position)
+    return hits
+
+
+def _search_blocks(
+    program,
+    pattern: bytes,
+    mask: bytes | None,
+    from_addr,
+    to_addr,
+    cursor,
+    forward: bool,
+    wanted: int,
+    *,
+    ignore_case: bool,
+    delta: bool,
+    monitor,
+) -> list[int]:
+    import jpype
+
+    hits: list[int] = []
+    for block in program.getMemory().getBlocks():
+        if not block.isInitialized():
+            continue
+        lower = int(block.getStart().getOffset())
+        upper = int(block.getEnd().getOffset())
+        if from_addr is not None:
+            lower = max(lower, int(from_addr))
+        if to_addr is not None:
+            upper = min(upper, int(to_addr))
+        if cursor is not None:
+            if forward:
+                lower = max(lower, int(cursor))
+            else:
+                upper = min(upper, int(cursor))
+        if upper < lower:
+            continue
+        size = upper - lower + 1
+        buffer = jpype.JArray(jpype.JByte)(size)
+        address = to_address(program, lower)
+        count = program.getMemory().getBytes(address, buffer)
+        if count <= 0:
+            continue
+        blob = bytes((int(buffer[index]) & 0xFF) for index in range(count))
+        local = _scan_transform(
+            blob,
+            pattern,
+            mask,
+            0,
+            max(0, len(blob) - len(pattern)),
+            forward,
+            wanted - len(hits),
+            ignore_case=ignore_case,
+            delta=delta,
+        )
+        hits.extend(lower + offset for offset in local)
+        if len(hits) >= wanted:
+            break
+    return hits

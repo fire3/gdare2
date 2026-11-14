@@ -67,6 +67,7 @@ def load_all() -> None:
         flags,
         info,
         meta,
+        metadata,
         misc,
         search,
         seek,
@@ -87,6 +88,7 @@ def all_commands() -> list[CommandSpec]:
 
 
 _PREFIX_BASES = (
+    ("s:", "s:"),
     ("pfj.", "pfj"),
     ("pfs.", "pfs"),
     ("pf.", "pf"),

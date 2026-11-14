@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 from pathlib import Path
 
 from gdare2.cmd import command, require_write
@@ -129,10 +130,20 @@ def _compare(session, statement):
 
 
 # -- text log --------------------------------------------------------------
-@command("T", "append or list text-log messages", aliases=("Tl", "Tj", "Tm", "T*", "T-"))
+@command(
+    "T",
+    "append or list text-log messages",
+    aliases=("Tl", "Tj", "Tm", "T*", "T-", "Ts", "TT", "T=", "T=&"),
+)
 def _text_log(session, statement):
     token = statement.cmd
     argument = statement.args.strip()
+    if token == "Ts":
+        return sorted(path.name for path in Path.cwd().iterdir())
+    if token == "TT":
+        return [f"{index} {text}" for index, text in session.text_log]
+    if token in ("T=", "T=&"):
+        raise UsageError(f"{token} requires an r2 remote http.sync server; use T* for local export")
     if token == "T-":
         if argument:
             cutoff = session.eval(argument)
@@ -147,12 +158,23 @@ def _text_log(session, statement):
     if token == "T*":
         return [f"T {text}" for _index, text in session.text_log]
     if token == "Tm":
-        start = int(argument) if argument else 0
-        return [text for index, text in session.text_log if index >= start]
+        words = argument.split()
+        start = int(words[0]) if words else 0
+        count = int(words[1]) if len(words) > 1 else None
+        rows = [text for index, text in session.text_log if index >= start]
+        return rows[:count] if count is not None else rows
     if argument:
         if argument.isdigit() and session.text_log:
             start = int(argument)
             return [f"{index} {text}" for index, text in session.text_log if index >= start]
+        words = argument.split()
+        if len(words) == 2 and all(word.isdigit() for word in words):
+            start, count = int(words[0]), int(words[1])
+            return [
+                f"{index} {text}"
+                for index, text in session.text_log
+                if index >= start
+            ][:count]
         session.log(argument)
         return []
     return [f"{index} {text}" for index, text in session.text_log]
@@ -183,6 +205,7 @@ def _project_data(session) -> dict:
         "version": 1,
         "seek": session.seek,
         "blocksize": session.blocksize,
+        "notes": session.project_notes,
         "config": config,
         "vars": dict(session.vars),
         "env": dict(session.env),
@@ -191,10 +214,21 @@ def _project_data(session) -> dict:
             for flag in session.flag_store.values()
             if flag.local
         ],
+        "hidden_ranges": [list(item) for item in session.hidden_ranges],
+        "strings": list(session.strings.values()),
+        "magic": {str(key): value for key, value in session.magic.items()},
+        "type_comments": {str(key): value for key, value in session.type_comments.items()},
+        "source_lines": {str(key): value for key, value in session.source_lines.items()},
+        "type_links": {str(key): value for key, value in session.type_links.items()},
+        "no_return_marks": sorted(session.no_return_marks),
     }
 
 
-@command("P", "list, save, load or delete session projects", aliases=("Ps", "Po", "P-", "Pj"))
+@command(
+    "P",
+    "list, save, load or delete session projects",
+    aliases=("Ps", "Po", "P-", "Pd", "Pj", "Pc", "Pi", "Pn", "Pnj", "PS"),
+)
 def _projects(session, statement):
     token = statement.cmd
     name = statement.args.strip()
@@ -205,10 +239,41 @@ def _projects(session, statement):
         return sorted(str(path) for path in base.glob(f"*{PROJECT_SUFFIX}"))
     if token == "Pj":
         return [dumps(_project_data(session))]
+    if token == "Pc":
+        data = _load_project(name) if name else _project_data(session)
+        return _project_script(data)
+    if token == "PS":
+        if not name:
+            raise UsageError("PS needs a script file path")
+        path = Path(name).expanduser()
+        lines = _project_script(_project_data(session))
+        try:
+            path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        except OSError as exc:
+            raise UsageError(f"cannot write script {path}: {exc}") from exc
+        return [f"-- saved script {path} --"]
+    if token in ("Pn", "Pnj"):
+        if token == "Pnj":
+            return [dumps({"notes": session.project_notes})]
+        if not name:
+            return session.project_notes.splitlines()
+        if name == "-":
+            raise UsageError("Pn - needs cfg.editor; set notes with Pn <text>")
+        session.project_notes = name
+        return []
+    if token == "Pi":
+        data = _load_project(name) if name else _project_data(session)
+        return [
+            f"project  {_project_path(name) if name else '(current)'}",
+            f"seek     {session.format_addr(int(data.get('seek', session.seek)))}",
+            f"blocksize {data.get('blocksize', session.blocksize)}",
+            f"flags    {len(data.get('flags') or [])}",
+            f"notes    {len(str(data.get('notes') or '').splitlines())}",
+        ]
     if not name:
         raise UsageError(f"{token} needs a project name")
     path = _project_path(name)
-    if token == "P-":
+    if token in ("P-", "Pd"):
         if not path.is_file():
             raise NotFoundError(f"no such project: {path}")
         path.unlink()
@@ -231,14 +296,85 @@ def _projects(session, statement):
                 continue
         session.vars.update({key: int(value) for key, value in (data.get("vars") or {}).items()})
         session.env.update({key: str(value) for key, value in (data.get("env") or {}).items()})
+        session.project_notes = str(data.get("notes") or "")
         for item in data.get("flags") or []:
             session.flag_store.add(
                 Flag(item["name"], int(item["addr"]), size=int(item.get("size", 0)), local=True)
             )
+        session.hidden_ranges = [
+            (int(item[0]), int(item[1])) for item in data.get("hidden_ranges") or []
+        ]
+        session.strings = {
+            int(item["addr"]): item for item in data.get("strings") or []
+        }
+        session.magic = {int(key): str(value) for key, value in (data.get("magic") or {}).items()}
+        session.type_comments = {
+            int(key): str(value) for key, value in (data.get("type_comments") or {}).items()
+        }
+        session.source_lines = {
+            int(key): str(value) for key, value in (data.get("source_lines") or {}).items()
+        }
+        session.type_links = {
+            int(key): str(value) for key, value in (data.get("type_links") or {}).items()
+        }
+        session.no_return_marks = {
+            int(value) for value in data.get("no_return_marks") or []
+        }
         return [f"-- loaded {path} --"]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(_project_data(session), indent=2), encoding="utf-8")
     return [f"-- saved {path} --"]
+
+
+def _load_project(name: str) -> dict:
+    path = _project_path(name)
+    if not path.is_file():
+        raise NotFoundError(f"no such project: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise UsageError(f"cannot read project {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise UsageError(f"project {path} is not a gdare2 session snapshot")
+    return data
+
+
+def _project_script(data: dict) -> list[str]:
+    lines = [f"s {int(data.get('seek', 0)):#x}", f"b {int(data.get('blocksize', 0)):#x}"]
+    notes = str(data.get("notes") or "")
+    if notes:
+        lines.append(f"Pn {shlex.quote(notes)}")
+    for key, value in sorted((data.get("config") or {}).items()):
+        lines.append(f"e {key} = {value}")
+    for key, value in sorted((data.get("vars") or {}).items()):
+        lines.append(f"${key}={value}")
+    for key, value in sorted((data.get("env") or {}).items()):
+        lines.append(f"env {key}={value}")
+    for item in data.get("flags") or []:
+        lines.append(
+            f"f {item['name']} {int(item.get('size', 0))} @ {int(item['addr']):#x}"
+        )
+    for start, stop in data.get("hidden_ranges") or []:
+        lines.append(f"Ch {int(stop) - int(start) + 1} @ {int(start):#x}")
+    for item in data.get("strings") or []:
+        lines.append(f"Cs {int(item['size'])} @ {int(item['addr']):#x}")
+    for address in sorted((data.get("magic") or {}), key=int):
+        lines.append(f"Cm @ {int(address):#x}")
+    for address, comment in sorted(
+        (data.get("type_comments") or {}).items(), key=lambda item: int(item[0])
+    ):
+        lines.append(f"Ct {shlex.quote(str(comment))} @ {int(address):#x}")
+    for address, line in sorted(
+        (data.get("source_lines") or {}).items(), key=lambda item: int(item[0])
+    ):
+        lines.append(f"CL {shlex.quote(str(line))} @ {int(address):#x}")
+    for address, name in sorted(
+        (data.get("type_links") or {}).items(), key=lambda item: int(item[0])
+    ):
+        lines.append(f"tl {shlex.quote(str(name))} = {int(address):#x}")
+    for address in data.get("no_return_marks") or []:
+        lines.append(f"tn {int(address):#x}")
+    return lines
 
 
 @command("dt", "typed read (radare2 dt is a debug trace)")

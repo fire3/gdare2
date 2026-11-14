@@ -58,6 +58,13 @@ class FakeClient:
             ]
         if op == "resolve_name":
             return {"main": 0x2000}.get(args["name"])
+        if op == "demangle":
+            return {
+                "text": args["text"],
+                "name": "demo::demangled()",
+                "signature": "void demo::demangled()",
+                "language": args.get("language") or "",
+            }
         if op == "functions":
             return [{"addr": 0x1000, "name": "main", "size": 10, "end": 0x100A}]
         if op == "symbols":
@@ -252,6 +259,11 @@ class FakeClient:
         if op == "exports":
             return [
                 {"addr": 0x1000, "name": "entry", "type": "FUNCTION"},
+            ]
+        if op == "entries":
+            return [
+                {"addr": 0x1000, "name": "_start"},
+                {"addr": 0x1100, "name": "main"},
             ]
         if op == "type_read":
             return {

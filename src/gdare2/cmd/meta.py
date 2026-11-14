@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import os
+
 from gdare2 import __version__, registry
 from gdare2.cmd import command, help_text, require_write
+from gdare2.config import KEYS
 from gdare2.errors import UsageError
 from gdare2.jsonutil import dumps
 
@@ -40,6 +43,96 @@ def _config(session, statement):
 @command("e?", "list configuration keys", aliases=("e??",))
 def _config_keys(session, statement):
     return [f"{name} = {value}" for name, value in session.config.items()]
+
+
+@command("e*", "dump configuration as replayable commands", aliases=("e*j",))
+def _config_commands(session, statement):
+    if statement.cmd == "e*j":
+        return [dumps({name: value for name, value in session.config.items()})]
+    return [f"e {name} = {value}" for name, value in session.config.items()]
+
+
+@command("e-", "reset configuration to defaults")
+def _config_reset(session, statement):
+    session.config.reset()
+    session.setup()
+    return []
+
+
+@command("e!", "invert a boolean configuration key")
+def _config_invert(session, statement):
+    name = statement.args.strip()
+    if not name:
+        raise UsageError("e! needs a configuration key")
+    session.config.invert_bool(name)
+    return []
+
+
+@command("env", "get, set or list environment variables", aliases=("envj",))
+def _env(session, statement):
+    if statement.cmd == "envj":
+        return [dumps(dict(session.env))]
+    text = statement.args.strip()
+    if not text:
+        return [f"{key}={value}" for key, value in sorted(session.env.items())]
+    if "=" in text:
+        name, _, value = text.partition("=")
+        name = name.strip()
+        if not name:
+            raise UsageError("env needs a variable name")
+        session.env[name] = value
+        os.environ[name] = value
+        return []
+    name = text
+    if name not in session.env:
+        raise UsageError(f"no environment variable {name!r}")
+    return [session.env[name]]
+
+
+@command("es", "list configuration spaces or keys in a space")
+def _config_spaces(session, statement):
+    space = statement.args.strip().rstrip(".")
+    names = [name for name, _value in session.config.items()]
+    if not space:
+        return sorted({name.split(".", 1)[0] for name in names})
+    prefix = f"{space}."
+    matches = [name for name in names if name.startswith(prefix)]
+    if not matches:
+        raise UsageError(f"unknown configuration space {space!r}")
+    return matches
+
+
+@command("et", "show the type of a configuration key")
+def _config_type(session, statement):
+    name = statement.args.strip()
+    if not name:
+        raise UsageError("et needs a configuration key")
+    return [session.config.key(name).kind]
+
+
+@command("ev", "show configuration with descriptions", aliases=("evj",))
+def _config_verbose(session, statement):
+    query = statement.args.strip()
+    rows = [
+        {
+            "name": key.name,
+            "value": session.config.get(key.name),
+            "type": key.kind,
+            "desc": key.description,
+            "ro": key.readonly,
+        }
+        for key in KEYS
+        if not query or key.name == query or key.name.startswith(query)
+    ]
+    if not rows:
+        raise UsageError(f"unknown configuration key {query!r}")
+    if statement.cmd == "evj":
+        return [dumps(rows)]
+    return [
+        f"{row['name']} = {row['value']} ; {row['desc']}"
+        + (" (read-only)" if row["ro"] else "")
+        for row in rows
+    ]
 
 
 @command("L", "list live gdare2 daemon instances")

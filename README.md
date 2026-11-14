@@ -299,22 +299,22 @@ Projects default to `~/gdare2-data`, which `GDARE2_DATA_DIR` can override.
 
 | Category | Main commands |
 |---|---|
-| Information | `iI`, `iS`, `is`, `ii`, `ie`, `iz`, `it`, `iM` |
-| Disassembly/memory | `pd`, `pdf`, `pD`, `pi`, `p8`, `px`, `pv`, `ps`, `pc` |
-| Search | `/`, `/x`, `/p`, `/a`, `/w`, `/v[1248]`, `/r`, `//`, `/+`, `/-`; `search.in=raw` |
+| Information | `iI`, `iS`, `iSS`, `is`, `ii`, `ie`, `iee`, `ies`, `iz`, `it`, `iM`, `iC`, `iD`, `iV`, `iv`, `iT`, `ih`, `iH`, `il`, `ir` |
+| Disassembly/memory | `pd`, `pdq`, `pdC`, `pdJ`, `pd,`, `pdf`, `pD`, `pi`, `p8`, `px`, `p6`, `p=`, `pj`, `pr`, `ph`, `pv`, `ps`, `pc`, `pwd` |
+| Search | `/`, `/x`, `/p`, `/a`, `/w`, `/v[1248]`, `/r`, `/i`, `/d`, `/z`, `/m`, `/c`, `/R`, `//`, `/+`, `/-`; `search.in=raw` |
 | Functions/graphs | `afl`, `afi`, `af`, `afn`, `afu`, `afr`, `afvR`, `afvW`, `an`, `afc`, `afC`, `afx`, `afb`, `ab`, `ao`, `ai`, `agf` |
 | xrefs | `axt`, `axf` |
 | Decompilation/variables | `pdc`, `afv` |
-| Types | `t`, `ts`, `tu`, `te`, `tt`, `tf`, `td`, `tc`, `tfc`, `t-`, `tf-`, `tp`, `tpv`, `tpx` |
+| Types | `t`, `ts`, `tu`, `te`, `tt`, `tf`, `td`, `tc`, `tfc`, `t-`, `tf-`, `tp`, `tpv`, `tpx`, `tn`, `to`, `tk`, `tl`, `tx` |
 | Signatures | `afs`, `afsj` |
-| Comments | `C`, `C.`, `CC`, `CC-`, `Cd`, `Cb`, `Cp`, `Cr` |
-| Flags | `f`, `fj`, `fq`, `f?`, `f-`, `fr`, `f.` |
+| Metadata/comments | `C`, `C.`, `CC`, `CC-`, `Cd`, `Cb`, `Cp`, `Cr`, `Ch`, `Cs`, `Cm`, `Cf`, `Ct`, `CL` |
+| Flags | `f`, `fj`, `fq`, `f?`, `f-`, `fr`, `f.`, `fn`, `fN`, `fx` |
 | Analysis writes | `a8`, `ad` |
-| Byte writes | `w`, `wq`, `wx`, `w0`, `wf`, `wd`, `wc`, `wc+`, `wc-`, `u`, `U`, `wi`, `w6d`, `w6e` |
+| Byte writes | `w`, `wq`, `wx`, `w0`, `wf`, `wd`, `wc`, `wc+`, `wc-`, `u`, `U`, `wi`, `w6d`, `w6e`, `wt`, `wv`, `wr`, `ws`, `ww` |
 | Assembly | `pa`, `wa`, `wa*`, `wa+`, `waf`, `waF` |
-| Scripts/misc | `S`, `$`, `_`, `x`, `x8`, `xw`, `xq`, `xj`, `iE`, `ia`, `izz` |
+| Scripts/misc | `S`, `$`, `_`, `x`, `x8`, `xw`, `xq`, `xj`, `iE`, `ia`, `izz`, `env`, `es`, `et`, `ev`, `e*`, `e-`, `e!` |
 | Iteration | `@@F`, `@@/x`, `@@/`, `@@.file`, `@@s:from to step`, `@!n`, `@{from to}` |
-| Session/config | `s`, `b`, `e`, `q`, `.g`, `.gstatus`, `.gsave`, `.gclose`, `.gsync`, `.ganalyze`, `.ghelp`, `.gexec` |
+| Session/config | `s`, `s:`, `s=`, `b`, `bj`, `bf`, `bm`, `e`, `q`, `P`, `T`, `.g`, `.gstatus`, `.gsave`, `.gclose`, `.gsync`, `.ganalyze`, `.ghelp`, `.gexec` |
 
 Most query commands support a `j` suffix for JSON output; use `<command>?` for
 per-command help.
