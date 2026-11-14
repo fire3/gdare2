@@ -18,6 +18,7 @@ from gdare2.errors import GdarError, UsageError
 from gdare2.launcher import ensure
 from gdare2.r2pipe_server import serve_r2pipe
 from gdare2.session import Session
+from gdare2.versions import version_lines
 
 
 def main(argv_list: list[str] | None = None) -> int:
@@ -35,7 +36,10 @@ def main(argv_list: list[str] | None = None) -> int:
         _print_help()
         return 0
     if options.show_version:
-        print(f"gdare2 {__version__} (protocol 1)")
+        if options.show_version >= 2:
+            _emit(version_lines())
+        else:
+            print(f"gdare2 {__version__}")
         return 0
     if options.list_sessions:
         return _list_sessions()
@@ -317,6 +321,7 @@ Core options:
   -n                     skip automatic analysis on first import
   -q, -qq                quiet, extra quiet
   -s <addr>              initial seek
+  -v, -V                 short version / version and Ghidra availability
   -w                     allow write operations
 
 Daemon options:

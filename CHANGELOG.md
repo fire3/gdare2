@@ -4,6 +4,15 @@ All notable changes to gdare2 are documented here.  The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- `gdare2 -V` now reports the whole stack (gdare2, PyGhidra, Ghidra, Java,
+  Python) and flags a missing installation or a Java version older than the
+  one Ghidra requires, without importing PyGhidra or starting a JVM.  `-v`
+  keeps the short form.
+
 ## [0.1.0] - 2026-11-14
 
 First public release.
