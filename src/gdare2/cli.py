@@ -16,6 +16,7 @@ from gdare2.client import Client
 from gdare2.config import Config
 from gdare2.errors import GdarError, UsageError
 from gdare2.launcher import ensure
+from gdare2.r2pipe_server import serve_r2pipe
 from gdare2.session import Session
 
 
@@ -51,6 +52,8 @@ def main(argv_list: list[str] | None = None) -> int:
         state = ensure(options)
         config = Config()
         _apply_cli_config(config, options, auto_colour=True)
+        if config.get_bool("cfg.sandbox"):
+            options.readonly = True
         timeout = options.timeout or float(config.get_int("ghidra.timeout"))
         client = Client(state, timeout=timeout)
         lease = client.call(
@@ -85,19 +88,28 @@ def main(argv_list: list[str] | None = None) -> int:
 
         commands = _command_lines(options)
 
+        pipe_server = None
+        if options.pipe_listen:
+            pipe_server = serve_r2pipe(session, _pipe_address(options.pipe_listen))
+            if options.quiet == 0:
+                print(f"r2pipe listening on {options.pipe_listen}")
+
         if commands:
             for command in commands:
                 _emit(session.run(command))
-        elif not sys.stdin.isatty():
+        elif pipe_server is None and not sys.stdin.isatty():
             for line in sys.stdin:
                 line = line.rstrip("\n")
                 if line and not line.lstrip().startswith("#"):
                     _emit(session.run(line))
                     if session.quit_requested:
                         break
-        else:
+        elif pipe_server is None:
             history_file = completion.setup_readline(session)
             _repl(session, quiet=options.quiet)
+
+        if pipe_server is not None:
+            _wait_r2pipe(pipe_server)
 
         if options.ephemeral:
             client.shutdown(save=not options.readonly)
@@ -115,6 +127,22 @@ def main(argv_list: list[str] | None = None) -> int:
         if client is not None and lease is not None:
             with contextlib.suppress(GdarError):
                 client.call("session_close", lease=lease)
+
+
+def _wait_r2pipe(server) -> None:
+    """Block until a client sends ``q``/``q!`` or the server is interrupted."""
+    try:
+        while not server.closed.is_set() and not server.session.quit_requested:
+            time.sleep(0.2)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.shutdown_and_close()
+
+
+def _pipe_address(spec: str) -> tuple[str, int]:
+    host, _, port_text = spec.rpartition(":")
+    return (host or "127.0.0.1"), int(port_text)
 
 
 def _wait_for_daemon_exit(state: dict, timeout: float = 60.0) -> None:

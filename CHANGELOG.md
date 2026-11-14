@@ -13,6 +13,19 @@ modifiers, macros, `.cmd`/`.!cmd` interpretation, repeat-prefix output
 accumulation) and the parity environment repair (radare2 6.2.6 + rebuilt
 goldens).
 
+v3 batch B: output/input format families (`pc` code-generation family,
+compare variants `c2/c4/c8/cJ/cv`, yank variants `yj/y*/yp/yq/ys/yw/yz`,
+flag subcommands `fc/fm/fo/fd`, `fs` flag spaces, seek gaps `sa/sC/sd`).
+
+v3 batch C: search and graph completion (`/b` backward hex search, `agC`
+call graph with DOT rendering, `axg` reference graph, explicit
+not-supported decisions for the remaining `/` and `ax` variants).
+
+v3 batch D: configuration and ecosystem (new keys `asm.offset`,
+`scr.utf8`, `bin.demangle`, `cfg.sandbox`, `search.maxhits`; explicit
+errors for unsupported r2 keys like `asm.emu`/`anal.*`; `--pipe-listen`
+r2pipe-compatible TCP command channel; CLI option audit).
+
 ### Added
 
 - Expanded radare2 command compatibility: `p6`/`p=`/`pj`/`pr`/`ph`/`pwd`,

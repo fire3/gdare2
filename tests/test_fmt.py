@@ -125,3 +125,50 @@ def test_byte_block_is_one_column_for_filters():
     lines = format_disasm([_item()], config, 64)
     assert grep.apply_spec(lines, "[1]") == ["9090"]
     assert grep.apply_spec(lines, "[2]") == ["NOP"]
+
+
+def test_asm_offset_false_hides_the_address_column():
+    config = Config()
+    config.set("asm.offset", False)
+    item = {"addr": 0x1000, "size": 2, "bytes": b"\x90", "text": "NOP"}
+    line = format_instruction(item, config, 64)
+    assert "0x" not in line
+    assert line.strip() == "NOP"
+
+
+def test_scr_utf8_false_uses_ascii_gutters():
+    config = Config()
+    config.set("asm.lines", True)
+    config.set("scr.utf8", False)
+    items = [
+        {"addr": 0x1000, "size": 2, "bytes": b"\x90", "text": "NOP"},
+        {"addr": 0x1002, "size": 2, "bytes": b"\xc3", "text": "RET", "jump": 0x1000},
+    ]
+    lines = format_disasm(items, config, 64)
+    assert lines[0].startswith("| ")
+    assert lines[1].startswith("`-")
+
+
+def test_bin_demangle_false_keeps_mangled_names():
+    config = Config()
+    config.set("bin.demangle", False)
+    item = {"addr": 0x1000, "size": 2, "bytes": b"\x90", "text": "call", "symbol": "_Z3foo", "symbol_demangled": "foo()"}
+    assert format_instruction(item, config, 64, show_symbol=True).count("_Z3foo") >= 1
+
+
+def test_cfg_sandbox_key_exists():
+    config = Config()
+    config.set("cfg.sandbox", True)
+    assert config.get_bool("cfg.sandbox") is True
+
+
+def test_unsupported_r2_keys_fail_with_reason():
+    import pytest
+
+    from gdare2.errors import UsageError
+
+    config = Config()
+    with pytest.raises(UsageError, match="ESIL"):
+        config.set("asm.emu", "true")
+    with pytest.raises(UsageError, match="anal\\."):
+        config.set("anal.autoname", "true")

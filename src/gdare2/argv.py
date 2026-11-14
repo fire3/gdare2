@@ -28,14 +28,18 @@ IGNORED = {
 IGNORED_VALUE = frozenset("k")
 
 REJECTED = {
+    "C": "remote HTTP relay (-c+=...) is not implemented",
     "d": "the debugger is not implemented",
     "D": "the debugger is not implemented",
+    "F": "bin plugins are chosen by Ghidra's loader",
+    "H": "use -v or ?V for build information",
     "r": "there is no debugger to profile",
     "R": "there is no debugger to profile",
     "x": "load permissions come from Ghidra's loader",
     "X": "extraction plugins are not implemented",
     "P": "rapatch would write with different semantics",
     "o": "file-offset mapping is not implemented; use --list-offset for list pagination",
+    "z": "string loading is decided by Ghidra's analyser; use iz/izz",
 }
 
 LONG_VALUE = frozenset(
@@ -58,6 +62,7 @@ LONG_VALUE = frozenset(
         "color",
         "endian",
         "list-offset",
+        "pipe-listen",
     }
 )
 LONG_BOOL = frozenset(
@@ -122,6 +127,7 @@ class Options:
     timeout: float | None = None
     startup_timeout: float | None = None
     list_offset: int | None = None
+    pipe_listen: str | None = None
     save_on_close: bool | None = None
     wait: bool = False
     assembler: str | None = None
@@ -237,6 +243,8 @@ def _apply_long_value(options: Options, name: str, value: str) -> None:
         if offset < 0:
             raise UsageError("--list-offset must not be negative")
         options.list_offset = offset
+    elif name == "pipe-listen":
+        options.pipe_listen = _parse_pipe_listen(value)
 
 
 def _apply_long_bool(options: Options, name: str) -> None:
@@ -372,6 +380,17 @@ def _apply_short_flag(options: Options, char: str) -> None:
         options.show_version = 2
     elif char == "w":
         options.readonly = False
+
+
+def _parse_pipe_listen(value: str) -> str:
+    """Validate ``--pipe-listen [host:]port`` and return it unchanged."""
+    host, _, port_text = value.rpartition(":")
+    if not port_text.isdigit():
+        raise UsageError("--pipe-listen expects [host:]port")
+    port = int(port_text)
+    if not 0 <= port <= 65535:
+        raise UsageError("--pipe-listen port must be 0-65535")
+    return value
 
 
 def _next(argv: list[str], index: int, what: str) -> str:

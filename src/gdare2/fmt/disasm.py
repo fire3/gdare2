@@ -26,7 +26,7 @@ def display_symbol(item: dict, config: Config) -> str:
     if not config.get_bool("asm.flags"):
         return ""
     symbol = str(item.get("symbol") or "")
-    if symbol and config.get_bool("asm.demangle"):
+    if symbol and config.get_bool("asm.demangle") and config.get_bool("bin.demangle"):
         symbol = str(item.get("symbol_demangled") or symbol)
     return symbol
 
@@ -39,6 +39,7 @@ def format_instruction(
     show_symbol: bool = False,
 ) -> str:
     colour = config.get_int("scr.color") > 0
+    show_offset = config.get_bool("asm.offset")
     address = _paint(format_addr(int(item["addr"]), bits), "addr", colour)
     raw = item.get("bytes", b"")
     # r2 renders the byte block as one contiguous hexpair token and elides
@@ -59,6 +60,10 @@ def format_instruction(
         rendered_text += " " + _paint(f"; {comment}", "comment", colour)
 
     show_bytes = config.get_bool("asm.bytes")
+    if not show_offset:
+        if show_symbol:
+            return f"{symbol:<24}  {rendered_text}".rstrip()
+        return rendered_text
     if show_symbol:
         if show_bytes:
             return (
@@ -98,7 +103,10 @@ def format_disasm(
             lines.append(_paint(f";-- {symbol}:", "label", colour))
         rendered = format_instruction(item, config, bits, show_symbol=show_symbol)
         if config.get_bool("asm.lines"):
-            gutter = "└─" if item.get("jump") else "│ "
+            if config.get_bool("scr.utf8"):
+                gutter = "└─" if item.get("jump") else "│ "
+            else:
+                gutter = "`-" if item.get("jump") else "| "
             rendered = _paint(gutter, "gutter", colour) + " " + rendered
         lines.append(rendered)
         previous_symbol = symbol

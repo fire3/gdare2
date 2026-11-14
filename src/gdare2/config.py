@@ -26,12 +26,14 @@ KEYS = (
     Key("scr.color", 0, INT, "ANSI colour mode (0-3)"),
     Key("scr.null", False, BOOL, "discard output"),
     Key("scr.interactive", False, BOOL, "interactive mode"),
+    Key("scr.utf8", True, BOOL, "use UTF-8 box characters in flow gutters"),
     Key("asm.arch", "unknown", STR, "architecture (derived)", readonly=True),
     Key("asm.bits", 0, INT, "bitness (derived)", readonly=True),
     Key("asm.bytes", True, BOOL, "show instruction bytes"),
     Key("asm.lines", False, BOOL, "show instruction boundaries"),
     Key("asm.comments", False, BOOL, "show symbol/comment annotations"),
     Key("asm.flags", True, BOOL, "show flags"),
+    Key("asm.offset", True, BOOL, "show the address column"),
     Key("asm.demangle", True, BOOL, "demangle symbols"),
     Key("asm.assembler", "ghidra", STR, "ghidra | rasm2 | auto"),
     Key("asm.rasm2", "rasm2", STR, "rasm2 executable path"),
@@ -45,6 +47,9 @@ KEYS = (
     Key("cmd.hit", "", STR, "command run for each search hit"),
     Key("cmd.batch", True, BOOL, "merge @@ iterations into one RPC"),
     Key("search.in", "io.maps", STR, "search scope"),
+    Key("search.maxhits", 0, INT, "cap search results (0 = unlimited)", minimum=0),
+    Key("bin.demangle", True, BOOL, "demangle symbols globally"),
+    Key("cfg.sandbox", False, BOOL, "force read-only for this session"),
     Key("search.from", 0, INT, "search start (0 = auto)"),
     Key("search.to", 0, INT, "search end (0 = auto)"),
     Key("cfg.bigendian", False, BOOL, "big-endian (derived)", readonly=True),
@@ -74,6 +79,38 @@ KEYS = (
 
 _BY_NAME = {key.name: key for key in KEYS}
 
+# r2 keys that scripts may set but that have no gdare2 behaviour.  Setting
+# them raises a clear error instead of "unknown configuration key".
+UNSUPPORTED_KEYS = {
+    "asm.emu": "ESIL emulation is not supported",
+    "asm.var": "variable substitution is not rendered",
+    "asm.xrefs": "inline xref annotations are not rendered",
+    "asm.midflags": "mid-instruction flags have no Ghidra mapping",
+    "asm.bytespace": "byte spacing is fixed by the renderer",
+    "asm.cmt.right": "right-hand comments have no column layout",
+    "asm.trace": "execution traces require the debugger",
+    "bin.lang": "demangling language selection is not exposed",
+    "io.va": "gdare2 has no separate io address translation layer",
+    "dbg.*": "the debugger is not supported",
+    "anal.*": "Ghidra analysers are configured project-side, not via anal.*",
+}
+
+_UNSUPPORTED_PREFIXES = ("anal.", "dbg.", "esil.")
+
+
+def unsupported_key_reason(name: str) -> str | None:
+    if name in UNSUPPORTED_KEYS:
+        return UNSUPPORTED_KEYS[name]
+    for prefix, reason in (
+        ("anal.", UNSUPPORTED_KEYS["anal.*"]),
+        ("dbg.", UNSUPPORTED_KEYS["dbg.*"]),
+        ("esil.", "ESIL is not supported"),
+        ("fs.", "r2 file-system mounts are not supported"),
+    ):
+        if name.startswith(prefix):
+            return reason
+    return None
+
 
 class Config:
     def __init__(self) -> None:
@@ -98,6 +135,9 @@ class Config:
     def set(self, name: str, value: Any) -> None:
         key = _BY_NAME.get(name)
         if key is None:
+            reason = unsupported_key_reason(name)
+            if reason:
+                raise UsageError(f"e {name} is not supported by gdare2: {reason}")
             raise UsageError(f"unknown configuration key {name!r}")
         if key.readonly:
             raise UsageError(f"e {name} is read-only: it reflects the Ghidra program")
