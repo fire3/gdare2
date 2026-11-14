@@ -5,19 +5,10 @@ from __future__ import annotations
 import os
 
 from gdare2 import __version__, registry
-from gdare2.cmd import command, help_text, require_write
+from gdare2.cmd import command, require_write
 from gdare2.config import KEYS
 from gdare2.errors import UsageError
 from gdare2.jsonutil import dumps
-
-
-@command("?", "show command help or evaluate an expression")
-def _help(session, statement):
-    args = statement.args.strip()
-    if not args:
-        return help_text()
-    value = session.eval(args)
-    return [str(value)]
 
 
 @command("?V", "show gdare2 and daemon versions")

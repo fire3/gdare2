@@ -8,6 +8,11 @@ All notable changes to gdare2 are documented here.  The format follows
 
 v2 compatibility batches A–C (G1–G18) and the first batch-D item (G19).
 
+v3 batch A: command-language layer (`?` expression family, `@` temporary
+modifiers, macros, `.cmd`/`.!cmd` interpretation, repeat-prefix output
+accumulation) and the parity environment repair (radare2 6.2.6 + rebuilt
+goldens).
+
 ### Added
 
 - Expanded radare2 command compatibility: `p6`/`p=`/`pj`/`pr`/`ph`/`pwd`,

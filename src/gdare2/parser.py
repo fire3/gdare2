@@ -77,6 +77,7 @@ def split_statements(line: str) -> list[str]:
     start = 0
     quote: str | None = None
     escaped = False
+    depth = 0
     for index, char in enumerate(line):
         if escaped:
             escaped = False
@@ -91,7 +92,14 @@ def split_statements(line: str) -> list[str]:
         if char in ("'", '"'):
             quote = char
             continue
-        if char == ";":
+        # Macro bodies keep their `;` separators: (foo args; s $0; pd 2)
+        if char == "(":
+            depth += 1
+            continue
+        if char == ")" and depth > 0:
+            depth -= 1
+            continue
+        if char == ";" and depth == 0:
             parts.append(line[start:index])
             start = index + 1
     parts.append(line[start:])
@@ -172,7 +180,16 @@ def parse_statement(text: str) -> Statement:
         if count == 1 and not spec:
             raise UsageError("@ seek needs an operand")
 
-    # 5. dot / shell / repeat
+    # 5. macros, dot / shell / repeat
+    if text.startswith("("):
+        # Macro definition/list/delete: keep the whole parenthesised form.
+        statement.cmd = "("
+        statement.args = text
+        return statement
+    if text.startswith(".("):
+        statement.dot = True
+        statement.cmd = text[1:]
+        return statement
     if text.startswith("."):
         statement.dot = True
         text = text[1:].lstrip()

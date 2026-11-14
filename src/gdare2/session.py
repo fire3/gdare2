@@ -13,7 +13,13 @@ from gdare2 import cmd, expr, parser, pipe
 from gdare2 import filter as grep
 from gdare2.client import Client
 from gdare2.config import Config
-from gdare2.errors import GdarError, RemoteError, UsageError
+from gdare2.errors import (
+    GdarError,
+    NotFoundError,
+    RemoteError,
+    UnsupportedError,
+    UsageError,
+)
 from gdare2.flags import Flag, FlagStore
 from gdare2.fmt.listing import format_addr
 from gdare2.jsonutil import dumps
@@ -22,8 +28,22 @@ from gdare2.parser import Statement
 DEFAULT_BLOCKSIZE = 0x100
 MAX_BATCH_TARGETS = 4096
 MAX_BACKTICK_DEPTH = 8
+MAX_DOT_DEPTH = 8
 _BACKTICK = re.compile(r"`([^`]*)`")
 _DOLLAR_SUBST = re.compile(r"\$\(([^()]*)\)")
+_MACRO_ARG = re.compile(r"\$(\d)")
+_ADDR_PREFIX = re.compile(r"0x[0-9a-fA-F]+|[0-9a-fA-F]{4,}")
+_TMPSEEK_REJECT = {
+    "f": "r2 replaces the block with file contents; gdare2 has no block override",
+    "a": "the Ghidra language is fixed per program",
+    "b": "the Ghidra language is fixed per program",
+    "k": "sdb keys do not exist in gdare2",
+    "o": "r2 file descriptors do not exist in gdare2",
+    "p": "the debugger is not supported",
+    "dp": "the debugger is not supported",
+    "dr": "registers are not available without a debugger",
+    "r": "registers are not available without a debugger",
+}
 
 
 class _ProbeStop(Exception):
@@ -125,6 +145,7 @@ class Session:
         self.seek_history: list[int] = []
         self.seek_future: list[int] = []
         self.vars: dict[str, int] = {}
+        self.macros: dict[str, tuple[tuple[str, ...], list[str]]] = {}
         self.env: dict[str, str] = dict(os.environ)
         self.yank: bytes = b""
         self.text_log: list[tuple[int, str]] = []
@@ -310,6 +331,8 @@ class Session:
             saved_seek = self.seek
             saved_blocksize = self.blocksize
             saved_range = self.tmp_range
+            config_backup: list[tuple[str, Any]] | None = None
+            space_backup: str | None = None
             try:
                 if statement.range:
                     start = self.eval(statement.range[0])
@@ -320,22 +343,270 @@ class Session:
                     spec = statement.tmpseek.strip()
                     if spec.startswith("!"):
                         self.blocksize = self.eval(spec[1:].strip())
+                    elif spec.startswith("e:"):
+                        config_backup = self._apply_tmp_config(spec[2:])
+                    elif spec.startswith("F:"):
+                        space_backup = self.flag_store.space
+                        self.flag_store.set_space(spec[2:].strip())
+                        self.load_flags()
                     else:
-                        self.seek = self.eval(spec)
-                lines = self.dispatch(statement)
+                        self.seek = self._resolve_tmpseek(spec)
+                produced = self.dispatch(statement)
             finally:
+                if config_backup is not None:
+                    for name, value in config_backup:
+                        self.config.set(name, value)
+                if space_backup is not None:
+                    self.flag_store.set_space(space_backup)
                 if statement.range or statement.tmpseek:
                     self.seek = saved_seek
                     self.blocksize = saved_blocksize
                 self.tmp_range = saved_range
+            if produced:
+                lines.extend(produced)
         return self.postprocess(lines, statement)
+
+    def _apply_tmp_config(self, text: str) -> list[tuple[str, Any]]:
+        backup: list[tuple[str, Any]] = []
+        for pair in text.split(","):
+            pair = pair.strip()
+            if not pair:
+                continue
+            name, sep, value = pair.partition("=")
+            if not sep:
+                raise UsageError("@e: needs k=v pairs")
+            name = name.strip()
+            backup.append((name, self.config.get(name)))
+            self.config.set(name, value.strip())
+        return backup
+
+    def _resolve_tmpseek(self, spec: str) -> int:
+        """Resolve an ``@`` modifier operand into a temporary seek address."""
+        if spec.startswith("e:") or spec.startswith("F:"):
+            # Handled by run_statement for the whole command duration.
+            return self.seek
+        if spec.startswith("%"):
+            name = spec[1:].strip()
+            if name not in self.env:
+                raise UsageError(f"@% unknown environment variable {name!r}")
+            return self.eval(self.env[name])
+        kind, sep, operand = spec.partition(":")
+        if not sep:
+            return self.eval(spec)
+        if kind in ("f", "a", "b", "k", "o", "p", "dp", "dr", "r"):
+            raise UnsupportedError(f"@{kind}: is not supported by gdare2 ({_TMPSEEK_REJECT[kind]})")
+        if kind == "s":
+            address = self.lookup_name(operand.strip())
+            if address is None:
+                raise NotFoundError(f"@s: unknown name {operand.strip()!r}")
+            return int(address)
+        if kind == "v":
+            return self.eval(operand.strip())
+        if kind == "i":
+            return self._tmpseek_instruction(operand.strip())
+        if kind == "B":
+            return self._tmpseek_block_instruction(operand.strip())
+        if kind == "c":
+            return self._tmpseek_command_output(operand.strip())
+        if kind == "x":
+            return self._tmpseek_hexpairs(operand.strip())
+        raise UsageError(f"unknown @ modifier {kind!r}")
+
+    def _tmpseek_instruction(self, text: str) -> int:
+        count = self.eval(text) if text else 0
+        if count >= 0:
+            payload = self.call("disasm", ea=self.seek, count=count + 1)
+            items = payload if isinstance(payload, list) else payload.get("instructions", [])
+            if len(items) <= count:
+                raise NotFoundError(f"@i: only {len(items)} instruction(s) at or after {self.seek:#x}")
+            return int(items[count]["addr"])
+        payload = self.call("disasm_back", ea=self.seek, count=-count)
+        items = payload if isinstance(payload, list) else payload.get("instructions", [])
+        if len(items) < -count:
+            raise NotFoundError(f"@i: only {len(items)} instruction(s) before {self.seek:#x}")
+        return int(items[count]["addr"])
+
+    def _tmpseek_block_instruction(self, text: str) -> int:
+        block = self.call("basic_block", ea=self.seek)
+        start = int(block["start"])
+        end = int(block["end"])
+        payload = self.call("disasm", ea=start, count=1024)
+        items = payload if isinstance(payload, list) else payload.get("instructions", [])
+        inside = [int(item["addr"]) for item in items if int(item["addr"]) < end]
+        if not inside:
+            raise NotFoundError("no instructions inside the current basic block")
+        try:
+            index = int(self.eval(text)) if text else 0
+        except UsageError:
+            index = 0
+        if index < 0:
+            index += len(inside)
+        if not 0 <= index < len(inside):
+            raise NotFoundError(
+                f"@B: index {text!r} outside the {len(inside)} instruction(s) of the block"
+            )
+        return inside[index]
+
+    def _tmpseek_command_output(self, text: str) -> int:
+        produced = self.run(text)
+        if not produced:
+            raise NotFoundError(f"@c: command {text!r} produced no output")
+        match = _ADDR_PREFIX.search(produced[0].strip())
+        if match is None:
+            raise NotFoundError(f"@c: no address in {produced[0]!r}")
+        return self.eval(match.group())
+
+    def _tmpseek_hexpairs(self, text: str) -> int:
+        from gdare2.cmd.write import parse_hexpairs
+
+        try:
+            data, _mask = parse_hexpairs(text)
+        except UsageError:
+            data = bytes.fromhex(text)
+        if not data:
+            raise UsageError("@x: needs hexpairs")
+        payload = self.call(
+            "search",
+            data=data,
+            mask=None,
+            cursor=self.seek,
+            forward=True,
+            limit=1,
+            offset=0,
+            scope=self.config.get_str("search.in"),
+        )
+        hits = payload.get("hits", []) if isinstance(payload, dict) else payload
+        if not hits:
+            raise NotFoundError(f"@x: pattern {text!r} not found")
+        return int(hits[0])
+
+    def _run_macro(self, name: str, arg_text: str) -> list[str]:
+        macro = self.macros.get(name)
+        if macro is None:
+            raise UsageError(f"macro {name!r} is not defined")
+        params, body = macro
+        values = arg_text.split()
+        if len(values) > len(params):
+            raise UsageError(f"macro {name!r} takes at most {len(params)} argument(s)")
+        mapping = {str(index): value for index, value in enumerate(values)}
+        if self._backtick_depth >= MAX_BACKTICK_DEPTH:
+            raise UsageError("macro recursion nested too deeply")
+        self._backtick_depth += 1
+        try:
+            output: list[str] = []
+            for line in body:
+                substituted = _MACRO_ARG.sub(
+                    lambda match: mapping.get(match.group(1), match.group(0)), line
+                )
+                output.extend(self.run(substituted))
+            return output
+        finally:
+            self._backtick_depth -= 1
+
+    def _define_macro(self, text: str) -> list[str]:
+        inner = text.strip()
+        if inner.endswith(")"):
+            inner = inner[:-1]
+        head, _, body_text = inner.partition(";")
+        words = head.split()
+        if not words:
+            raise UsageError("macro definition needs a name")
+        name = words[0]
+        params = tuple(words[1:])
+        if body_text.strip():
+            body = [part.strip() for part in body_text.split(";") if part.strip()]
+        else:
+            body = []
+        self.macros[name] = (params, body)
+        return []
+
+    def _dot_run_output(self, text: str) -> list[str]:
+        """r2's ``.cmd``: interpret the command output as commands."""
+        if self._backtick_depth >= MAX_DOT_DEPTH:
+            raise UsageError(".cmd interpretation nested too deeply")
+        self._backtick_depth += 1
+        try:
+            produced = self.run(text)
+            output: list[str] = []
+            for line in produced:
+                stripped = line.strip()
+                if stripped:
+                    output.extend(self.run(stripped))
+            return output
+        finally:
+            self._backtick_depth -= 1
+
+    def _dot_shell_output(self, command: str) -> list[str]:
+        result = pipe.run_shell_raw(command)
+        output: list[str] = []
+        for line in result.splitlines():
+            stripped = line.strip()
+            if stripped:
+                output.extend(self.run(stripped))
+        return output
 
     def dispatch(self, statement: Statement) -> list[str]:
         if statement.iterator is not None or statement.iterator_size is not None:
             return self._dispatch_iterator(statement)
         if statement.dot:
-            statement = replace(statement, cmd=f".{statement.cmd}", dot=False)
+            return self._dispatch_dot(statement)
+        if statement.cmd == "(":
+            return self._dispatch_macro_define(statement.args)
         return self.invoke(statement)
+
+    def _dispatch_dot(self, statement: Statement) -> list[str]:
+        text = statement.cmd
+        if text.startswith("("):
+            return self._dispatch_macro_call(text[1:], statement.args)
+        if text.startswith("!"):
+            return self._dot_shell_output(text[1:] + (" " + statement.args if statement.args else ""))
+        candidate = f".{text}"
+        if cmd.lookup(candidate) is not None:
+            statement = replace(statement, cmd=candidate, dot=False)
+            return self.invoke(statement)
+        if text.startswith("g"):
+            raise cmd.unknown(candidate)
+        return self._dot_run_output(
+            text + (" " + statement.args if statement.args else "")
+        )
+
+    def _dispatch_macro_define(self, text: str) -> list[str]:
+        inner = text.strip()
+        if inner == "(":
+            inner = "("
+        if inner == "(" or inner.startswith("(*"):
+            return self._list_macros()
+        if inner.startswith("(-"):
+            return self._delete_macro(inner[2:].rstrip(")").strip())
+        if inner == ")":
+            raise UnsupportedError("() macro break is not supported")
+        return self._define_macro(inner[1:] if inner.startswith("(") else inner)
+
+    def _dispatch_macro_call(self, text: str, args: str) -> list[str]:
+        name = text.strip()
+        if name.endswith(")"):
+            name = name[:-1]
+        name = name.strip()
+        argument_text = args or ""
+        # r2 keeps macro arguments on the call token: .(foo 1 2)
+        if " " in name and not argument_text:
+            name, argument_text = name.split(None, 1)
+        return self._run_macro(name, argument_text)
+
+    def _list_macros(self) -> list[str]:
+        if not self.macros:
+            return []
+        return [
+            f"({name} {' '.join(params)}; {'; '.join(body)})".rstrip()
+            for name, (params, body) in sorted(self.macros.items())
+        ]
+
+    def _delete_macro(self, name: str) -> list[str]:
+        if not name:
+            raise UsageError("(-name) needs a macro name")
+        if self.macros.pop(name, None) is None:
+            raise UsageError(f"macro {name!r} is not defined")
+        return []
 
     def invoke(self, statement: Statement) -> list[str]:
         if statement.help:

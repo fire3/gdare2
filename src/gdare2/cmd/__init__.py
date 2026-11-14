@@ -76,6 +76,9 @@ def load_all() -> None:
         xrefs,
     )
     from gdare2.cmd import (  # noqa: F401
+        eval as eval_cmds,
+    )
+    from gdare2.cmd import (  # noqa: F401
         print as print_cmd,
     )
 
@@ -95,6 +98,9 @@ _PREFIX_BASES = (
     ("%", "%"),
     ("*", "*"),
     ("y", "y"),
+    ("?x-", "?x"),
+    ("?x+", "?x"),
+    ("?vi", "?vi"),
 )
 
 

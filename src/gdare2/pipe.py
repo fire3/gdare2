@@ -36,6 +36,17 @@ def run_shell(command: str) -> list[str]:
     return completed.stdout.splitlines()
 
 
+def run_shell_raw(command: str) -> str:
+    """Run a shell command and return its stdout verbatim."""
+    try:
+        completed = subprocess.run(command, shell=True, capture_output=True, text=True)
+    except OSError as exc:
+        raise CommandError(f"shell command failed: {exc}") from exc
+    if completed.returncode != 0 and completed.stderr:
+        raise CommandError(completed.stderr.rstrip())
+    return completed.stdout
+
+
 def redirect(lines: list[str], target: str, *, append: bool = False) -> None:
     path = Path(target).expanduser()
     try:

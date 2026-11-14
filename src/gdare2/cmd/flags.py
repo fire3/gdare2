@@ -27,9 +27,15 @@ def _add(session, name: str, address: int, size: int = 0) -> Flag:
             )
         )
     return session.flag_store.add(
-        Flag(name, int(address), size=size, kind="flag", local=True)
+        Flag(
+            name,
+            int(address),
+            size=size,
+            kind="flag",
+            local=True,
+            space=session.flag_store.space,
+        )
     )
-
 
 @command("f", "list flags or create one", detail="Usage: f [name [size]] [@ addr] | f name = addr")
 def _flags(session, statement):

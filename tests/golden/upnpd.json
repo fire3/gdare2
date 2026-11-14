@@ -1,10 +1,10 @@
 {
   "meta": {
-    "captured_at": "2026-11-08T13:39:53Z",
+    "captured_at": "2026-11-14T06:27:27Z",
     "gdare2_version": "0.1.0",
     "ghidra_version": "12.2",
     "language": "ARM:LE:32:v8",
-    "r2_version": "radare2 6.2.5 +38342 abi:158 @ linux-x86_64",
+    "r2_version": "radare2 6.2.6 +1 abi:174 @ linux-x86_64",
     "schema": 1,
     "target": "../vulfirm/OverFlow/R6700v3/upnpd",
     "target_sha256": "5b44698596a30f36d83eafc653fe6c251365cce0d438b0eb8f11c455bf52baca"
@@ -1242,7 +1242,7 @@
       {
         "addr": 152168,
         "name": "main",
-        "size": 452
+        "size": 540
       },
       {
         "addr": 45768,
@@ -1527,7 +1527,7 @@
       {
         "addr": 108844,
         "name": "fcn.0001a92c",
-        "size": 236
+        "size": 264
       },
       {
         "addr": 123156,
