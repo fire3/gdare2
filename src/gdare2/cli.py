@@ -322,6 +322,7 @@ Core options:
 Daemon options:
   --attach <id|auto>     attach to an existing daemon
   --no-spawn             never start a daemon
+  --analysis-timeout <s> cap on first-import analysis (0 disables, default)
   --project <dir>        Ghidra project parent directory
   --project-name <name>  Ghidra project name
   --ghidra-language <id> exact Ghidra language ID

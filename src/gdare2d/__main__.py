@@ -60,7 +60,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--readonly", action="store_true", default=False)
     result.add_argument("--write", dest="readonly", action="store_false")
     result.add_argument("--no-analysis", action="store_true")
-    result.add_argument("--analysis-timeout", type=float, default=180.0)
+    result.add_argument("--analysis-timeout", type=float, default=0.0)
     result.add_argument("--log-level", default="info")
     result.add_argument("--log-file")
     result.add_argument("--linger", type=float, default=3600.0)

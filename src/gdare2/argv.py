@@ -57,6 +57,7 @@ LONG_VALUE = frozenset(
         "idle",
         "timeout",
         "startup-timeout",
+        "analysis-timeout",
         "assembler",
         "listen",
         "color",
@@ -126,6 +127,7 @@ class Options:
     idle: float | None = None
     timeout: float | None = None
     startup_timeout: float | None = None
+    analysis_timeout: float | None = None
     list_offset: int | None = None
     pipe_listen: str | None = None
     save_on_close: bool | None = None
@@ -226,6 +228,8 @@ def _apply_long_value(options: Options, name: str, value: str) -> None:
         options.timeout = _float(value, "--timeout")
     elif name == "startup-timeout":
         options.startup_timeout = _float(value, "--startup-timeout")
+    elif name == "analysis-timeout":
+        options.analysis_timeout = _float(value, "--analysis-timeout")
     elif name == "assembler":
         if value not in ("ghidra", "rasm2", "auto"):
             raise UsageError("--assembler must be ghidra, rasm2 or auto")

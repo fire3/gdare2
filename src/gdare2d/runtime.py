@@ -37,7 +37,7 @@ class GhidraRuntime:
         readonly: bool = True,
         save_on_close: bool = True,
         ephemeral: bool = False,
-        analysis_timeout: float = 180.0,
+        analysis_timeout: float = 0.0,
         allow_exec: bool = False,
         ghidra_install: str | None = None,
     ) -> None:

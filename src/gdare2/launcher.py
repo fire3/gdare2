@@ -100,6 +100,9 @@ def _spawn(options: Options, target: str, ingest_id: str) -> None:
     ]
     if options.no_analysis:
         command.append("--no-analysis")
+    elif options.analysis_timeout is not None:
+        # 0 or negative disables the daemon-side analysis cutoff entirely.
+        command += ["--analysis-timeout", str(options.analysis_timeout)]
     if options.arch:
         command += ["-a", options.arch]
     if options.bits:
