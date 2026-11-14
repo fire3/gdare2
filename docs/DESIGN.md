@@ -895,8 +895,8 @@ A 档（实现，保留 r2 语义）：
 
 > 实现状态（2026-11-08）：`-A/-AA` 已在命令前触发 `aa/aaa`；`--wait`
 > 是默认行为（launcher 总是等待 ready）；`--listen` 会转发给 daemon；
-> `--assembler=rasm2` 与 `--allow-exec` 在对应命令（`pa/wa`、`.gexec`）
-> 实现前会明确报 `BAD_ARGS`，不再静默忽略。
+> `--assembler=ghidra|rasm2|auto` 已接入 `asm.assembler`；
+> `--allow-exec` 在 `.gexec` 未启用时仍明确报错，不再静默忽略。
 
 | 参数 | 说明 |
 |---|---|

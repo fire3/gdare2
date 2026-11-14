@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from gdare2 import argv, cli
+from gdare2.config import Config
 
 
 class FakeConfig:
@@ -51,3 +52,27 @@ def test_analysis_wait_skip_disables_auto_analysis():
     options = argv.parse(["-q", "-A", "/bin/ls"])
     cli._analysis_request(session, options)
     assert session.commands == []
+
+
+def test_cli_config_applies_assembler_and_explicit_evals():
+    config = Config()
+    options = argv.parse(
+        [
+            "--assembler",
+            "rasm2",
+            "-e",
+            "asm.assembler=auto",
+            "-e",
+            "asm.bytes=false",
+            "/bin/ls",
+        ]
+    )
+    cli._apply_cli_config(config, options)
+    assert config.get_str("asm.assembler") == "auto"
+    assert config.get_bool("asm.bytes") is False
+
+
+def test_cli_config_leaves_assembler_default_without_option():
+    config = Config()
+    cli._apply_cli_config(config, argv.parse(["/bin/ls"]))
+    assert config.get_str("asm.assembler") == "ghidra"

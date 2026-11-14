@@ -12,15 +12,15 @@
 - **v2 任务**：v1 之后的兼容性补齐已拆分到
   [TASKS-v2.md](TASKS-v2.md)（2026-11-13 差距审计）；剩余 G19–G24 属 P2
 
-## 0. 验证基线（2026-11-13 实测）
+## 0. 验证基线（2026-11-14 实测）
 
 | 套件 | 命令 | 结果 |
 |---|---|---|
-| 离线 | `.venv/bin/python -m pytest -q` | `337 passed`，0.50s |
-| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，439.74s |
-| r2 parity | 同上 `-m parity` | `12 passed`，96.21s |
-| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，7.92s |
-| lint | `ruff check .` | 干净 |
+| 离线 | `.venv/bin/python -m pytest -q` | `344 passed`，0.40s |
+| 真实 Ghidra | `GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python -m pytest -q -m real_ghidra` | `24 passed`，300.27s |
+| r2 parity | 同上 `-m parity` | 12 skipped（本机 r2 5.5.0 与黄金文件 6.2.5 不匹配） |
+| 架构矩阵 | 同上 `-m arch_matrix` | `2 passed`，6.22s |
+| lint | `uvx ruff check .` | 干净 |
 
 ## 0.1 历史验证基线（2026-11-08）
 
@@ -146,8 +146,8 @@
 - **额外修复**：`--attach` 不再要求目标文件；daemon bootstrap 失败返回非零退出码，
   并以 `BAD_ARGS`/`NOT_READY` 等原始错误码回传客户端；启动失败不再空等 180 秒。
 
-Phase A 的剩余项已全部处理。C13（loader 校验）已完成；C14（架构矩阵增强）、
-C15（batch 子 op meta）与 `pdi` 的 flag 列视觉细化转入 Phase C/B1。
+Phase A 的剩余项已全部处理。C13（loader 校验）已完成；C14（架构矩阵增强）
+与 C15（batch 子 op meta）已完成，`pdi` 的 flag 行细化于 2026-11-14 完成。
 
 > **升级注意**：instance-id 指纹现在只包含影响导入结果的键。旧项目的
 > `projects/<old-id>` 目录不会被复用；升级后首次运行会按新 id 重新导入一次。
@@ -352,7 +352,7 @@ uv run gdare2 -j -qc 'afl' /bin/ls | jq .
 
 | 问题 | 选项 | 建议 |
 |---|---|---|
-| `pd` / `pdi` 是否共用渲染？ | 已决策：为 `pdi` 增加 symbol 列独立布局 | 当前 `pdi` 为“地址+symbol+字节+文本”；后续 B1 接入 FlagStore 后再决定是否增加 flag 列 |
+| `pd` / `pdi` 是否共用渲染？ | 已决策：为 `pdi` 增加 symbol 列独立布局 | 当前 `pdi` 为“地址+symbol+字节+文本”；FlagStore 中的非同名 flag 另起 `地址  flag:` 行 |
 | `-A/-AA` 语义 | `-A` 触发 `aa` / `-AA` 触发 `aaa` | 与 r2 保持一致，并在 `--attach` 到已分析项目时也执行 |
 | `--allow-exec` 是否保留 | 实现 `.gexec` / 移除选项 | 保留但默认关闭；daemon 也需显式开关 |
 | 架构矩阵目标 | 20 / 21（加 SH-2A）/ 22 | 先加 SH-2A 到 21；第 22 项等确认可用语言后再加 |

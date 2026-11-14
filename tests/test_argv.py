@@ -67,9 +67,12 @@ def test_ignored_value_flag_consumes_its_argument():
     assert options.ignored == [("-k", argv.IGNORED["k"])]
 
 
-def test_rasm2_assembler_is_rejected_until_implemented():
-    with pytest.raises(UsageError, match="rasm2"):
-        argv.parse(["--assembler", "rasm2", "/bin/ls"])
+def test_assembler_option_accepts_all_backends():
+    assert argv.parse(["--assembler", "rasm2", "/bin/ls"]).assembler == "rasm2"
+    assert argv.parse(["--assembler=auto", "/bin/ls"]).assembler == "auto"
+    assert argv.parse(["/bin/ls"]).assembler is None
+    with pytest.raises(UsageError, match="ghidra, rasm2 or auto"):
+        argv.parse(["--assembler", "keystone", "/bin/ls"])
 
 
 def test_allow_exec_is_accepted():

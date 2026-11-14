@@ -124,7 +124,7 @@ class Options:
     list_offset: int | None = None
     save_on_close: bool | None = None
     wait: bool = False
-    assembler: str = "ghidra"
+    assembler: str | None = None
     daemon_readonly: bool = False
     ephemeral: bool = False
     allow_exec: bool = False
@@ -221,10 +221,8 @@ def _apply_long_value(options: Options, name: str, value: str) -> None:
     elif name == "startup-timeout":
         options.startup_timeout = _float(value, "--startup-timeout")
     elif name == "assembler":
-        if value not in ("ghidra", "rasm2"):
-            raise UsageError("--assembler must be ghidra or rasm2")
-        if value == "rasm2":
-            raise UsageError("--assembler=rasm2 is not implemented yet")
+        if value not in ("ghidra", "rasm2", "auto"):
+            raise UsageError("--assembler must be ghidra, rasm2 or auto")
         options.assembler = value
     elif name == "listen":
         options.listen = value

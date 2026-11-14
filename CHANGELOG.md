@@ -10,6 +10,11 @@ v2 compatibility batches A–C (G1–G18) and the first batch-D item (G19).
 
 ### Added
 
+- `--assembler=ghidra|rasm2|auto` now configures `asm.assembler`; explicit
+  values override rc files, and `-e asm.assembler=...` wins on the same
+  command line.
+- `pdi` emits r2-style `address  flag:` lines for client-side flags without
+  duplicating the current instruction symbol.
 - `iSS` reads ELF program headers from the input file; `ih`/`iH`/`il`/`ir`
   expose the ELF header, `DT_NEEDED` libraries and relocations.
 - Replayable command variants: `f*`, `C*`/`CC*`/`C*.`, `CCu base64:`,
@@ -37,6 +42,9 @@ v2 compatibility batches A–C (G1–G18) and the first batch-D item (G19).
 
 ### Fixed
 
+- Entry-point detection prefers an executable `_start` and ignores
+  non-executable DWARF symbols named `entry` (seen in the Tenda `httpd`
+  firmware sample).
 - `tp`/`tpv` no longer crash on built-in integer types; `tc <name>` only emits
   the requested declaration.
 - JSON output participates in `~`/`|` line by line.

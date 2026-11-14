@@ -457,11 +457,14 @@
 - `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；
   已决策不伪造缺失字段，现有字段包含 `symbol`。
 - `pdi` 现已独立布局：`地址 + symbol + 字节 + 文本`；`pd` 保持原布局。
+  `asm.flags=true` 时，`pdi` 还会在指令行前输出客户端 FlagStore 的
+  `地址  flag 名:` 行；与当前 symbol 同名的 flag 不重复。
 - `tt` 是 typedef 列表（与 r2 一致）；类型读取/格式化走 `tp`/`tpv`/`tpx`，
   当前覆盖整数、枚举、指针、char 数组；结构体只打印原始字节。
 - `u/U` 只恢复字节，不回滚反编译/函数/注释/类型；daemon 重启后历史清空。
-- `pa/wa` 使用 Ghidra SLEIGH 汇编器；助记符通常需要大写（如 `NOP`），
-  不支持的语言明确报 `NOT_SUPPORTED`。`--assembler=rasm2` 仍未实现。
+- `pa/wa` 默认使用 Ghidra SLEIGH 汇编器；助记符通常需要大写（如 `NOP`），
+  不支持的语言明确报 `NOT_SUPPORTED`。`--assembler=rasm2|auto` 与
+  `e asm.assembler=ghidra|rasm2|auto` 均已接入。
 - 首次汇编会触发 SLEIGH 初始化（实测 20–60 s）；汇编 op 使用
   `e ghidra.assemble.timeout`（默认 180 s），其他 op 仍使用
   `e ghidra.timeout`（默认 30 s）。
@@ -538,7 +541,7 @@
   且未设置 `NO_COLOR` 时默认 1；`--color 0`/`e scr.color=0` 关闭。
 - 反汇编注解：`asm.comments=true` 输出 `;-- symbol:` 与 EOL 注释（默认
   false）；`asm.lines=true` 输出 `│ `/`└─` gutter；`asm.demangle` 用于
-  `_Z` 符号；`asm.flags=false` 隐藏符号注解与 `pdi` 符号列。
+  `_Z` 符号；`asm.flags=false` 隐藏符号注解、`pdi` 符号列与 `pdi` flag 行。
 - 批处理：`cmd.batch=false` 时 `@@` 逐目标 RPC，不再合并为一次 `batch`。
 - 分页：`--list-offset N` / `e list.offset=N` 作用于
   `afl/aflq/afln/afl+/is/iE/ii/iz/izz`；截断时提示下一页偏移。

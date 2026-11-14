@@ -54,6 +54,30 @@ def test_rasm2_big_endian_arch_arguments(tmp_path):
     ]
 
 
+def test_rasm2_maps_canonical_elf_architecture_names(tmp_path):
+    session, _, args_file = _session(tmp_path, arch="ARM", bits=32)
+    session.info["endian"] = "little"
+    assert session.run("pa mov r0, 1") == ["9090"]
+    assert json.loads(args_file.read_text()) == ["-a", "arm", "-b", "32", "mov r0, 1"]
+
+    session, _, args_file = _session(tmp_path, arch="ARM", bits=32)
+    session.info["endian"] = "big"
+    assert session.run("pa mov r0, 1") == ["9090"]
+    assert json.loads(args_file.read_text()) == [
+        "-a",
+        "arm",
+        "-b",
+        "32",
+        "-e",
+        "mov r0, 1",
+    ]
+
+    session, _, args_file = _session(tmp_path, arch="AARCH64", bits=64)
+    session.info["endian"] = "little"
+    assert session.run("pa ret") == ["9090"]
+    assert json.loads(args_file.read_text()) == ["-a", "arm", "-b", "64", "ret"]
+
+
 def test_wa_variants_write_and_seek(tmp_path):
     session, client, _ = _session(tmp_path)
     session.readonly = False

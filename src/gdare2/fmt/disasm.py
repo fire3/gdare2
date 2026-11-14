@@ -77,13 +77,23 @@ def format_disasm(
     bits: int,
     *,
     show_symbol: bool = False,
+    flags: dict[int, list[str]] | None = None,
 ) -> list[str]:
     colour = config.get_int("scr.color") > 0
     annotations = config.get_bool("asm.comments")
+    show_flags = config.get_bool("asm.flags")
     lines: list[str] = []
     previous_symbol = ""
     for item in items:
         symbol = display_symbol(item, config)
+        address = int(item["addr"])
+        if show_flags and flags:
+            symbols = {symbol, str(item.get("symbol_demangled") or "")}
+            for name in flags.get(address, ()):
+                if name not in symbols:
+                    lines.append(
+                        _paint(f"{format_addr(address, bits)}  {name}:", "label", colour)
+                    )
         if annotations and symbol and symbol != previous_symbol:
             lines.append(_paint(f";-- {symbol}:", "label", colour))
         rendered = format_instruction(item, config, bits, show_symbol=show_symbol)

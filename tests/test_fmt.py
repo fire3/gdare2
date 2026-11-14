@@ -71,6 +71,30 @@ def test_demangled_symbol_is_used_when_enabled():
     assert "foo()" not in format_instruction(item, config, 64, show_symbol=True)
 
 
+def test_flag_lines_are_rendered_before_instructions():
+    config = Config()
+    lines = format_disasm(
+        [_item(symbol="main")],
+        config,
+        64,
+        show_symbol=True,
+        flags={0x1000: ["main", "user_flag"]},
+    )
+    assert lines[0].endswith("user_flag:")
+    assert not any(line.endswith("main:") for line in lines)
+    assert "main" in lines[-1]
+
+    config.set("asm.flags", False)
+    hidden = format_disasm(
+        [_item(symbol="main")],
+        config,
+        64,
+        show_symbol=True,
+        flags={0x1000: ["user_flag"]},
+    )
+    assert not any("user_flag" in line for line in hidden)
+
+
 def test_hexdump_options():
     data = bytes(range(20))
     lines = hexdump(data, 0x1000, cols=8, header=True, bits=64)

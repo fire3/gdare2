@@ -37,11 +37,17 @@ def _pd(session, statement):
     if count < 0:
         return _pd_backward(session, -count)
     items = session.call("disasm", ea=session.seek, count=count)
+    flag_names = None
+    if statement.cmd == "pdi" and session.config.get_bool("asm.flags"):
+        flag_names = {}
+        for flag in session.flag_store.values():
+            flag_names.setdefault(int(flag.addr), []).append(flag.name)
     return format_disasm(
         items,
         session.config,
         _bits(session),
         show_symbol=statement.cmd == "pdi",
+        flags=flag_names,
     )
 
 

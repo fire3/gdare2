@@ -297,13 +297,14 @@ gdare2 目标不是“假装 Ghidra 是 r2”，而是兼容高频工作流并�
 - `w` 无参数是“保存程序”，`w <text>` 才是写字符串。
 - `u/U` 是 daemon 内存级字节补丁历史，不是 Ghidra 全局 undo。
 - `f` 默认只写会话内 flag；写回 Ghidra 需要 `-w` 且 `e ghidra.flags.write=true`。
-- `pa/wa` 使用 Ghidra SLEIGH 汇编器，助记符通常需要大写。
+- `pa/wa` 默认使用 Ghidra SLEIGH 汇编器，助记符通常需要大写；可用
+  `--assembler=rasm2|auto` 或 `e asm.assembler=...` 切换后端。
 - `/r` 只遍历已定义字符串；`izz`/`search.in=raw` 返回文件偏移。
 - `afr` 为删除+重建函数的近似重分析；`an` 对纯 decompiler 局部变量支持有限。
 - `.gexec` 需要客户端与 daemon 都显式 `--allow-exec`，并且 `-w`。
 - `-B` 只对裸二进制生效；`sh4` 在 Ghidra 12.2 中无对应语言。
-- `-A/-AA`、`--wait`、`--listen` 已生效；`--assembler=rasm2` 与 `--allow-exec`
-  在对应命令实现前会明确报参数错误。详见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+- `-A/-AA`、`--wait`、`--listen`、`--assembler` 已生效；`--allow-exec`
+  在 `.gexec` 未启用时明确报错。详见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 完整列表见 [docs/DIVERGENCES.md](docs/DIVERGENCES.md)。
 

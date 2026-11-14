@@ -505,16 +505,27 @@ class GhidraRuntime:
     @staticmethod
     def _entry_point(program) -> int:
         symbol_table = program.getSymbolTable()
-        for name in ("entry", "_start"):
+        memory = program.getMemory()
+
+        def executable(address) -> bool:
+            block = memory.getBlock(address)
+            return block is not None and block.isExecute()
+
+        # Prefer _start: debug-info files sometimes contain a non-executable
+        # DWARF symbol literally named "entry" at a file offset.
+        for name in ("_start", "entry"):
             try:
                 for symbol in symbol_table.getSymbols(name):
                     address = symbol.getAddress()
-                    if address is not None and not symbol.isExternal():
+                    if (
+                        address is not None
+                        and not symbol.isExternal()
+                        and executable(address)
+                    ):
                         return int(address.getOffset())
             except Exception:
                 pass
         try:
-            memory = program.getMemory()
             iterator = symbol_table.getExternalEntryPointIterator()
             for address in iterator:
                 block = memory.getBlock(address)

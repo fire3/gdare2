@@ -253,7 +253,8 @@ daemon 只读。
 - 不支持时明确报错，不静默调用外部汇编器；
 - **v2 G20 已实现**：`e asm.assembler=ghidra|rasm2|auto`；rasm2 后端使用
   `-a/-b/-e` 映射，`auto` 仅在 Ghidra 失败时回退并输出 WARN。CLI 的
-  `--assembler=rasm2` 仍是显式拒绝（避免与 daemon 配置混淆），请用 `-e`。
+  `--assembler=ghidra|rasm2|auto` 会写入 `asm.assembler`；同一命令行中的
+  `-e asm.assembler=...` 优先。
 
 ## 11. 输出与 JSON
 
@@ -433,9 +434,9 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
 | 现象 | 当前实现 | 目标/说明 |
 |---|---|---|
 | `pdj` 字段集 | 顶层数组；字段 `addr/size/bytes/text/mnemonic/symbol/call/jump/conditional` | r2 6.2.5 顶层也是数组，但含 `esil/opcode/disasm/family/type` 等；已决策不伪造缺失字段 |
-| `pdi` 布局 | 地址+symbol+字节+文本（symbol 列为空时保留空白） | r2 使用 flag/注释缩进体系；gdare2 的 symbol 列是其近似，完整 flag 列在 Phase B1 后评估 |
+| `pdi` 布局 | 地址+symbol+字节+文本（symbol 列为空时保留空白）；FlagStore 中有非同名 flag 时先输出 `地址  flag 名:` 行 | r2 使用 flag/注释缩进体系；gdare2 用独立 flag 行 + symbol 列近似 |
 | `tt` | 列出 typedef（与 r2 一致） | 类型读取/转换走 `tp`/`tpv`/`tpx`；不要把 `tt` 当“应用类型” |
-| `--assembler=rasm2` | 明确报 `BAD_ARGS` | `pa/wa` 已使用 Ghidra SLEIGH 汇编器；rasm2 回退尚未接入 |
+| `--assembler=rasm2` | 写入 `asm.assembler`，`pa/wa/wa*/wa+/waf//a` 使用 rasm2 | 支持 `ghidra|rasm2|auto`；`auto` 仅在 Ghidra 失败时回退并 WARN |
 | `.gexec` | 需要客户端 `--allow-exec` + daemon `--allow-exec` + `-w` | 三重门控是有意的安全边界；缺任一项都报错 |
 | `afB` | 不实现，报 `NOT_SUPPORTED` | r2 6.2.5 中 `afB` 是 Thumb 位宽切换；旧文档的“第 n 个基本块”语义已过时，不做兼容层 |
 | batch 子 op `meta` | 逐项保留；客户端 `@@` 汇总截断并输出 `WARN` | 已实现（Phase C5）；子 op 返回 `OpResult` 时透传 `meta` |
@@ -476,8 +477,9 @@ JSON 使用多行 pretty 输出；`~`/`|` 在渲染后按行处理，因此
   结构体/联合体打印原始字节。`tpx` 从 hexpairs 直接格式化，不访问内存。
 - **`/r`**：只遍历已定义字符串（`StringDataType`），不会像 r2 那样扫描任意字节。
   `cmd.hit` 会对每个命中执行一次命令，并用内部标记防止递归。
-- **`pa` / `wa`**：使用 Ghidra SLEIGH 汇编器，助记符通常需要大写；没有
-  SLEIGH assembler 的语言返回 `NOT_SUPPORTED`。`--assembler=rasm2` 未实现。
+- **`pa` / `wa`**：默认使用 Ghidra SLEIGH 汇编器，助记符通常需要大写；没有
+  SLEIGH assembler 的语言返回 `NOT_SUPPORTED`。`--assembler=rasm2|auto`
+  与 `e asm.assembler=...` 可用。
 - **`wi` / `w6`**：`wi` 宽度 1/2/4/8，`wi+`/`wi-` 为增减；`w6d` 解码 base64
   并写入，`w6e` 编码当前字节。
 - **`.gsync`**：重新拉取 `info` 并清空 FlagStore，下次 `f` 会重新播种。

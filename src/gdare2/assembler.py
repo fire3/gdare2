@@ -35,6 +35,21 @@ _RASM2_ARCH = {
     "sh2a": ("sh", True),
 }
 
+#: Ghidra language processors use upper-case names such as ARM/AARCH64; r2
+#: aliases are lower-case.  Map the canonical names as well so ELF imports
+#: work with the rasm2 backend without requiring a raw-binary -a alias.
+_RASM2_CANONICAL = {
+    "x86": "x86",
+    "arm": "arm",
+    "aarch64": "arm",
+    "mips": "mips",
+    "powerpc": "ppc",
+    "riscv": "riscv",
+    "sparc": "sparc",
+    "68000": "m68k",
+    "superh": "sh",
+}
+
 _HEXPAIRS = re.compile(r"^[0-9a-fA-F]+$")
 
 
@@ -88,10 +103,15 @@ def assemble_write(session, ea: int, text: str) -> dict:
 def rasm2_assemble(session, ea: int, text: str) -> dict:
     binary = session.config.get_str("asm.rasm2")
     arch = str(session.info.get("arch") or "")
-    mapping = _RASM2_ARCH.get(arch)
+    mapping = _RASM2_ARCH.get(arch.lower())
+    if mapping is None:
+        canonical = _RASM2_CANONICAL.get(arch.lower())
+        if canonical is not None:
+            mapping = (canonical, False)
     if mapping is None:
         raise UnsupportedError(f"rasm2 has no architecture mapping for {arch!r}")
     rasm_arch, big_endian = mapping
+    big_endian = big_endian or session.info.get("endian") == "big"
     bits = int(session.info.get("bits") or 32)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:

@@ -1,7 +1,7 @@
 # gdare2 开发进度
 
-更新时间：2026-11-13
-最近验证：2026-11-13
+更新时间：2026-11-14
+最近验证：2026-11-14
 
 ## 当前状态
 
@@ -31,6 +31,29 @@
 | v2 G21 | 完成（2026-11-13） | `y`/`%`/`*`/`c`/`T`/`P`；前导引号与 `$()` |
 | v2 G22 | 完成（2026-11-13） | 类型成员布局与 `tpx` 结构体输入 |
 | v2 G23 | 完成（2026-11-13） | 注释 sidecar；`e ghidra.comments.all` |
+| v2 维护项 1–2 | 完成（2026-11-14） | `--assembler=ghidra/rasm2/auto` 真正生效；`pdi` 输出 flag 行 |
+
+## v2 维护项 1–2（2026-11-14）
+
+- **`--assembler`**：CLI 选项不再在解析阶段拒绝 `rasm2`，而是支持
+  `ghidra`/`rasm2`/`auto` 并写入 `asm.assembler`。显式 CLI 值在 rc 之后应用，
+  因此优先于 rc；同一次命令行里的 `-e asm.assembler=...` 仍按后者生效。
+- **`pdi` flag 行**：当 `asm.flags=true` 时，`pdi` 在指令行前输出
+  `地址  flag 名:` 行；flag 来自客户端 `FlagStore`（`f`/`fj` 触发加载）。
+  与当前指令 symbol 同名的 flag 不重复输出。`asm.flags=false` 同时隐藏
+  flag 行与 symbol 列。
+- **入口点修复**：`_entry_point` 现在优先 `_start`，并要求候选符号地址位于
+  可执行内存块。`../vulfirm/RCE/Tenda/httpd` 的 DWARF 中存在地址 6 的
+  `entry` 符号，旧逻辑会误把它当入口；现在正确选择 `_start`（0xf3ac）。
+- **测试**：离线新增 CLI 配置接线、argv、`pdi` flag 行与 `asm.flags` 门控用例；
+  真实 Ghidra 验证 `--assembler=rasm2 -qc 'pa mov eax, 1' /bin/ls` 输出
+  `b801000000`，`s entry; f demo_flag; pdi 2` 输出独立 `demo_flag:` 行。
+  本轮最终验证：离线 **344 passed**、真实 Ghidra **24 passed**、架构矩阵
+  **2 passed**、parity 12 skipped（r2 版本不匹配）、`uvx ruff check .` 干净。
+- **本地固件验证（不入库）**：2026-11-14 用临时数据目录导入
+  `../vulfirm` 的 R6700v3/XR300 `upnpd`、Tenda `httpd`、Merlin `openvpn`，
+  四个 ARM32 ELF 均验证 `iI`（ARM/32/little）、`pd 4`、`iSS`、`pdi` flag 行、
+  `aflq` 计数与 `--assembler=rasm2 pa mov r0, 1`。
 
 ## v2 G1–G5（2026-11-13）
 
@@ -432,15 +455,18 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 - `pdj` 顶层数组与 r2 6.2.5 一致，但字段集不同（缺 `esil/opcode/family/type` 等）；
   已决策不伪造缺失字段；
 - ~~batch 子 op 的 `meta` 只汇总错误数~~ → 已修复：逐项保留并汇总截断；
-- `--assembler=rasm2` 仍未实现，会明确报 `BAD_ARGS`（有意的显式拒绝）。
+- ~~`--assembler=rasm2` 仍未实现~~ → 已接入 `asm.assembler`，支持
+  `ghidra|rasm2|auto`。
 
 ### 测试与 parity 缺口
 
 - ~~`tests/parity/` 不存在~~ → 已建立；`pytest -m parity` 覆盖 `/bin/ls` 与 ARM32；
 - ~~`tools/capture_r2_golden.py` 未实现~~ → 已实现并生成两份黄金文件；
 - ~~架构矩阵只校验语言 ID~~ → 22 配置并断言 `pd 1`/`iI`；
-- 架构矩阵仍不覆盖真实 ELF（只覆盖裸二进制导入）；
-- 没有 ARM32 样本的独立真实 Ghidra 集成测试（parity 用例已实际导入该样本）；
+- 架构矩阵仍不覆盖真实 ELF（只覆盖裸二进制导入）；2026-11-14 已用
+  `../vulfirm` 的 ARM32 ELF 做本地临时验证，但按约定不把本地样本测试入库；
+- 没有 ARM32 样本的独立真实 Ghidra 用例（parity 用例已实际导入该样本；
+  本地临时验证见 2026-11-14 记录）；
 - ~~没有性能基线~~ → 见 `docs/PERF.md` 与 `docs/perf-baseline.json`。
 
 ## 下一轮
@@ -450,7 +476,7 @@ GHIDRA_INSTALL_DIR=$HOME/ghidra/current .venv/bin/python tools/arch_matrix.py
 
 没有必须推进的下一阶段。可选维护项：
 
-1. `--assembler=rasm2` 回退（当前明确报 `BAD_ARGS`）；
-2. `f` flag 视觉列（在 `pdi` 的 symbol 列之外增加 flag 列）；
-3. 真实 ELF 架构矩阵（当前矩阵只覆盖裸二进制）；
-4. ARM32 样本的独立 `-m real_ghidra` 用例。
+1. ~~`--assembler=rasm2` 回退~~ → 已完成（2026-11-14）；
+2. ~~`f` flag 视觉列~~ → 已完成（`pdi` flag 行，2026-11-14）；
+3. 真实 ELF 架构矩阵（当前矩阵只覆盖裸二进制；待补多架构真实 ELF 样本）；
+4. ARM32 样本的独立 `-m real_ghidra` 用例（本地临时验证已完成，未入库）。

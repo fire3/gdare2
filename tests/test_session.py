@@ -760,6 +760,20 @@ def test_pdi_pi_pdl_and_pd_bytes():
     assert len(session.run("pD 3")) == 2
 
 
+def test_pdi_shows_client_flags_as_separate_lines():
+    session, _ = make_session()
+    session.run("f demoflag = 0x1000")
+    lines = session.run("pdi 1")
+    assert any(line.endswith("entry:") for line in lines)
+    assert any(line.endswith("demoflag:") for line in lines)
+    assert any("main" in line and "NOP" in line for line in lines)
+
+    session.run("e asm.flags=false")
+    disabled = session.run("pdi 1")
+    assert not any(line.endswith("demoflag:") for line in disabled)
+    assert not any("main" in line for line in disabled)
+
+
 def test_words_and_json_variants():
     session, _ = make_session()
     assert "1145258561" in session.run("pvj4")[0]

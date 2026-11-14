@@ -344,7 +344,7 @@ uv run gdare2 -j -qc 'afl' target | jq .
 
 v1 的 Phase A–C 已全部完成，没有必须推进的下一阶段。可选维护项：
 
-1. `--assembler=rasm2` 回退（当前明确报 `BAD_ARGS`）；
-2. `f` flag 视觉列（在 `pdi` 的 symbol 列之外增加 flag 列）；
+1. ~~`--assembler=rasm2` 回退~~ → 已完成（2026-11-14）；
+2. ~~`f` flag 视觉列~~ → 已完成（`pdi` flag 行，2026-11-14）；
 3. 真实 ELF 架构矩阵（当前矩阵只覆盖裸二进制）；
-4. ARM32 样本的独立 `-m real_ghidra` 用例。
+4. ARM32 样本的独立 `-m real_ghidra` 用例（本地临时验证完成，未入库）。

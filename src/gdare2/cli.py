@@ -50,14 +50,7 @@ def main(argv_list: list[str] | None = None) -> int:
     try:
         state = ensure(options)
         config = Config()
-        for key, value in options.evals:
-            config.set(key, value)
-        if options.color is not None:
-            config.set("scr.color", options.color)
-        elif sys.stdout.isatty() and not options.json and not os.environ.get("NO_COLOR"):
-            config.set("scr.color", 1)
-        if options.list_offset is not None:
-            config.set("list.offset", options.list_offset)
+        _apply_cli_config(config, options, auto_colour=True)
         timeout = options.timeout or float(config.get_int("ghidra.timeout"))
         client = Client(state, timeout=timeout)
         lease = client.call(
@@ -80,12 +73,7 @@ def main(argv_list: list[str] | None = None) -> int:
         session.json_default = options.json
 
         _run_rc(session, options)
-        for key, value in options.evals:
-            config.set(key, value)
-        if options.color is not None:
-            config.set("scr.color", options.color)
-        if options.list_offset is not None:
-            config.set("list.offset", options.list_offset)
+        _apply_cli_config(config, options)
         client.timeout = options.timeout or float(config.get_int("ghidra.timeout"))
         _analysis_request(session, options)
         if options.seek:
@@ -137,6 +125,24 @@ def _wait_for_daemon_exit(state: dict, timeout: float = 60.0) -> None:
         if not _process_running(pid):
             return
         time.sleep(0.1)
+
+
+def _apply_cli_config(config: Config, options: argv.Options, *, auto_colour: bool = False) -> None:
+    """Apply command-line configuration after rc evaluation.
+
+    Explicit CLI values win over rc-file values.  ``auto_colour`` is only used
+    for the first pass so a TTY default does not override an rc setting.
+    """
+    if options.assembler is not None:
+        config.set("asm.assembler", options.assembler)
+    for key, value in options.evals:
+        config.set(key, value)
+    if options.color is not None:
+        config.set("scr.color", options.color)
+    elif auto_colour and sys.stdout.isatty() and not options.json and not os.environ.get("NO_COLOR"):
+        config.set("scr.color", 1)
+    if options.list_offset is not None:
+        config.set("list.offset", options.list_offset)
 
 
 def _process_running(pid: int) -> bool:
