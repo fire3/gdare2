@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,23 +8,35 @@ dynamic = ["version"]
 description = "radare2-style CLI backed by Ghidra and PyGhidra"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "fire3" }]
-keywords = ["reverse-engineering", "ghidra", "radare2", "disassembler"]
+keywords = [
+    "binary-analysis",
+    "disassembler",
+    "ghidra",
+    "pyghidra",
+    "radare2",
+    "reverse-engineering",
+]
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Security",
+    "Topic :: Software Development :: Disassemblers",
+    "Topic :: Utilities",
 ]
-dependencies = []
+dependencies = ["pyghidra>=3.2.0"]
 
 [project.optional-dependencies]
-daemon = ["pyghidra>=3.2.0"]
 test = ["pytest>=8"]
 
 [project.scripts]
@@ -32,9 +44,19 @@ gdare2 = "gdare2.cli:main"
 gdare2d = "gdare2d.__main__:main"
 
 [project.urls]
+Homepage = "https://github.com/fire3/gdare2"
 Repository = "https://github.com/fire3/gdare2"
 Issues = "https://github.com/fire3/gdare2/issues"
 Changelog = "https://github.com/fire3/gdare2/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/fire3/gdare2/blob/main/docs/README.md"
+
+[dependency-groups]
+dev = [
+    "build>=1.2",
+    "pytest>=8",
+    "ruff>=0.6",
+    "twine>=6",
+]
 
 [tool.hatch.version]
 path = "src/gdare2/__init__.py"

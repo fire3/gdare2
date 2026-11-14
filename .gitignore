@@ -6,6 +6,12 @@ __pycache__/
 .venv/
 dist/
 build/
+.coverage
+htmlcov/
+site/
+.pypirc
+*.whl
+*.tar.gz
 *.log
 *.gpr
 *.rep/

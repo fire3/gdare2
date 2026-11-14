@@ -1,5 +1,10 @@
 # gdare2
 
+[![PyPI](https://raw.githubusercontent.com/fire3/gdare2/main/assets/badges/pypi.svg)](https://pypi.org/project/gdare2/)
+[![Python versions](https://raw.githubusercontent.com/fire3/gdare2/main/assets/badges/python.svg)](https://pypi.org/project/gdare2/)
+[![CI](https://github.com/fire3/gdare2/actions/workflows/ci.yml/badge.svg)](https://github.com/fire3/gdare2/actions/workflows/ci.yml)
+[![License: MIT](https://raw.githubusercontent.com/fire3/gdare2/main/assets/badges/license.svg)](https://github.com/fire3/gdare2/blob/main/LICENSE)
+
 `gdare2` 是一个以 **Ghidra** 为分析后端、命令行与输出模型尽量兼容 **radare2** 的
 逆向分析工具。它把 Ghidra 的项目、反汇编、反编译、类型与写入能力包装成熟悉的
 r2 风格命令，同时保留一个常驻 daemon，让后续命令可以秒级响应。
@@ -58,14 +63,31 @@ export GHIDRA_INSTALL_DIR=$HOME/ghidra/current
 
 ## 安装
 
+从 PyPI 安装：
+
 ```bash
-uv venv --python 3.13 .venv
-uv pip install --python .venv/bin/python \
-  --no-index -f "$HOME/ghidra/current/Ghidra/Features/PyGhidra/pypkg/dist" pyghidra
-uv pip install --python .venv/bin/python -e '.[test]'
+python -m pip install gdare2
+gdare2 -V
 ```
 
-也可以使用普通 pip；关键是 `pyghidra` 可用且 `GHIDRA_INSTALL_DIR` 指向 Ghidra。
+`pip install gdare2` 会安装 PyGhidra；Ghidra、Java 以及 `GHIDRA_INSTALL_DIR`
+仍需要按上面的环境要求单独准备。PyGhidra 不会被客户端进程导入，只有
+`gdare2d` 启动时才需要 JVM。
+
+从源码开发：
+
+```bash
+uv sync --group dev
+```
+
+离线环境可以先从 Ghidra 自带 wheel 安装 PyGhidra：
+
+```bash
+uv pip install --python .venv/bin/python \
+  --no-index -f "$HOME/ghidra/current/Ghidra/Features/PyGhidra/pypkg/dist" \
+  'pyghidra>=3.2.0'
+```
+
 激活虚拟环境后直接使用 `gdare2`；未激活时可使用 `.venv/bin/gdare2`。
 
 ## 快速开始

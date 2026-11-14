@@ -10,6 +10,11 @@ v2 compatibility batches A–C (G1–G18) and the first batch-D item (G19).
 
 ### Added
 
+- PyPI-ready packaging: PEP 639 license metadata, a required
+  `pyghidra>=3.2.0` runtime dependency, a `dev` dependency group, self-hosted
+  README badges, packaging regression tests, and TestPyPI/PyPI Trusted
+  Publishing workflows.
+- `pip install gdare2` is now the documented installation path.
 - `--assembler=ghidra|rasm2|auto` now configures `asm.assembler`; explicit
   values override rc files, and `-e asm.assembler=...` wins on the same
   command line.
