@@ -4,7 +4,9 @@ All notable changes to gdare2 are documented here.  The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.0] - 2026-11-14
+
+First public release.
 
 v2 compatibility batches A–C (G1–G18) and the first batch-D item (G19).
 
@@ -78,6 +80,12 @@ r2pipe-compatible TCP command channel; CLI option audit).
 
 ### Fixed
 
+- First-import analysis no longer cuts off at 180 seconds. The daemon-side
+  cap defaulted to a hard 180 s, which truncated slow-arch imports (measured:
+  i386 684 s, mipsel 665 s, big-endian MIPS 483 s) and silently cached a
+  broken one-function database that later runs reused. The default is now
+  unlimited; a cap can be set explicitly with the new client option
+  `--analysis-timeout <sec>` (0 disables it).
 - Entry-point detection prefers an executable `_start` and ignores
   non-executable DWARF symbols named `entry` (seen in the Tenda `httpd`
   firmware sample).

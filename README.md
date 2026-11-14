@@ -140,8 +140,23 @@ gdare2 -qc 'iI; s entry; pd 10' /bin/ls
 gdare2 -a x86 -b 64 -B 0x400000 blob.bin
 ```
 
-The first open imports and analyzes the target; how long this takes depends on
-its size. Subsequent commands reuse the daemon for the same target.
+The first open imports and analyzes the target. How long this takes depends
+mainly on the architecture: measured on real jq/busybox binaries, x86-64,
+Mach-O, and PE finish in about 45–100 s, while some ISAs (32-bit MIPS, i386,
+PowerPC) take 3–12 minutes. The wait is a one-time cost per target — the
+resident daemon keeps the analyzed program open, and later commands return in
+well under a second. There is no analysis time limit by default; set one
+explicitly with `--analysis-timeout <seconds>` (0, the default, disables it).
+
+## Supported formats and architectures
+
+gdare2 imports whatever the Ghidra 12.2 loaders accept: ELF, PE, and Mach-O
+plus raw binaries (`-a/-b/-B` select the language). The test corpus covers 13
+ISAs with real binaries (x86 16/32/64, ARM 32 LE/BE, AArch64 LE, MIPS 32/64
+LE/BE, PowerPC 32/64 LE/BE, RISC-V 64), and Ghidra's processor set extends
+further (SH, m68k, SPARC, ...). One gap to know about: Ghidra 12.2 ships no
+SystemZ/s390x processor module, so s390x ELF files fail to import with an
+explicit error.
 
 ## Usage
 
@@ -379,6 +394,7 @@ rc files load in this order:
 gdare2 -L                       # list running daemons
 gdare2 --status <instance-id>   # JSON status
 gdare2 --kill <instance-id>     # stop a daemon
+gdare2 --analysis-timeout 300 /bin/ls   # cap first-import analysis (0 = no limit)
 gdare2 -qc '.gstatus' /bin/ls   # current daemon/program info
 gdare2 -qc '.gclose' /bin/ls    # save and close the current daemon
 gdare2 --project /data/projects --project-name demo /bin/ls
@@ -497,4 +513,4 @@ Directory boundary: `src/gdare2` is the client and must not import
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/fire3/gdare2/blob/main/LICENSE).
