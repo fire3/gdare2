@@ -35,18 +35,27 @@ subsequent commands can respond in seconds.
   real-Ghidra integration tests, a 22-configuration architecture matrix, and
   r2 parity tests against golden files.
 
-## Status
+## What gdare2 does
 
-- v1/v2 complete: full P0/P1 command surface, output rendering and colors,
-  `pf` format strings, the `~` grep v2, rc/completion layering, ELF header
-  parsing, the rasm2 assembler fallback, and release engineering.
-- v3 complete: the command-language layer (`?` expressions, `@` modifiers,
-  macros, `.cmd`), output/input format families (`pc*` code generation,
-  compare and yank variants, flag spaces), search/graph completion
-  (`/b`, `/F`, `agC` call graphs, `axg`), and the r2pipe-compatible channel.
-- Not supported (explicit errors, never silent fallbacks): the debugger and
-  ESIL, Ghidra GUI attachment, visual mode, sdb, zignatures, and JSON fields
-  Ghidra cannot provide (`esil/opcode/family/type`).
+- **Analysis and information**: file/section/symbol/import/export/string
+  inspection (`i*`), function lists and details (`afl`, `afi`), basic blocks,
+  control-flow and call graphs (`agf`, `agC`), cross-references (`axt`,
+  `axf`, `axg`), and decompilation with variable info (`pdc`, `afv`).
+- **Read and write memory**: hexdumps (`px`, `p8`, `pv`, `ps`, `pj`), typed
+  reads (`tp`), `pf` format strings, byte/string/immediate writes (`wx`,
+  `wv`, `wi`, ...), a write cache, and byte-level undo/redo.
+- **Types and metadata**: ANSI-C type parsing and declaration output
+  (`td`, `tc`, `ts`, `te`), function signatures (`afs`), comments, flags with
+  namespaces (`fs`), and per-session projects (`P`).
+- **Command language**: integer expressions (`?v`, `$` variables), temporary
+  seeks (`@`, `@@` iterators), macros, numeric repeat prefixes, grep/pipe/
+  redirect, and r2-style scripts.
+- **Interoperability**: an r2pipe-compatible server (`--pipe-listen`) for the
+  standard Python `r2pipe` client, JSON output for most query commands, and
+  code-array generation in a dozen languages (`pc*`).
+- **Not supported** (explicit errors, never silent fallbacks): the debugger
+  and ESIL, Ghidra GUI attachment, visual mode, sdb, zignatures, and JSON
+  fields Ghidra cannot provide (`esil/opcode/family/type`).
 
 ## Architecture
 
