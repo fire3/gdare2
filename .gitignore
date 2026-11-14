@@ -15,3 +15,5 @@ site/
 *.log
 *.gpr
 *.rep/
+# Local-only design and development notes; never commit or publish.
+docs/

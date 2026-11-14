@@ -48,7 +48,6 @@ Homepage = "https://github.com/fire3/gdare2"
 Repository = "https://github.com/fire3/gdare2"
 Issues = "https://github.com/fire3/gdare2/issues"
 Changelog = "https://github.com/fire3/gdare2/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/fire3/gdare2/blob/main/docs/README.md"
 
 [dependency-groups]
 dev = [

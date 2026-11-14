@@ -66,7 +66,8 @@ For each release:
    This updates `assets/badges/pypi.svg` from `__version__`, and the Python and
    license badges from `pyproject.toml`. The CI badge stays dynamic and is
    served by GitHub Actions.
-5. Update version or dependency examples in the README and docs if needed.
+5. Update version or dependency examples in the README if needed. The `docs/`
+   tree is local-only and must not be committed or published.
 
 ## Local checks
 

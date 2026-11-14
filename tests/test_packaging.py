@@ -63,3 +63,12 @@ def test_readme_uses_self_hosted_badges() -> None:
     for name in ("pypi.svg", "python.svg", "license.svg"):
         assert f"assets/badges/{name}" in readme
     assert "actions/workflows/ci.yml/badge.svg" in readme
+
+
+def test_readme_is_english_and_does_not_link_repo_docs() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    cjk = "".join(ch for ch in readme if "\u4e00" <= ch <= "\u9fff")
+    assert not cjk, f"README must be English-only, found: {cjk[:40]}"
+    assert "](docs/" not in readme
+    urls = _project().get("urls", {})
+    assert all("/docs/" not in url for url in urls.values())

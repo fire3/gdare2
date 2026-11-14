@@ -39,6 +39,8 @@ v2 compatibility batches A–C (G1–G18) and the first batch-D item (G19).
 
 ### Changed
 
+- The README is now English-only. The `docs/` tree is maintained locally and
+  excluded from Git and release artifacts.
 - `pd`/`pdi` render instruction bytes as contiguous hexpairs (r2 shape);
   instructions longer than eight bytes are elided with `..`.
 - `@@f`/`@@F` skip external, thunk and non-executable function entries.
