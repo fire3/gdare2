@@ -8,6 +8,9 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- COFF object files (including bigobj) are recognised as a file format, so
+  they are handed to Ghidra's loaders instead of being mistaken for a raw
+  binary and rejected with "raw binaries need a Ghidra language".
 - `u`/`U` (undo/redo) now work in a read-only session: they only replay the
   daemon's tracked write history, so the undo of a patch written by an earlier
   `-w` session succeeds instead of failing with "read-only session". The undo

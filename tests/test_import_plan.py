@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from gdare2.errors import UsageError
-from gdare2d.import_plan import resolve_alias
+from gdare2d.import_plan import is_raw_binary, resolve_alias
 
 
 @pytest.mark.parametrize(
@@ -63,3 +63,25 @@ def test_unsupported_combinations(arch, kwargs):
 def test_sh4_is_explicitly_unsupported():
     with pytest.raises(UsageError, match="SH-4"):
         resolve_alias("sh4")
+
+
+def test_coff_object_is_not_treated_as_a_raw_binary(tmp_path):
+    import struct
+
+    # ANON_OBJECT_HEADER_BIGOBJ: Sig1=0, Sig2=0xffff, Version=2, Machine=AMD64.
+    bigobj = struct.pack("<HHHH", 0, 0xFFFF, 2, 0x8664) + b"\x00" * 20
+    path = tmp_path / "big.obj"
+    path.write_bytes(bigobj)
+    assert is_raw_binary(path) is False
+
+    # Standard COFF: machine, section count, timestamp, symtab, nsyms,
+    # optional-header size, characteristics.
+    coff = struct.pack("<HHIIIHH", 0x8664, 1, 0, 0, 0, 0, 0)
+    path.write_bytes(coff)
+    assert is_raw_binary(path) is False
+
+
+def test_plain_bytes_are_still_raw(tmp_path):
+    path = tmp_path / "blob.bin"
+    path.write_bytes(b"\x90\xc3" + b"\x00" * 20)
+    assert is_raw_binary(path) is True

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import struct
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -63,7 +64,7 @@ def build(
 def is_raw_binary(path: Path) -> bool:
     try:
         with path.open("rb") as handle:
-            head = handle.read(16)
+            head = handle.read(32)
     except OSError:
         return True
     signatures = (
@@ -78,7 +79,69 @@ def is_raw_binary(path: Path) -> bool:
         b"dex\n",
         b"PK\x03\x04",
     )
-    return not any(head.startswith(signature) for signature in signatures)
+    if any(head.startswith(signature) for signature in signatures):
+        return False
+    # Ghidra's CoffLoader handles object files; they have no leading magic,
+    # only a machine id (and bigobj uses the ANON_OBJECT_HEADER_BIGOBJ
+    # signature).  Without this a COFF .obj looked like a raw binary and
+    # demanded -a/-b instead of being handed to the loader.
+    return not _looks_like_coff(head)
+
+
+#: COFF Machine values Ghidra knows about (IMAGE_FILE_MACHINE_*).
+_COFF_MACHINES = frozenset(
+    {
+        0x014C,  # I386
+        0x0162,  # R3000
+        0x0166,  # R4000
+        0x0168,  # R10000
+        0x0169,  # WCEMIPSV2
+        0x0184,  # ALPHA
+        0x01A2,  # SH3
+        0x01A3,  # SH3DSP
+        0x01A6,  # SH4
+        0x01A8,  # SH5
+        0x01C0,  # ARM
+        0x01C2,  # THUMB
+        0x01C4,  # ARMNT
+        0x01D3,  # AM33
+        0x01F0,  # POWERPC
+        0x01F1,  # POWERPCFP
+        0x0200,  # IA64
+        0x0266,  # MIPS16
+        0x0366,  # MIPSFPU
+        0x0466,  # MIPSFPU16
+        0x0520,  # TRICORE
+        0x0CEF,  # CEF
+        0x0EBC,  # EBC
+        0x5032,  # RISCV32
+        0x5064,  # RISCV64
+        0x5128,  # RISCV128
+        0x6232,  # LOONGARCH32
+        0x6264,  # LOONGARCH64
+        0x8664,  # AMD64
+        0x9041,  # M32R
+        0xA641,  # ARM64EC
+        0xA64E,  # ARM64X
+        0xAA64,  # ARM64
+        0xC0EE,  # CEE
+    }
+)
+
+
+def _looks_like_coff(head: bytes) -> bool:
+    if len(head) < 20:
+        return False
+    sig1, sig2, version, machine = struct.unpack_from("<HHHH", head, 0)
+    if sig1 == 0 and sig2 == 0xFFFF and version >= 2:
+        return machine in _COFF_MACHINES
+    machine = struct.unpack_from("<H", head, 0)[0]
+    if machine not in _COFF_MACHINES:
+        return False
+    sections = struct.unpack_from("<H", head, 2)[0]
+    optional_header_size = struct.unpack_from("<H", head, 16)[0]
+    # A COFF object has at least one section and no PE-style optional header.
+    return 0 < sections < 0x8000 and optional_header_size < 0x1000
 
 
 _ALIASES = {
