@@ -35,8 +35,9 @@ def disasm(ctx, ea: int, count: int = 1) -> list[dict]:
     program = require_program(ctx)
     if count < 0:
         return disasm_back(ctx, ea=ea, count=-count)
-    if count > MAX_INSTRUCTIONS:
-        raise UsageError(f"disasm count is limited to {MAX_INSTRUCTIONS}")
+    # r2 prints as many instructions as it can for an oversized count; clamp
+    # instead of rejecting the whole request.
+    count = min(int(count), MAX_INSTRUCTIONS)
     instruction = _first(program, int(ea))
     if instruction is None:
         raise NotFoundError(f"no instruction at or after 0x{int(ea):x}")
@@ -51,8 +52,7 @@ def disasm(ctx, ea: int, count: int = 1) -> list[dict]:
 @op("disasm_back")
 def disasm_back(ctx, ea: int, count: int = 1) -> list[dict]:
     program = require_program(ctx)
-    if count > MAX_INSTRUCTIONS:
-        raise UsageError(f"disasm count is limited to {MAX_INSTRUCTIONS}")
+    count = min(int(count), MAX_INSTRUCTIONS)
     listing = program.getListing()
     address = to_addr(program, int(ea))
     instruction = listing.getInstructionBefore(address)

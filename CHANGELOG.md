@@ -8,6 +8,9 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- `pd <huge>` clamps the request to the daemon's instruction cap instead of
+  failing with `disasm count is limited to 4096`, so an oversized count still
+  prints everything that is available (r2 keeps printing too).
 - `iS` no longer prints a header row, matching r2 (`iS~?` counts only the
   sections). The columns are unchanged.
 - Daemon startup failures no longer dump Java/Python tracebacks to the CLI's

@@ -1440,3 +1440,33 @@ def test_sections_listing_has_no_header_row():
     assert len(lines) == 2
     assert lines[0].split()[-1] == ".text"
     assert session.run("iS~?") == ["2"]
+
+
+def test_oversized_pd_count_is_clamped_not_rejected(monkeypatch):
+    """r2 keeps printing for `pd 999999`; only the daemon request is capped."""
+    from gdare2d.ops import disasm as disasm_ops
+
+    class _Listing:
+        def getInstructionAfter(self, address):
+            return None
+
+        def getInstructionBefore(self, address):
+            return None
+
+    class _Program:
+        def getListing(self):
+            return _Listing()
+
+    class _Ctx:
+        program = _Program()
+
+    class _Instruction:
+        def getAddress(self):
+            return 0x1000
+
+    monkeypatch.setattr(disasm_ops, "_first", lambda program, ea: _Instruction())
+    monkeypatch.setattr(disasm_ops, "to_addr", lambda program, ea: ea)
+    monkeypatch.setattr(disasm_ops, "instruction_dict", lambda instruction: {})
+    # The old code raised UsageError here instead of returning instructions.
+    assert disasm_ops.disasm(_Ctx(), 0x1000, 999999) == [{}]
+    assert disasm_ops.disasm_back(_Ctx(), 0x1000, 999999) == []
