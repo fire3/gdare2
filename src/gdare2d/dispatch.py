@@ -23,15 +23,18 @@ class OpSpec:
     handler: Handler
     writes: bool = False
     transaction: bool = True
+    #: Reverts tracked writes (undo/redo): still transactional, but allowed
+    #: for a read-only client because it does not introduce new data.
+    readonly_ok: bool = False
 
 
 _OPS: dict[str, OpSpec] = {}
 _LOADED = False
 
 
-def op(name: str, *, writes: bool = False, transaction: bool = True):
+def op(name: str, *, writes: bool = False, transaction: bool = True, readonly_ok: bool = False):
     def decorate(handler: Handler) -> Handler:
-        _OPS[name] = OpSpec(name, handler, writes, transaction)
+        _OPS[name] = OpSpec(name, handler, writes, transaction, readonly_ok)
         return handler
 
     return decorate
@@ -68,7 +71,7 @@ def invoke(ctx: Context, name: str, args: dict[str, Any], *, allow_writes: bool)
     spec = _OPS.get(name)
     if spec is None:
         raise UnknownOpError(f"unknown op {name!r}")
-    if spec.writes and (ctx.readonly or not allow_writes):
+    if spec.writes and not spec.readonly_ok and (ctx.readonly or not allow_writes):
         raise ReadOnlyError(
             "read-only request cannot perform a write op; re-run with -w to allow writes",
             data={"op": name},

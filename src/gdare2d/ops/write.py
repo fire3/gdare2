@@ -125,7 +125,7 @@ def write_bytes(ctx, ea: int, data: bytes, mask: bytes | None = None) -> dict:
     after = raw if mask_bytes is None else _apply_mask(before, raw, mask_bytes)
     _clear_code_units(program, start, len(after))
     program.getMemory().setBytes(start, after)
-    ctx.runtime.record_write(int(ea), before, after)
+    ctx.runtime.record_write(int(start.getOffset()), before, after)
     return {"addr": int(ea), "size": len(after), "bytes": after}
 
 
@@ -164,7 +164,7 @@ def write_patches(ctx, patches: list[dict]) -> dict:
         _clear_code_units(program, start, len(after))
         memory.setBytes(start, after)
         if before != after:
-            segments.append((ea, before, after))
+            segments.append((int(start.getOffset()), before, after))
             total += len(after)
 
     ctx.runtime.record_writes(segments)
@@ -209,16 +209,16 @@ def write_copy(ctx, dst: int, src: int, size: int) -> dict:
     before = read_bytes(ctx, ea=int(dst), size=size)
     _clear_code_units(program, start, size)
     program.getMemory().setBytes(start, data)
-    ctx.runtime.record_write(int(dst), before, data)
+    ctx.runtime.record_write(int(start.getOffset()), before, data)
     return {"addr": int(dst), "src": int(src), "size": size}
 
 
-@op("undo", writes=True)
+@op("undo", writes=True, readonly_ok=True)
 def undo(ctx) -> dict:
     return ctx.runtime.undo_write()
 
 
-@op("redo", writes=True)
+@op("redo", writes=True, readonly_ok=True)
 def redo(ctx) -> dict:
     return ctx.runtime.redo_write()
 

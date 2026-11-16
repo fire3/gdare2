@@ -8,6 +8,11 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- `u`/`U` (undo/redo) now work in a read-only session: they only replay the
+  daemon's tracked write history, so the undo of a patch written by an earlier
+  `-w` session succeeds instead of failing with "read-only session". The undo
+  record now stores the translated Ghidra address, so a low r2-style address
+  (`wx ... @ 0x20` on a PIE) can be reverted too.
 - Reads of unmapped addresses now return `ff` bytes, like r2's `px`/`p8`
   past EOF, instead of failing the whole command with a memory-access error.
   A partial read is padded with `ff` as well.

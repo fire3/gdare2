@@ -212,17 +212,24 @@ def _write_wide_string(session, statement):
     return []
 
 
-@command("u", "undo the last byte write")
+@command(
+    "u",
+    "undo the last byte write",
+    detail="Replays this daemon's write history; allowed in a read-only session "
+    "because it only restores bytes that were written earlier",
+)
 def _undo(session, statement):
-    require_write(session)
     _commit_cache(session)
     session.call("undo")
     return []
 
 
-@command("U", "redo the last undone byte write")
+@command(
+    "U",
+    "redo the last undone byte write",
+    detail="Replays this daemon's write history; allowed in a read-only session",
+)
 def _redo(session, statement):
-    require_write(session)
     _commit_cache(session)
     session.call("redo")
     return []

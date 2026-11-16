@@ -1011,6 +1011,14 @@ def test_undo_redo_and_wd():
     assert [op for op, _ in client.calls if op in ("undo", "redo")] == ["undo", "redo"]
 
 
+def test_undo_is_allowed_in_a_read_only_session():
+    """u/U replay the daemon's write history; they are not new writes."""
+    session, client = make_session()
+    assert session.readonly is True
+    assert session.run("u") == []
+    assert ("undo", {"allow_writes": False}) in client.calls
+
+
 def test_gsave_commits_cache_before_saving():
     session, client = make_session()
     session.readonly = False
