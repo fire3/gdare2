@@ -190,6 +190,14 @@ class Session:
         flag = self.flag_store.get(name)
         if flag is not None:
             return flag.addr
+        if name == "entry0":
+            # r2 synthesises entry0 at the ELF/PE entry point; Ghidra keeps
+            # the loader's own spelling (_start, entry, ...).  Resolve the r2
+            # name client-side so `s entry0`/`pd @ entry0` work before the
+            # flag table is loaded.
+            entry = int(self.info.get("entry") or 0)
+            if entry:
+                return entry
         if name in self._names:
             return self._names[name]
         try:

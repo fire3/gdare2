@@ -6,6 +6,14 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `s entry0` (and any `@ entry0`) now resolves to the program entry point.
+  radare2 synthesises an `entry0` flag, while Ghidra keeps the loader's own
+  spelling (`_start`, `entry`, ...), so the r2 name used to fail with
+  `ERROR: unknown name 'entry0'` and made a script exit non-zero even though
+  the following commands ran.
+
 ### Changed
 
 - `gdare2 -V` now reports the whole stack (gdare2, PyGhidra, Ghidra, Java,

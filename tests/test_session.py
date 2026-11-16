@@ -449,6 +449,16 @@ def test_seek_by_symbol():
     assert session.seek == 0x2000
 
 
+def test_r2_entry0_name_resolves_to_the_entry_point():
+    """r2 names the entry point entry0; Ghidra keeps the loader's spelling."""
+    session, client = make_session()
+    assert session.lookup_name("entry0") == 0x1000
+    session.run("s entry0")
+    assert session.seek == 0x1000
+    # The name resolves without a daemon round trip.
+    assert not [op for op, _ in client.calls if op == "resolve_name"]
+
+
 def test_pd_and_filter():
     session, _ = make_session()
     lines = session.run("pd 2~RET")
