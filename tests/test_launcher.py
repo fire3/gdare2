@@ -33,6 +33,9 @@ def test_wait_for_ready_reports_the_daemon_error_code(monkeypatch, tmp_path):
         launcher._wait_for_ready(options, "0123456789abcdef")
     assert caught.value.code == "BAD_ARGS"
     assert caught.value.exit_code == 2
+    # Log tails (Java/Python tracebacks) stay in the log file, never on stderr.
+    assert "Traceback" not in str(caught.value)
+    assert "log:" in str(caught.value)
 
 
 def test_report_startup_failure_leaves_the_error_code(monkeypatch, tmp_path):

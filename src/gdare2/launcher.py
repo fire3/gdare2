@@ -202,21 +202,18 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
             if time.monotonic() - missing_since > 2.0:
                 break
         time.sleep(0.1)
-    tail = _log_tail(ingest_id)
     final_state = registry.read_state(ingest_id) or last_state_data
+    hint = f" (log: {registry.log_path(ingest_id)})"
     if final_state and final_state.get("error"):
         code = str(final_state.get("error_code") or "CONNECTION")
-        message = f"daemon failed to start: {final_state['error']}"
-        # User/configuration errors are already actionable; only append the
-        # daemon log tail for unexpected failures.
-        if code not in {"BAD_ARGS", "NOT_READY", "READONLY", "NOT_FOUND", "NOT_FUNC"}:
-            message += tail
+        message = f"daemon failed to start: {final_state['error']}{hint}"
         raise RemoteError(code, message)
     detail = f" (state={last_state})" if last_state else ""
-    raise ConnectionFailure(f"gdare2 daemon failed to become ready{detail}{tail}")
+    raise ConnectionFailure(f"gdare2 daemon failed to become ready{detail}{hint}")
 
 
 def _log_tail(ingest_id: str, lines: int = 20) -> str:
+    """The end of the daemon log (kept for diagnostics/tests)."""
     try:
         text = registry.log_path(ingest_id).read_text(encoding="utf-8", errors="replace")
     except OSError:

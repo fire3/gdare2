@@ -105,3 +105,15 @@ def test_entry_point_ignores_non_executable_entry_symbol():
 def test_entry_point_keeps_executable_entry_symbol():
     program = _Program({"entry": [_Symbol(0x106D30)]}, {0x106D30})
     assert GhidraRuntime._entry_point(program) == 0x106D30
+
+
+def test_describe_error_keeps_only_the_first_line():
+    """A Java exception stringifies with native frames; stderr must not."""
+    from gdare2d.runtime import _describe_error
+
+    exc = ValueError("first line\nsecond line\nException: Java Exception")
+    assert _describe_error(exc) == "ValueError: first line"
+    assert _describe_error(ValueError("ValueError: already prefixed")) == (
+        "ValueError: already prefixed"
+    )
+    assert _describe_error(ValueError()) == "ValueError"

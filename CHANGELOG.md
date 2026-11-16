@@ -8,6 +8,11 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- `iS` no longer prints a header row, matching r2 (`iS~?` counts only the
+  sections). The columns are unchanged.
+- Daemon startup failures no longer dump Java/Python tracebacks to the CLI's
+  stderr. The first line of the underlying exception is reported with the
+  daemon log path; the full traceback stays in the log file.
 - `ie` now prints radare2's entry-point table (header, separator and one
   `program` row) instead of a list of entry-point symbols. The r2 view is
   ELF-header derived, so `ie` and `ie~[0]` match the oracle; entry symbols

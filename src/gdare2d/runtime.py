@@ -22,6 +22,24 @@ from gdare2d.import_plan import ImportPlan
 log = logging.getLogger("gdare2d.runtime")
 
 
+def _describe_error(exc: Exception) -> str:
+    """A one-line description for the client and the state file.
+
+    Java exceptions stringify with a header line followed by
+    ``Exception: Java Exception`` and native frames; only the first
+    non-empty line belongs in an error message.
+    """
+    name = type(exc).__name__
+    lines = [line.strip() for line in str(exc).splitlines() if line.strip()]
+    if not lines:
+        return name
+    message = lines[0]
+    if message.startswith(name):
+        return message
+    return f"{name}: {message}"
+
+
+
 class GhidraRuntime:
     def __init__(
         self,
@@ -133,7 +151,7 @@ class GhidraRuntime:
             log.info("program ready in %.2fs: %s", time.monotonic() - started, self.summary)
         except Exception as exc:  # keep the daemon alive so /health can report the failure
             self.state = "error"
-            self.error = f"{type(exc).__name__}: {exc}"
+            self.error = _describe_error(exc)
             self.error_code = getattr(exc, "code", "INTERNAL")
             log.exception("failed to open program")
             raise
