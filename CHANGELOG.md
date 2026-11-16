@@ -8,6 +8,11 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- `px` column labels now match r2 (right-aligned low-byte labels, e.g.
+  ` 0 1` at offset 0 and `1011` at offset 0x10) and addresses below Ghidra's
+  image base are treated as image-base-relative when the shifted address is
+  mapped. Together these make r2-style literals such as `px 4 @@= 0x0 0x10`
+  and `wx 9090 @ 0x10` address the same file bytes as r2 on PIE binaries.
 - `pd <huge>` clamps the request to the daemon's instruction cap instead of
   failing with `disasm count is limited to 4096`, so an oversized count still
   prints everything that is available (r2 keeps printing too).

@@ -111,6 +111,16 @@ def test_hexdump_options():
     assert "." not in no_ascii[0].replace("0x", "")
 
 
+def test_hexdump_header_matches_r2_column_labels():
+    data = bytes(16)
+    assert hexdump(data, 0x0, cols=16, header=True, bits=64)[0] == (
+        "- offset -   0 1  2 3  4 5  6 7  8 9  A B  C D  E F  0123456789ABCDEF"
+    )
+    assert hexdump(data, 0x10, cols=16, header=True, bits=64)[0] == (
+        "- offset -  1011 1213 1415 1617 1819 1A1B 1C1D 1E1F  0123456789ABCDEF"
+    )
+
+
 def test_long_instruction_bytes_are_elided_like_r2():
     config = Config()
     line = format_instruction(_item(bytes=bytes(range(12))), config, 64)

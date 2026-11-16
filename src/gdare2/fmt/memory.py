@@ -42,12 +42,15 @@ def _header(base: int, cols: int, pairs: bool, offset: bool, ascii: bool) -> str
     # ASCII column; without that the header is one column narrower than rows.
     out = "- offset -  " if offset else ""
     if pairs and cols % 2 == 0:
+        # r2 labels each column with the low byte of its address, right
+        # aligned to two characters and joined in pairs: " 0 1" at 0x0,
+        # "1011" at 0x10.  The old zero-padded form ("0001") diverged.
         groups = [
-            f"{(base + index) & 0xFF:02X}{(base + index + 1) & 0xFF:02X}"
+            f"{(base + index) & 0xFF:2X}{(base + index + 1) & 0xFF:2X}"
             for index in range(0, cols, 2)
         ]
     else:
-        groups = [f"{(base + index) & 0xFF:02X}" for index in range(cols)]
+        groups = [f"{(base + index) & 0xFF:2X}" for index in range(cols)]
     out += " ".join(groups)
     if ascii:
         out += "  " + "".join(f"{(base + index) & 0xF:X}" for index in range(cols))
