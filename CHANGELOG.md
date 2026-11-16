@@ -8,6 +8,9 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- Reads of unmapped addresses now return `ff` bytes, like r2's `px`/`p8`
+  past EOF, instead of failing the whole command with a memory-access error.
+  A partial read is padded with `ff` as well.
 - `px` column labels now match r2 (right-aligned low-byte labels, e.g.
   ` 0 1` at offset 0 and `1011` at offset 0x10) and addresses below Ghidra's
   image base are treated as image-base-relative when the shifted address is

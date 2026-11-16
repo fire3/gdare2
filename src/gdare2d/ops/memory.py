@@ -20,14 +20,22 @@ def read_bytes(ctx, ea: int, size: int) -> bytes:
     if size > MAX_READ:
         raise UsageError(f"single read is limited to {MAX_READ} bytes")
     address = to_addr(program, int(ea))
+    if size == 0:
+        return b""
+    result = bytearray(b"\xff" * size)
     buffer = jpype.JArray(jpype.JByte)(size)
     try:
         count = program.getMemory().getBytes(address, buffer)
-    except Exception as exc:
-        raise GdarError(f"cannot read {size} bytes at 0x{int(ea):x}: {exc}") from exc
+    except Exception:
+        # r2 fills unmapped reads with 0xff instead of failing the request;
+        # `px 8` past EOF is a common workflow.  Keep the bytes that could be
+        # read and pad the rest the same way.
+        return bytes(result)
     if count < 0:
-        raise GdarError(f"cannot read {size} bytes at 0x{int(ea):x}")
-    return bytes((int(buffer[index]) & 0xFF) for index in range(count))
+        return bytes(result)
+    for index in range(min(int(count), size)):
+        result[index] = int(buffer[index]) & 0xFF
+    return bytes(result)
 
 
 @op("read_value")
