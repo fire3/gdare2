@@ -284,3 +284,57 @@ def test_relocation_names_for_other_machines():
     assert elf.relocation_name(40, 22) == "JUMP_SLOT"
     assert elf.relocation_name(183, 1027) == "RELATIVE"
     assert elf.relocation_name(8, 99) == "TYPE_99"
+
+
+def _elf64_imports() -> bytes:
+    """A minimal ELF64 with .dynstr and .dynsym (two undefined symbols)."""
+    order = "<"
+    dynstr = b"\x00puts\x00__libc_start_main\x00"
+    dynsym = bytes(24)
+    dynsym += struct.pack(f"{order}IBBHQQ", 1, 0x12, 0, 0, 0, 0)  # GLOBAL FUNC puts
+    dynsym += struct.pack(f"{order}IBBHQQ", 6, 0x20, 0, 0, 0, 0)  # WEAK NOTYPE libc
+    dynstr_offset = 64
+    dynsym_offset = _align(dynstr_offset + len(dynstr))
+    shoff = _align(dynsym_offset + len(dynsym))
+    ident = b"\x7fELF" + bytes([2, 1, 1, 0]) + b"\x00" * 8
+    header = ident + struct.pack(
+        f"{order}HHIQQQIHHHHHH",
+        3,
+        0x3E,
+        1,
+        0,
+        0,
+        shoff,
+        0,
+        64,
+        0,
+        0,
+        64,
+        3,
+        0,
+    )
+
+    def section(stype, offset, size, link, entsize):
+        return struct.pack(
+            f"{order}IIQQQQIIQQ", 0, stype, 0, 0, offset, size, link, 0, 1, entsize
+        )
+
+    body = bytearray(shoff + 3 * 64)
+    body[0:64] = header
+    body[dynstr_offset : dynstr_offset + len(dynstr)] = dynstr
+    body[dynsym_offset : dynsym_offset + len(dynsym)] = dynsym
+    body[shoff + 64 : shoff + 128] = section(3, dynstr_offset, len(dynstr), 0, 0)
+    body[shoff + 128 : shoff + 192] = section(11, dynsym_offset, len(dynsym), 1, 24)
+    return bytes(body)
+
+
+def test_read_imports_keeps_dynsym_order_bind_and_type(tmp_path):
+    path = tmp_path / "imports.elf"
+    path.write_bytes(_elf64_imports())
+    imports = elf.read_imports(path)
+    assert [
+        (item.ordinal, item.name, item.bind, item.type) for item in imports
+    ] == [
+        (1, "puts", "GLOBAL", "FUNC"),
+        (2, "__libc_start_main", "WEAK", "NOTYPE"),
+    ]

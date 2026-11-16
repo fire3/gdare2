@@ -8,6 +8,11 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- `ii` now prints r2's import table from the ELF dynamic symbol table: the
+  same `nth/vaddr/bind/type/lib/name` header and rule, with GLOBAL/WEAK
+  binding, FUNC/NOTYPE type and the PLT stub as vaddr when one exists. It used
+  to print two columns with the ordinal rendered as an address, which also
+  broke `ii | wc -l` and `ii~?`.
 - COFF object files (including bigobj) are recognised as a file format, so
   they are handed to Ghidra's loaders instead of being mistaken for a raw
   binary and rejected with "raw binaries need a Ghidra language".

@@ -11,6 +11,7 @@ from gdare2.formats.elf import (
     ElfFormatError,
     read_build_id,
     read_header,
+    read_imports,
     read_init_fini,
     read_needed,
     read_relocations,
@@ -284,11 +285,57 @@ def _architectures(session, statement):
 
 @command("ii", "list imports", aliases=("iij",))
 def _imports(session, statement):
+    target = session.info.get("target")
+    symbols = []
+    if target:
+        try:
+            symbols = read_imports(str(target))
+        except (ElfFormatError, OSError):
+            symbols = []
+    if symbols:
+        return _format_elf_imports(session, statement, symbols)
     payload, meta = session.call_with_meta("imports", **session.list_args(10000))
     session.warn_list_meta("import list", meta)
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
     return [f"{session.format_addr(int(item['addr']))} {item['name']}" for item in payload]
+
+
+def _format_elf_imports(session, statement, symbols) -> list[str]:
+    """r2's ``ii`` table: nth, PLT vaddr, bind, type, lib, name."""
+    functions = session.call("functions", limit=10000)
+    sections = session.call("sections")
+    executable = [
+        (int(block["addr"]), int(block["addr"]) + int(block["size"]))
+        for block in sections
+        if "x" in str(block.get("perms") or "")
+    ]
+    by_name: dict[str, list[int]] = {}
+    for item in functions:
+        by_name.setdefault(str(item.get("name") or ""), []).append(int(item["addr"]))
+
+    def plt_address(name: str) -> int | None:
+        candidates = [
+            address
+            for address in by_name.get(name, [])
+            if any(start <= address < stop for start, stop in executable)
+        ]
+        return min(candidates) if candidates else None
+
+    rows = [(symbol, plt_address(symbol.name)) for symbol in symbols]
+    if statement.cmd.endswith("j"):
+        return _jsonify([symbol.as_dict(plt) for symbol, plt in rows])
+    lines = [
+        f"{'nth':<4}{'vaddr':<11}{'bind':<7}{'type':<7}{'lib':<4}name",
+        "-" * 37,
+    ]
+    for symbol, plt in rows:
+        vaddr = f"0x{plt:08x}" if plt is not None else "----------"
+        lines.append(
+            f"{symbol.ordinal:<4}{vaddr:<11}{symbol.bind:<7}"
+            f"{symbol.type:<7}{'':<4}{symbol.name}"
+        )
+    return lines
 
 
 @command("ie", "show entrypoints", aliases=("iej",))

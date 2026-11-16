@@ -201,9 +201,22 @@ def read_segments(path: str | Path) -> list[Segment]:
 # ---------------------------------------------------------------------------
 
 SHT_DYNAMIC = 6
+SHT_DYNSYM = 11
 SHT_RELA = 4
 SHT_REL = 9
 SHN_XINDEX = 0xFFFF
+SHN_UNDEF = 0
+
+_ELF_BIND = {0: "LOCAL", 1: "GLOBAL", 2: "WEAK"}
+_ELF_TYPE = {
+    0: "NOTYPE",
+    1: "OBJECT",
+    2: "FUNC",
+    3: "SECTION",
+    4: "FILE",
+    5: "COMMON",
+    6: "TLS",
+}
 
 DT_NULL = 0
 DT_NEEDED = 1
@@ -223,6 +236,7 @@ DT_JMPREL = 23
 
 _MAX_DYNAMIC = 65536
 _MAX_RELOCS = 200000
+_MAX_IMPORTS = 200000
 
 
 @dataclass(frozen=True)
@@ -316,6 +330,30 @@ class Relocation:
     type_name: str
     symbol: str
     is_rela: bool
+
+
+@dataclass(frozen=True)
+class ImportSymbol:
+    """One undefined dynamic symbol (an import)."""
+
+    ordinal: int
+    name: str
+    bind: str
+    type: str
+    value: int
+
+    def as_dict(self, plt: int | None = None) -> dict:
+        """radare2-compatible JSON shape for ``iij``."""
+        payload: dict = {
+            "ordinal": self.ordinal,
+            "bind": self.bind,
+            "type": self.type,
+            "sig": False,
+            "name": self.name,
+        }
+        if plt is not None:
+            payload["plt"] = int(plt)
+        return payload
 
 
 def read_header(path: str | Path) -> ElfHeader:
@@ -434,6 +472,60 @@ def read_sections(path: str | Path) -> list[Section]:
             )
         entries = named
     return entries
+
+
+def read_imports(path: str | Path) -> list[ImportSymbol]:
+    """Undefined dynamic symbols (``ii``) in symbol-table order.
+
+    r2 derives the import list from ``.dynsym``: the ordinal is the table
+    order, ``bind``/``type`` come from ``st_info`` and ``vaddr`` is not the
+    symbol's own value (undefined symbols have none) but the PLT stub the
+    caller joins in separately.
+    """
+    data = _load(path)
+    header = read_header(path)
+    sections = read_sections(path)
+    dynsym = next((section for section in sections if section.type == SHT_DYNSYM), None)
+    if dynsym is None:
+        dynsym = next((section for section in sections if section.name == ".dynsym"), None)
+    if dynsym is None or not dynsym.size:
+        return []
+    if not 0 <= dynsym.link < len(sections):
+        return []
+    strings = sections[dynsym.link]
+    if not strings.size:
+        return []
+    strtab = _slice(data, strings.offset, strings.size, "dynamic string table")
+    entry_size = dynsym.entsize or (24 if header.is_64 else 16)
+    if entry_size < (24 if header.is_64 else 16):
+        return []
+    body = _slice(data, dynsym.offset, dynsym.size, "dynamic symbol table")
+    result: list[ImportSymbol] = []
+    for index in range(min(len(body) // entry_size, _MAX_IMPORTS)):
+        raw = body[index * entry_size : (index + 1) * entry_size]
+        if header.is_64:
+            name_offset, info, _other, shndx, value, _size = struct.unpack_from(
+                f"{header.order}IBBHQQ", raw, 0
+            )
+        else:
+            name_offset, value, _size, info, _other, shndx = struct.unpack_from(
+                f"{header.order}IIIBBH", raw, 0
+            )
+        if shndx != SHN_UNDEF or not name_offset:
+            continue
+        name = _cstring(strtab, name_offset)
+        if not name:
+            continue
+        result.append(
+            ImportSymbol(
+                ordinal=len(result) + 1,
+                name=name,
+                bind=_ELF_BIND.get((info >> 4) & 0xF, f"BIND_{(info >> 4) & 0xF}"),
+                type=_ELF_TYPE.get(info & 0xF, f"TYPE_{info & 0xF}"),
+                value=int(value),
+            )
+        )
+    return result
 
 
 def read_dynamic(path: str | Path) -> list[DynamicEntry]:

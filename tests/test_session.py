@@ -1450,6 +1450,34 @@ def test_sections_listing_has_no_header_row():
     assert session.run("iS~?") == ["2"]
 
 
+def test_ii_prints_r2_table_with_plt_addresses(tmp_path):
+    from test_formats_elf import _elf64_imports
+
+    path = tmp_path / "imports.elf"
+    path.write_bytes(_elf64_imports())
+    session, client = make_session()
+    session.info["target"] = str(path)
+    original = client.call
+
+    def call(op, **args):
+        if op == "functions":
+            return [{"addr": 0x1060, "name": "puts", "size": 10, "end": 0x106A}]
+        if op == "sections":
+            return [
+                {"addr": 0x1000, "size": 0x100, "name": ".text", "perms": "r-x"},
+                {"addr": 0x2000, "size": 0x100, "name": "EXTERNAL", "perms": "rw-"},
+            ]
+        return original(op, **args)
+
+    client.call = call
+    assert session.run("ii") == [
+        "nth vaddr      bind   type   lib name",
+        "-------------------------------------",
+        "1   0x00001060 GLOBAL FUNC       puts",
+        "2   ---------- WEAK   NOTYPE     __libc_start_main",
+    ]
+
+
 def test_oversized_pd_count_is_clamped_not_rejected(monkeypatch):
     """r2 keeps printing for `pd 999999`; only the daemon request is capped."""
     from gdare2d.ops import disasm as disasm_ops
