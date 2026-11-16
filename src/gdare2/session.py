@@ -177,6 +177,7 @@ class Session:
     def setup(self) -> None:
         self.config.reflect("asm.arch", self.info.get("arch") or "unknown")
         self.config.reflect("asm.bits", int(self.info.get("bits") or 0))
+        self.config.reflect("arch.endian", self.info.get("endian") or "little")
         self.config.reflect("cfg.bigendian", self.info.get("endian") == "big")
         self.config.reflect("ghidra.version", self.info.get("ghidra_version", ""))
         self.config.reflect("ghidra.language", self.info.get("language", ""))
@@ -1023,7 +1024,7 @@ class Session:
         offset = int(meta.get("offset", 0))
         self.stderr(
             f"WARN: {label} truncated at {meta.get('limit')} items "
-            f"(total {meta.get('total')}); use --list-offset {offset + shown} to continue"
+            f"(total {meta.get('total')}); use -e list.offset={offset + shown} to continue"
         )
 
     def cmd_info_json(self, statement: Statement) -> list[str]:

@@ -81,6 +81,23 @@ def test_spawn_forwards_allow_exec(monkeypatch, tmp_path):
     assert "--allow-exec" in captured["command"]
 
 
+def test_spawn_forwards_endian_from_r2_config(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    captured: dict[str, list[str]] = {}
+
+    class FakePopen:
+        def __init__(self, command, **_kwargs):
+            captured["command"] = command
+
+    monkeypatch.setattr(launcher.subprocess, "Popen", FakePopen)
+    options = argv.parse(
+        ["-e", "arch.endian=big", "--project", str(tmp_path / "project"), "/bin/ls"]
+    )
+    launcher._spawn(options, "/bin/ls", "0123456789abcdef")
+    command = captured["command"]
+    assert command[command.index("--endian") + 1] == "big"
+
+
 def test_spawn_omits_analysis_timeout_by_default(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
     captured: dict[str, list[str]] = {}

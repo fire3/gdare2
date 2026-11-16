@@ -916,12 +916,12 @@ def test_meta_commands_and_iterator_skip(env):
     assert "ERROR" not in sections.stderr
 
     full_functions = run(env, "-j", "-qc", "afl", target)
-    page_functions = run(env, "-j", "--list-offset", "10", "-qc", "afl", target)
+    page_functions = run(env, "-j", "-e", "list.offset=10", "-qc", "afl", target)
     assert page_functions.returncode == 0, page_functions.stderr
     assert json.loads(page_functions.stdout) == json.loads(full_functions.stdout)[10:]
 
     full_symbols = run(env, "-qc", "is", target)
-    page_symbols = run(env, "--list-offset", "20", "-qc", "is", target)
+    page_symbols = run(env, "-e", "list.offset=20", "-qc", "is", target)
     assert page_symbols.returncode == 0, page_symbols.stderr
     assert page_symbols.stdout.splitlines() == full_symbols.stdout.splitlines()[20:]
 

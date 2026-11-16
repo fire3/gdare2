@@ -29,6 +29,7 @@ KEYS = (
     Key("scr.utf8", True, BOOL, "use UTF-8 box characters in flow gutters"),
     Key("asm.arch", "unknown", STR, "architecture (derived)", readonly=True),
     Key("asm.bits", 0, INT, "bitness (derived)", readonly=True),
+    Key("arch.endian", "little", STR, "architecture endianness (derived)", readonly=True),
     Key("asm.bytes", True, BOOL, "show instruction bytes"),
     Key("asm.lines", False, BOOL, "show instruction boundaries"),
     Key("asm.comments", False, BOOL, "show symbol/comment annotations"),

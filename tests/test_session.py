@@ -1307,7 +1307,7 @@ def test_list_truncation_warning_mentions_next_offset(capsys):
 
     session, _ = make_session(MetaClient())
     session.run("is")
-    assert "--list-offset 10001" in capsys.readouterr().err
+    assert "e list.offset=10001" in capsys.readouterr().err
 
 
 def test_cmd_batch_false_uses_individual_calls():

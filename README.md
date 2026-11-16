@@ -160,6 +160,12 @@ explicit error.
 
 ## Usage
 
+Short options follow radare2. Settings that already have r2 configuration keys
+use those keys rather than gdare2-only long options: for example `-e
+scr.color=N`, `-e arch.endian=big|little`, `-e asm.assembler=...`, and `-e
+list.offset=N`. Long options are reserved for gdare2 features with no r2
+equivalent (daemon management, Ghidra project selection, and so on).
+
 ### Opening and sessions
 
 ```bash
@@ -310,7 +316,7 @@ it does not roll back disassembly, functions, comments, or other metadata, and
 the history is cleared when the daemon restarts.
 
 Assembly uses the Ghidra SLEIGH assembler by default; mnemonics usually need
-to be uppercase. `--assembler=rasm2|auto` (or `e asm.assembler=...`) switches
+to be uppercase. `-e asm.assembler=rasm2|auto` switches
 to the radare2 assembler for languages SLEIGH cannot assemble:
 
 ```bash
@@ -464,8 +470,7 @@ workflows while exposing differences explicitly:
 - `f` writes session-local flags by default. Writing them back to Ghidra
   requires `-w` and `e ghidra.flags.write=true`.
 - `pa/wa` use the Ghidra SLEIGH assembler by default, so mnemonics usually need
-  to be uppercase. Use `--assembler=rasm2|auto` or
-  `e asm.assembler=...` to switch backends.
+  to be uppercase. Use `-e asm.assembler=rasm2|auto` to switch backends.
 - `/r` only walks defined strings; `izz` and `search.in=raw` return file
   offsets. `?p/?P` map addresses through the ELF program headers of the
   original file (raw-file view), not Ghidra memory blocks.

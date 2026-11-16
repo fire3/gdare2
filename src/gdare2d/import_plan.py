@@ -46,8 +46,8 @@ def build(
         plan.warnings.append("use --force-language to override a recognized format's language")
     elif raw:
         raise UsageError(
-            "raw binaries need a Ghidra language: use -a <arch> [-b 32|64] [--endian big|little] "
-            "or --ghidra-language <id>"
+            "raw binaries need a Ghidra language: use -a <arch> [-b 32|64] "
+            "[-e arch.endian=big|little] or --ghidra-language <id>"
         )
 
     if base:

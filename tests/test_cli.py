@@ -54,22 +54,24 @@ def test_analysis_wait_skip_disables_auto_analysis():
     assert session.commands == []
 
 
-def test_cli_config_applies_assembler_and_explicit_evals():
+def test_cli_config_applies_r2_evals(monkeypatch):
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
     config = Config()
     options = argv.parse(
         [
-            "--assembler",
-            "rasm2",
             "-e",
             "asm.assembler=auto",
             "-e",
             "asm.bytes=false",
+            "-e",
+            "scr.color=0",
             "/bin/ls",
         ]
     )
-    cli._apply_cli_config(config, options)
+    cli._apply_cli_config(config, options, auto_colour=True)
     assert config.get_str("asm.assembler") == "auto"
     assert config.get_bool("asm.bytes") is False
+    assert config.get_int("scr.color") == 0
 
 
 def test_cli_config_leaves_assembler_default_without_option():

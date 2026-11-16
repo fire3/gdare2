@@ -38,8 +38,19 @@ REJECTED = {
     "x": "load permissions come from Ghidra's loader",
     "X": "extraction plugins are not implemented",
     "P": "rapatch would write with different semantics",
-    "o": "file-offset mapping is not implemented; use --list-offset for list pagination",
+    "o": "file-offset mapping is not implemented; use -e list.offset=N for list pagination",
     "z": "string loading is decided by Ghidra's analyser; use iz/izz",
+}
+
+# Long forms that would duplicate an existing r2 option/config key.  Reject
+# them with the r2-compatible spelling rather than growing a gdare2-only CLI.
+REJECTED_LONG = {
+    "color": "use -e scr.color=N",
+    "endian": "use -e arch.endian=big|little",
+    "assembler": "use -e asm.assembler=ghidra|rasm2|auto",
+    "list-offset": "use -e list.offset=N",
+    "json": "use -j",
+    "sessions": "use -L",
 }
 
 LONG_VALUE = frozenset(
@@ -58,11 +69,7 @@ LONG_VALUE = frozenset(
         "timeout",
         "startup-timeout",
         "analysis-timeout",
-        "assembler",
         "listen",
-        "color",
-        "endian",
-        "list-offset",
         "pipe-listen",
     }
 )
@@ -73,8 +80,6 @@ LONG_BOOL = frozenset(
         "no-spawn",
         "save-on-close",
         "no-save-on-close",
-        "sessions",
-        "json",
         "force-language",
         "force-base",
         "wait",
@@ -100,12 +105,13 @@ class Options:
     json: bool = False
     readonly: bool = True
     skip_rc: int = 0
-    color: int | None = None
     seek: str | None = None
 
     arch: str | None = None
     bits: str | None = None
     base: str | None = None
+    # Derived from r2 config evals (`arch.endian` / `cfg.bigendian`), not a
+    # gdare2-only command-line option.
     endian: str | None = None
     no_analysis: bool = False
     project: str | None = None
@@ -128,11 +134,9 @@ class Options:
     timeout: float | None = None
     startup_timeout: float | None = None
     analysis_timeout: float | None = None
-    list_offset: int | None = None
     pipe_listen: str | None = None
     save_on_close: bool | None = None
     wait: bool = False
-    assembler: str | None = None
     daemon_readonly: bool = False
     ephemeral: bool = False
     allow_exec: bool = False
@@ -170,7 +174,30 @@ def parse(argv: list[str]) -> Options:
             index = _long(options, token[2:], argv, index)
             continue
         index = _short(options, token[1:], argv, index)
+    options.endian = _endian_from_evals(options.evals)
     return options
+
+
+def _endian_from_evals(evals: list[tuple[str, str]]) -> str | None:
+    """Translate r2 config evals into the import-time language endianness."""
+    endian: str | None = None
+    for name, value in evals:
+        text = value.strip().lower()
+        if name == "arch.endian":
+            if text in ("big", "be"):
+                endian = "big"
+            elif text in ("little", "le"):
+                endian = "little"
+            else:
+                raise UsageError("e arch.endian must be big or little")
+        elif name == "cfg.bigendian":
+            if text in ("true", "1", "yes", "on"):
+                endian = "big"
+            elif text in ("false", "0", "no", "off", ""):
+                endian = "little"
+            else:
+                raise UsageError("e cfg.bigendian must be a boolean")
+    return endian
 
 
 def _set_file(options: Options, token: str) -> None:
@@ -198,6 +225,8 @@ def _long(options: Options, body: str, argv: list[str], index: int) -> int:
             raise UsageError(f"--{name} does not take a value")
         _apply_long_bool(options, name)
         return index
+    if name in REJECTED_LONG:
+        raise UsageError(f"--{name} is not an r2 option; {REJECTED_LONG[name]}")
     raise UsageError(f"unknown option --{name}")
 
 
@@ -230,23 +259,8 @@ def _apply_long_value(options: Options, name: str, value: str) -> None:
         options.startup_timeout = _float(value, "--startup-timeout")
     elif name == "analysis-timeout":
         options.analysis_timeout = _float(value, "--analysis-timeout")
-    elif name == "assembler":
-        if value not in ("ghidra", "rasm2", "auto"):
-            raise UsageError("--assembler must be ghidra, rasm2 or auto")
-        options.assembler = value
     elif name == "listen":
         options.listen = value
-    elif name == "color":
-        options.color = _int(value, "--color")
-    elif name == "endian":
-        if value not in ("big", "little"):
-            raise UsageError("--endian must be big or little")
-        options.endian = value
-    elif name == "list-offset":
-        offset = _int(value, "--list-offset")
-        if offset < 0:
-            raise UsageError("--list-offset must not be negative")
-        options.list_offset = offset
     elif name == "pipe-listen":
         options.pipe_listen = _parse_pipe_listen(value)
 
@@ -262,10 +276,6 @@ def _apply_long_bool(options: Options, name: str) -> None:
         options.save_on_close = True
     elif name == "no-save-on-close":
         options.save_on_close = False
-    elif name == "sessions":
-        options.list_sessions = True
-    elif name == "json":
-        options.json = True
     elif name == "force-language":
         options.force_language = True
     elif name == "force-base":
@@ -406,12 +416,5 @@ def _next(argv: list[str], index: int, what: str) -> str:
 def _float(value: str, what: str) -> float:
     try:
         return float(value)
-    except ValueError:
-        raise UsageError(f"{what} needs a number, got {value!r}") from None
-
-
-def _int(value: str, what: str) -> int:
-    try:
-        return int(value, 0)
     except ValueError:
         raise UsageError(f"{what} needs a number, got {value!r}") from None

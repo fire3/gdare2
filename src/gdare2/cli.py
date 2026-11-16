@@ -165,16 +165,20 @@ def _apply_cli_config(config: Config, options: argv.Options, *, auto_colour: boo
     Explicit CLI values win over rc-file values.  ``auto_colour`` is only used
     for the first pass so a TTY default does not override an rc setting.
     """
-    if options.assembler is not None:
-        config.set("asm.assembler", options.assembler)
     for key, value in options.evals:
+        # Import-time r2 keys select the Ghidra language before this config
+        # exists; the session reflects the actual values after opening.
+        if key in ("arch.endian", "cfg.bigendian"):
+            continue
         config.set(key, value)
-    if options.color is not None:
-        config.set("scr.color", options.color)
-    elif auto_colour and sys.stdout.isatty() and not options.json and not os.environ.get("NO_COLOR"):
+    if (
+        auto_colour
+        and "scr.color" not in config.explicit
+        and sys.stdout.isatty()
+        and not options.json
+        and not os.environ.get("NO_COLOR")
+    ):
         config.set("scr.color", 1)
-    if options.list_offset is not None:
-        config.set("list.offset", options.list_offset)
 
 
 def _process_running(pid: int) -> bool:
@@ -315,7 +319,8 @@ Core options:
   -b <bits>              raw-binary bit width (16, 32, 64)
   -B, -m <addr>          raw-binary load address
   -c <command>           run command (repeatable)
-  -e <key=value>         set configuration (repeatable)
+  -e <key=value>         set configuration (repeatable; e.g. scr.color,
+                         arch.endian, asm.assembler, list.offset)
   -j                     JSON output where available
   -L                     list live daemon instances
   -n                     skip automatic analysis on first import
@@ -324,7 +329,7 @@ Core options:
   -v, -V                 short version / version and Ghidra availability
   -w                     allow write operations
 
-Daemon options:
+Daemon/import options (gdare2 long options; not r2 syntax):
   --attach <id|auto>     attach to an existing daemon
   --no-spawn             never start a daemon
   --analysis-timeout <s> cap on first-import analysis (0 disables, default)
@@ -334,7 +339,6 @@ Daemon options:
   --compiler <id>        compiler spec ID
   --loader <name>        loader class name
   --loader-arg K V       extra loader argument (repeatable)
-  --endian big|little    raw-binary endianness
   --ephemeral            close and delete the project after the command
   --kill <id>            ask a daemon to exit
   --status <id>          print daemon state as JSON

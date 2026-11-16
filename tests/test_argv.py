@@ -35,15 +35,35 @@ def test_long_daemon_options():
             "--loader-arg",
             "-baseAddr",
             "0x400000",
-            "--endian",
-            "big",
             "/tmp/blob",
         ]
     )
     assert options.attach == "auto"
     assert options.spawn is False
     assert options.loader_args == [("-baseAddr", "0x400000")]
-    assert options.endian == "big"
+
+
+def test_endian_uses_r2_config_keys():
+    assert argv.parse(["-e", "arch.endian=big", "/tmp/blob"]).endian == "big"
+    assert argv.parse(["-e", "arch.endian=little", "/tmp/blob"]).endian == "little"
+    assert argv.parse(["-e", "cfg.bigendian=true", "/tmp/blob"]).endian == "big"
+    assert argv.parse(["-e", "cfg.bigendian=false", "/tmp/blob"]).endian == "little"
+    assert argv.parse(["/tmp/blob"]).endian is None
+    with pytest.raises(UsageError, match="arch.endian"):
+        argv.parse(["-e", "arch.endian=middle", "/tmp/blob"])
+
+
+def test_no_gdare2_alias_for_r2_config_options():
+    for option in (
+        "--endian",
+        "--color",
+        "--assembler",
+        "--list-offset",
+        "--json",
+        "--sessions",
+    ):
+        with pytest.raises(UsageError, match="not an r2 option"):
+            argv.parse([option, "x", "/tmp/blob"])
 
 
 def test_rejected_debugger_flag():
@@ -67,14 +87,6 @@ def test_ignored_value_flag_consumes_its_argument():
     assert options.ignored == [("-k", argv.IGNORED["k"])]
 
 
-def test_assembler_option_accepts_all_backends():
-    assert argv.parse(["--assembler", "rasm2", "/bin/ls"]).assembler == "rasm2"
-    assert argv.parse(["--assembler=auto", "/bin/ls"]).assembler == "auto"
-    assert argv.parse(["/bin/ls"]).assembler is None
-    with pytest.raises(UsageError, match="ghidra, rasm2 or auto"):
-        argv.parse(["--assembler", "keystone", "/bin/ls"])
-
-
 def test_allow_exec_is_accepted():
     options = argv.parse(["--allow-exec", "/bin/ls"])
     assert options.allow_exec is True
@@ -95,10 +107,8 @@ def test_daemon_readonly_is_accepted():
     assert options.daemon_readonly is True
 
 
-def test_list_offset_and_file_offset_rejection():
-    options = argv.parse(["--list-offset", "5", "/bin/ls"])
-    assert options.list_offset == 5
+def test_list_offset_uses_r2_config_and_file_offset_is_rejected():
+    options = argv.parse(["-e", "list.offset=5", "/bin/ls"])
+    assert ("list.offset", "5") in options.evals
     with pytest.raises(UsageError, match="file-offset"):
         argv.parse(["-o", "0", "/bin/ls"])
-    with pytest.raises(UsageError, match="negative"):
-        argv.parse(["--list-offset", "-1", "/bin/ls"])
