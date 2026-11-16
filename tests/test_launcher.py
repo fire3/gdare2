@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from gdare2 import argv, launcher
-from gdare2.errors import NotFoundError
+from gdare2.errors import NotFoundError, RemoteError
 
 
 def test_ensure_missing_target_is_not_found(monkeypatch, tmp_path):
@@ -14,6 +14,50 @@ def test_ensure_missing_target_is_not_found(monkeypatch, tmp_path):
         launcher.ensure(options)
     # The check happens before any daemon/project directory is created.
     assert not (tmp_path / "run").exists()
+
+
+def test_wait_for_ready_reports_the_daemon_error_code(monkeypatch, tmp_path):
+    """A pre-serve failure must keep its code (BAD_ARGS), not become exit 3."""
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    state = {
+        "instance_id": "0123456789abcdef",
+        "pid": 1,
+        "target": "/tmp/blob.bin",
+        "state": "error",
+        "error": "raw binaries need a Ghidra language",
+        "error_code": "BAD_ARGS",
+    }
+    monkeypatch.setattr(launcher.registry, "read_state", lambda ingest_id: state)
+    options = argv.parse(["--startup-timeout", "5", "/tmp/blob.bin"])
+    with pytest.raises(RemoteError) as caught:
+        launcher._wait_for_ready(options, "0123456789abcdef")
+    assert caught.value.code == "BAD_ARGS"
+    assert caught.value.exit_code == 2
+
+
+def test_report_startup_failure_leaves_the_error_code(monkeypatch, tmp_path):
+    from gdare2.errors import UsageError
+    from gdare2d.__main__ import _report_startup_failure
+
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    written: dict[str, object] = {}
+    removed: list[str] = []
+    monkeypatch.setattr(
+        launcher.registry, "write_state", lambda state: written.update(state)
+    )
+    monkeypatch.setattr(
+        launcher.registry, "remove_state", lambda ingest_id: removed.append(ingest_id)
+    )
+    import gdare2d.__main__ as daemon_main
+
+    monkeypatch.setattr(daemon_main.time, "sleep", lambda seconds: None)
+    _report_startup_failure(
+        "0123456789abcdef", "/tmp/blob.bin", UsageError("raw binaries need a language")
+    )
+    assert written["state"] == "error"
+    assert written["error_code"] == "BAD_ARGS"
+    assert written["error"] == "raw binaries need a language"
+    assert removed == ["0123456789abcdef"]
 
 
 def test_spawn_forwards_listen(monkeypatch, tmp_path):

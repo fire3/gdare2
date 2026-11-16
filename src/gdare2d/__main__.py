@@ -131,6 +131,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     except Exception as exc:
         print(f"gdare2d: {exc}", file=sys.stderr)
+        _report_startup_failure(ingest_id, target, exc)
         return 2
 
     runtime = GhidraRuntime(
@@ -204,6 +205,31 @@ def main(argv: list[str] | None = None) -> int:
             time.sleep(1.5)
         registry.remove_state(ingest_id)
     return 1 if executor.failed else 0
+
+
+def _report_startup_failure(ingest_id: str, target: str, exc: Exception) -> None:
+    """Leave a state entry so a waiting client learns the real error code.
+
+    Failures before the server exists (a raw binary with no language hints,
+    for example) used to be indistinguishable from a crashed daemon: the
+    client waited out the startup grace and reported CONNECTION/exit 3.
+    """
+    state = {
+        "instance_id": ingest_id,
+        "pid": os.getpid(),
+        "target": target,
+        "state": "error",
+        "error": str(exc),
+        "error_code": str(getattr(exc, "code", "BAD_ARGS")),
+        "version": __import__("gdare2").__version__,
+        "protocol": 1,
+    }
+    try:
+        registry.write_state(state)
+        # Give a waiting client time to read the state before it disappears.
+        time.sleep(1.5)
+    finally:
+        registry.remove_state(ingest_id)
 
 
 def _start_watchdog(server: GdarHTTPServer, idle_seconds: float) -> None:

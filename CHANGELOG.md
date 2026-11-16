@@ -8,6 +8,10 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- Raw binaries opened without language hints now keep the documented usage
+  error: the daemon writes an error state before exiting and the client
+  reports `BAD_ARGS` with exit status 2. The same path used to wait out the
+  startup grace and report `CONNECTION` with exit status 3.
 - A missing target path now fails before the daemon is spawned with
   `ERROR: cannot open ...: no such file or directory` and exit status 1,
   matching r2. It used to be treated as a hint-less raw binary and surface as

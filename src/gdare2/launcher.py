@@ -179,6 +179,11 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
             missing_since = None
             last_state_data = state
             last_state = str(state.get("state", "starting"))
+            if state.get("error") or last_state == "error":
+                # A daemon that failed before serving wrote an error state;
+                # report its code instead of waiting for the grace period and
+                # calling it a connection failure.
+                break
             if not registry.pid_alive(int(state.get("pid", 0))):
                 break
             health = registry.health(int(state.get("port", 0)), str(state.get("host") or ""))
