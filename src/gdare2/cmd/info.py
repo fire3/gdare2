@@ -6,7 +6,7 @@ from pathlib import Path
 
 from gdare2.arch_matrix import ARCH_MATRIX
 from gdare2.cmd import command
-from gdare2.errors import UnsupportedError
+from gdare2.errors import GdarError, UnsupportedError
 from gdare2.formats.elf import (
     ElfFormatError,
     read_build_id,
@@ -303,8 +303,13 @@ def _imports(session, statement):
 
 def _format_elf_imports(session, statement, symbols) -> list[str]:
     """r2's ``ii`` table: nth, PLT vaddr, bind, type, lib, name."""
-    functions = session.call("functions", limit=10000)
-    sections = session.call("sections")
+    try:
+        functions = session.call("functions", limit=10000)
+        sections = session.call("sections")
+    except GdarError:
+        # The import table itself came from the file; a failed function or
+        # section listing must not hide it.
+        functions, sections = [], []
     executable = [
         (int(block["addr"]), int(block["addr"]) + int(block["size"]))
         for block in sections
