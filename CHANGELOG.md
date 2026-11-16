@@ -6,6 +6,34 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The default `--startup-timeout` is 600s (was 180s). A cold import is JVM
+  start + Ghidra load + auto-analysis, and a multi-MB firmware image needs
+  minutes: a packed 7.9MB ELF measured 150–270s. The 3-minute default used to
+  give up in the middle of the analysis, so the client returned `exit 3` with
+  no output while the daemon went on to finish the work. While it waits, and
+  unless `-q` is given, the client now prints
+  `gdare2: waiting for <target> (<state>, Ns)` on stderr every 20s instead of
+  looking hung.
+
+### Fixed
+
+- Files that Ghidra has no loader for (COFF bigobj, sBPF ELF, a fuzzed PE or
+  Mach-O) now fail with one actionable line —
+  `no Ghidra loader supports this file (COFF); force a raw import with
+  --loader BinaryLoader --ghidra-language <id>` — instead of a raw
+  `ghidra.app.util.opinion.LoadException: No load spec found`. radare2 opens
+  some of these with its own bin plugins; that is backend coverage, documented
+  in `docs/DIVERGENCES.md` 3.6. A `--loader`/`--ghidra-language` given by the
+  user is still reported verbatim, so a typo is not hidden behind the new text.
+- Daemon startup errors raised by gdare2 itself are no longer prefixed with
+  their Python class name (`UsageError:`/`UnsupportedError:`); the client shows
+  the message r2 users need to read.
+- The daemon no longer writes a `BrokenPipeError` traceback to its log when a
+  client hangs up mid-request (a watchdog killing `gdare2`, for example). The
+  connection is logged at debug level instead.
+
 ## [0.1.1] - 2026-11-16
 
 ### Fixed

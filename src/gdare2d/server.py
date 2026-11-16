@@ -37,6 +37,21 @@ class GdarHTTPServer(ThreadingHTTPServer):
     def touch(self) -> None:
         self.last_activity = time.monotonic()
 
+    def handle_error(self, request, client_address) -> None:
+        """A client that hangs up mid-response is not a daemon error.
+
+        A watchdog killing `gdare2` while it polls `/health` used to print a
+        `BrokenPipeError` traceback into the daemon log for every request —
+        noise that reads like a crash in the one file users check first.
+        """
+        import sys as _sys
+
+        exc = _sys.exc_info()[1]
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError, TimeoutError)):
+            log.debug("client %s went away: %s", client_address, exc)
+            return
+        super().handle_error(request, client_address)
+
 
 class Handler(BaseHTTPRequestHandler):
     server: GdarHTTPServer

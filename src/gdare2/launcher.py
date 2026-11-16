@@ -169,10 +169,18 @@ def _spawn(options: Options, target: str, ingest_id: str) -> None:
 
 
 def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
-    deadline = time.monotonic() + (options.startup_timeout or 180.0)
+    # A cold import is JVM start + Ghidra load + auto-analysis; a multi-MB
+    # firmware image takes minutes, not seconds (measured: 150-270s for a
+    # packed 8MB ELF).  The old 180s default gave up in the middle of the
+    # analysis: the daemon finished the work, the client returned nothing and
+    # exit 3.  Ten minutes still bounds a genuinely broken daemon, whose
+    # error state breaks this loop immediately.
+    deadline = time.monotonic() + (options.startup_timeout or 600.0)
     last_state = "starting"
     last_state_data: dict[str, Any] | None = None
     missing_since: float | None = None
+    started = time.monotonic()
+    next_progress = started + 20.0
     while time.monotonic() < deadline:
         state = registry.read_state(ingest_id)
         if state is not None:
@@ -201,6 +209,17 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
             missing_since = missing_since or time.monotonic()
             if time.monotonic() - missing_since > 2.0:
                 break
+        now = time.monotonic()
+        if (now >= next_progress and options.quiet == 0
+                and last_state in ("starting", "loading_project",
+                                   "importing", "analyzing")):
+            # Say something while the daemon analyses: minutes of silence read
+            # as a hang.  stderr only; scripts keep a clean stdout.
+            target = str((last_state_data or {}).get("target") or "")
+            name = Path(target).name or "target"
+            print(f"gdare2: waiting for {name} ({last_state}, "
+                  f"{now - started:.0f}s)", file=sys.stderr)
+            next_progress = now + 20.0
         time.sleep(0.1)
     final_state = registry.read_state(ingest_id) or last_state_data
     hint = f" (log: {registry.log_path(ingest_id)})"

@@ -15,9 +15,10 @@ from gdare2.errors import (
     NotReadyError,
     ReadOnlyError,
     TimeoutFailure,
+    UnsupportedError,
     UsageError,
 )
-from gdare2d.import_plan import ImportPlan
+from gdare2d.import_plan import ImportPlan, describe_format
 
 log = logging.getLogger("gdare2d.runtime")
 
@@ -27,8 +28,12 @@ def _describe_error(exc: Exception) -> str:
 
     Java exceptions stringify with a header line followed by
     ``Exception: Java Exception`` and native frames; only the first
-    non-empty line belongs in an error message.
+    non-empty line belongs in an error message.  Our own errors already
+    carry a stable code and a human message, so they are not prefixed with
+    the class name (``UsageError:`` tells the user nothing).
     """
+    if isinstance(exc, GdarError):
+        return exc.message
     name = type(exc).__name__
     lines = [line.strip() for line in str(exc).splitlines() if line.strip()]
     if not lines:
@@ -37,6 +42,7 @@ def _describe_error(exc: Exception) -> str:
     if message.startswith(name):
         return message
     return f"{name}: {message}"
+
 
 
 
@@ -273,8 +279,24 @@ class GhidraRuntime:
             loader = loader.loaders(self.plan.loader)
         for key, value in self.plan.loader_args:
             loader = loader.addLoaderArg(key, value)
-        with loader.load() as results:
-            results.save(self._pyghidra.task_monitor())
+        try:
+            with loader.load() as results:
+                results.save(self._pyghidra.task_monitor())
+        except Exception as exc:
+            # Ghidra's opinion service found no loader for this file (e.g. a
+            # COFF bigobj, an sBPF ELF, a truncated PE).  radare2 ships its
+            # own bin plugins for many of these, so "r2 opens it" says
+            # nothing about Ghidra.  An explicit --loader/--ghidra-language
+            # is a user decision: let that failure through unchanged.
+            if (self._loader_class is None and not self.plan.language
+                    and "no load spec" in str(exc).lower()):
+                raise UnsupportedError(
+                    f"no Ghidra loader supports this file "
+                    f"({describe_format(Path(self.target))}); force a raw import "
+                    f"with --loader BinaryLoader --ghidra-language <id> if the "
+                    f"bytes are still worth analysing"
+                ) from None
+            raise
         self._open_program()
 
     def _open_program(self) -> None:

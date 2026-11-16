@@ -144,6 +144,46 @@ def _looks_like_coff(head: bytes) -> bool:
     return 0 < sections < 0x8000 and optional_header_size < 0x1000
 
 
+#: Mach-O magics, including the fat/universal forms.
+_MACHO_MAGICS = (
+    b"\xfe\xed\xfa\xce",
+    b"\xfe\xed\xfa\xcf",
+    b"\xce\xfa\xed\xfe",
+    b"\xcf\xfa\xed\xfe",
+)
+
+
+def describe_format(path: Path) -> str:
+    """Best-effort wrapper-format name, for diagnostics only.
+
+    The daemon reports "No load spec found" as a Java exception; naming the
+    container makes the failure actionable (a COFF bigobj is not the same
+    problem as a corrupt PE).
+    """
+    try:
+        with path.open("rb") as handle:
+            head = handle.read(0x40)
+    except OSError:
+        return "unreadable file"
+    if not head:
+        return "empty file"
+    if head.startswith(b"\x7fELF"):
+        return "ELF"
+    if head.startswith(b"MZ"):
+        return "PE"
+    if head[:4] in _MACHO_MAGICS:
+        return "Mach-O"
+    if head.startswith(b"dex\n"):
+        return "DEX"
+    if head.startswith(b"PK\x03\x04"):
+        return "ZIP"
+    if head[:4] == b"\xca\xfe\xba\xbe":
+        return "Java class or Mach-O universal binary"
+    if _looks_like_coff(head):
+        return "COFF"
+    return "unrecognized format"
+
+
 _ALIASES = {
     "x86": "x86",
     "i386": "x86",

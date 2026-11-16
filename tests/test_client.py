@@ -23,3 +23,30 @@ def test_client_uses_registered_host():
         }
     )
     assert client.host == "127.0.0.1"
+
+
+def test_server_swallows_a_client_that_hangs_up(monkeypatch):
+    """A killed client must not print a traceback into the daemon log."""
+    from gdare2d.server import GdarHTTPServer
+
+    logged: list[str] = []
+    monkeypatch.setattr("gdare2d.server.log.debug",
+                        lambda fmt, *args: logged.append(fmt % args)
+                        if args else logged.append(fmt))
+
+    class _Server(GdarHTTPServer):
+        def __init__(self):  # no sockets: only the error hook is under test
+            pass
+
+    server = _Server()
+    server.handle_error(None, ("127.0.0.1", 1234))
+    assert logged == []
+
+    import sys
+
+    try:
+        raise BrokenPipeError(32, "Broken pipe")
+    except BrokenPipeError:
+        server.handle_error(None, ("127.0.0.1", 1234))
+    assert any("went away" in line for line in logged)
+    assert sys.exc_info()[0] is None

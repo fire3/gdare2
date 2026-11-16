@@ -117,3 +117,18 @@ def test_describe_error_keeps_only_the_first_line():
         "ValueError: already prefixed"
     )
     assert _describe_error(ValueError()) == "ValueError"
+
+
+def test_describe_error_uses_our_message_for_tool_errors():
+    """A GdarError carries a stable code; the client should not print
+    'UsageError:' in front of a sentence meant for the user."""
+    from gdare2.errors import UnsupportedError, UsageError
+    from gdare2d.runtime import _describe_error
+
+    assert _describe_error(UsageError("raw binaries need a Ghidra language")) == (
+        "raw binaries need a Ghidra language"
+    )
+    assert _describe_error(UnsupportedError("no Ghidra loader supports this file")) == (
+        "no Ghidra loader supports this file"
+    )
+

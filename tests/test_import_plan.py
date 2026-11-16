@@ -85,3 +85,34 @@ def test_plain_bytes_are_still_raw(tmp_path):
     path = tmp_path / "blob.bin"
     path.write_bytes(b"\x90\xc3" + b"\x00" * 20)
     assert is_raw_binary(path) is True
+
+
+def test_describe_format_names_the_container(tmp_path):
+    import struct
+
+    from gdare2d.import_plan import describe_format
+
+    elf = tmp_path / "a.elf"
+    elf.write_bytes(b"\x7fELF" + b"\x00" * 60)
+    assert describe_format(elf) == "ELF"
+
+    pe = tmp_path / "a.exe"
+    pe.write_bytes(b"MZ" + b"\x00" * 62)
+    assert describe_format(pe) == "PE"
+
+    macho = tmp_path / "a.macho"
+    macho.write_bytes(b"\xcf\xfa\xed\xfe" + b"\x00" * 60)
+    assert describe_format(macho) == "Mach-O"
+
+    bigobj = tmp_path / "a.obj"
+    bigobj.write_bytes(struct.pack("<HHHH", 0, 0xFFFF, 2, 0x8664) + b"\x00" * 20)
+    assert describe_format(bigobj) == "COFF"
+
+    blob = tmp_path / "a.bin"
+    blob.write_bytes(b"\x90\xc3" + b"\x00" * 20)
+    assert describe_format(blob) == "unrecognized format"
+
+    empty = tmp_path / "empty.bin"
+    empty.write_bytes(b"")
+    assert describe_format(empty) == "empty file"
+

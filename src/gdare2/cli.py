@@ -332,6 +332,7 @@ Core options:
 Daemon/import options (gdare2 long options; not r2 syntax):
   --attach <id|auto>     attach to an existing daemon
   --no-spawn             never start a daemon
+  --startup-timeout <s>  wait this long for import/analysis (default 600)
   --analysis-timeout <s> cap on first-import analysis (0 disables, default)
   --project <dir>        Ghidra project parent directory
   --project-name <name>  Ghidra project name
