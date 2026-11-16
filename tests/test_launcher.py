@@ -1,6 +1,19 @@
 from __future__ import annotations
 
+import pytest
+
 from gdare2 import argv, launcher
+from gdare2.errors import NotFoundError
+
+
+def test_ensure_missing_target_is_not_found(monkeypatch, tmp_path):
+    """A missing path is r2's exit-1 case, not a daemon start failure."""
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    options = argv.parse([str(tmp_path / "absent.bin")])
+    with pytest.raises(NotFoundError, match="cannot open"):
+        launcher.ensure(options)
+    # The check happens before any daemon/project directory is created.
+    assert not (tmp_path / "run").exists()
 
 
 def test_spawn_forwards_listen(monkeypatch, tmp_path):

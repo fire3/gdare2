@@ -12,7 +12,7 @@ from typing import Any
 from gdare2 import registry
 from gdare2.argv import Options
 from gdare2.client import check_protocol
-from gdare2.errors import ConnectionFailure, RemoteError
+from gdare2.errors import ConnectionFailure, NotFoundError, RemoteError
 
 
 def import_options(options: Options) -> dict[str, Any]:
@@ -53,6 +53,11 @@ def ensure(options: Options) -> dict[str, Any]:
         raise ConnectionFailure("a target file is required unless --attach is used")
 
     target = str(Path(options.file).expanduser())
+    if not os.path.exists(target):
+        # r2 exits 1 for an unopenable path.  Checking here also keeps a
+        # missing file from being misread as a raw binary by the daemon (and
+        # then reported as a connection failure, exit 3).
+        raise NotFoundError(f"cannot open {target}: no such file or directory")
     ingest_id = registry.instance_id(target, import_options=import_options(options))
     live = registry.live_instance(ingest_id)
     if live is not None:

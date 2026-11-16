@@ -8,6 +8,10 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- A missing target path now fails before the daemon is spawned with
+  `ERROR: cannot open ...: no such file or directory` and exit status 1,
+  matching r2. It used to be treated as a hint-less raw binary and surface as
+  `daemon failed to become ready` with exit status 3.
 - `s entry0` (and any `@ entry0`) now resolves to the program entry point.
   radare2 synthesises an `entry0` flag, while Ghidra keeps the loader's own
   spelling (`_start`, `entry`, ...), so the r2 name used to fail with
