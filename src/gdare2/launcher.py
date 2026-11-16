@@ -177,6 +177,7 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
     # error state breaks this loop immediately.
     deadline = time.monotonic() + (options.startup_timeout or 600.0)
     last_state = "starting"
+    live_state = last_state
     last_state_data: dict[str, Any] | None = None
     missing_since: float | None = None
     started = time.monotonic()
@@ -187,6 +188,7 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
             missing_since = None
             last_state_data = state
             last_state = str(state.get("state", "starting"))
+            live_state = last_state
             if state.get("error") or last_state == "error":
                 # A daemon that failed before serving wrote an error state;
                 # report its code instead of waiting for the grace period and
@@ -196,6 +198,9 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
                 break
             health = registry.health(int(state.get("port", 0)), str(state.get("host") or ""))
             if health is not None:
+                # /health knows the live transition (importing -> analyzing);
+                # the state file only records the start and the ready marker.
+                live_state = str(health.get("state") or last_state)
                 if health.get("state") == "ready":
                     state["health"] = health
                     state["state"] = "ready"
@@ -211,13 +216,13 @@ def _wait_for_ready(options: Options, ingest_id: str) -> dict[str, Any]:
                 break
         now = time.monotonic()
         if (now >= next_progress and options.quiet == 0
-                and last_state in ("starting", "loading_project",
-                                   "importing", "analyzing")):
+                and live_state in ("starting", "loading_project",
+                                   "importing", "analyzing", "busy")):
             # Say something while the daemon analyses: minutes of silence read
             # as a hang.  stderr only; scripts keep a clean stdout.
             target = str((last_state_data or {}).get("target") or "")
             name = Path(target).name or "target"
-            print(f"gdare2: waiting for {name} ({last_state}, "
+            print(f"gdare2: waiting for {name} ({live_state}, "
                   f"{now - started:.0f}s)", file=sys.stderr)
             next_progress = now + 20.0
         time.sleep(0.1)
