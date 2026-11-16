@@ -30,12 +30,43 @@ def runtime_dir() -> Path:
 
 
 def data_dir() -> Path:
-    # Ghidra's ProjectLocator rejects path elements that start with '.', so the
-    # default project root cannot live under ~/.local/share.
     override = os.environ.get("GDARE2_DATA_DIR")
     path = Path(override) if override else Path.home() / "gdare2-data"
+    if not ghidra_safe_path(path):
+        # ProjectLocator validates every element of the project location with
+        # NamingUtilities.checkName().  A data directory such as
+        # `.../hello#scenario/data` makes Ghidra refuse to create any project
+        # below it, so keep the projects in a sanitised mirror under the
+        # system temp directory instead of failing every command.
+        digest = hashlib.sha256(str(path).encode()).hexdigest()[:12]
+        path = Path(tempfile.gettempdir()) / f"gdare2-{os.getuid()}" / f"data-{digest}"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+# Ghidra's NamingUtilities.VALID_NAME_CHARSET, plus letters and digits.
+_PROJECT_NAME_PUNCTUATION = frozenset(".-=@ _()[]~+")
+
+
+def ghidra_safe_path(path: Path) -> bool:
+    """Whether *path* can be used as a Ghidra project location.
+
+    Ghidra validates each directory element with
+    ``NamingUtilities.checkName``: letters/digits plus ``.-=@ _()[]~+``,
+    and no element may start with ``.``.
+    """
+    anchor = path.anchor
+    for part in path.parts:
+        if part == anchor:
+            continue
+        if not part or part.startswith("."):
+            return False
+        if any(
+            not (char.isalnum() or char in _PROJECT_NAME_PUNCTUATION)
+            for char in part
+        ):
+            return False
+    return True
 
 
 # Only options that change the imported Program identity belong in the

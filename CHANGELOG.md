@@ -8,6 +8,12 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- Ghidra project paths are now usable even when `GDARE2_DATA_DIR` contains
+  characters Ghidra rejects (for example `#` or `%`). Ghidra validates every
+  path element with `NamingUtilities.checkName`, so such a data directory
+  used to fail every write command with a raw Java
+  `IllegalArgumentException` traceback. gdare2 now keeps the projects in a
+  deterministic sanitised mirror under the system temp directory.
 - Raw binaries opened without language hints now keep the documented usage
   error: the daemon writes an error state before exiting and the client
   reports `BAD_ARGS` with exit status 2. The same path used to wait out the
