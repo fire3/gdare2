@@ -6,6 +6,8 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-16
+
 ### Fixed
 
 - `ii` now prints r2's import table from the ELF dynamic symbol table: the
