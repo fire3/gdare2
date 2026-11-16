@@ -8,6 +8,10 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- `ie` now prints radare2's entry-point table (header, separator and one
+  `program` row) instead of a list of entry-point symbols. The r2 view is
+  ELF-header derived, so `ie` and `ie~[0]` match the oracle; entry symbols
+  remain available through `ies`.
 - Ghidra project paths are now usable even when `GDARE2_DATA_DIR` contains
   characters Ghidra rejects (for example `#` or `%`). Ghidra validates every
   path element with `NamingUtilities.checkName`, so such a data directory

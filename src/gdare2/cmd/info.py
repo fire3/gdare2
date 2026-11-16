@@ -62,7 +62,8 @@ def _sections(session, statement):
     payload = session.call("sections")
     if statement.cmd.endswith("j"):
         return _jsonify(payload)
-    lines = ["idx  address      size       perms name"]
+    # r2's iS has no header row; its first line is section 0.
+    lines = []
     for index, block in enumerate(payload):
         lines.append(
             f"{index:3d}  {session.format_addr(int(block['addr']))}  "
@@ -290,12 +291,59 @@ def _imports(session, statement):
     return [f"{session.format_addr(int(item['addr']))} {item['name']}" for item in payload]
 
 
-@command("ie", "list entry points", aliases=("iej",))
+@command("ie", "show entrypoints", aliases=("iej",))
 def _entries(session, statement):
-    payload = session.call("entries")
+    target = session.info.get("target")
+    rows: list[dict] = []
+    if target:
+        try:
+            header = read_header(target)
+        except (ElfFormatError, OSError):
+            header = None
+        if header is not None and header.entry:
+            # r2's `ie` is the entry point as one pseudo program-header row;
+            # paddr/vaddr are the ELF e_entry value (file/VA view, not
+            # Ghidra's relocated image base) and phaddr/vhaddr are its file
+            # offset (e_entry lives at 0x18 in both ELF32 and ELF64).
+            rows = [
+                {
+                    "paddr": header.entry,
+                    "vaddr": header.entry,
+                    "baddr": 0,
+                    "laddr": 0,
+                    "haddr": 0x18,
+                    "hvaddr": 0x18,
+                    "type": "program",
+                }
+            ]
+    if not rows:
+        # Ghidra-backed fallback for non-ELF targets and loaders that do not
+        # expose the input header to this parser.
+        for item in session.call("entries"):
+            address = int(item["addr"])
+            rows.append(
+                {
+                    "paddr": address,
+                    "vaddr": address,
+                    "baddr": 0,
+                    "laddr": 0,
+                    "haddr": 0,
+                    "hvaddr": 0,
+                    "type": "program",
+                }
+            )
     if statement.cmd.endswith("j"):
-        return _jsonify(payload)
-    return [f"{session.format_addr(int(item['addr']))} {item.get('name', '')}" for item in payload]
+        return _jsonify(rows)
+    lines = [
+        "paddr      vaddr      phaddr     vhaddr     type",
+        "------------------------------------------------",
+    ]
+    lines.extend(
+        f"0x{int(row['paddr']):08x} 0x{int(row['vaddr']):08x} "
+        f"0x{int(row['hvaddr']):08x} 0x{int(row['haddr']):08x} {row['type']}"
+        for row in rows
+    )
+    return lines
 
 
 @command("iD", "demangle a symbol or list demangler languages", aliases=("iDj",))

@@ -1407,3 +1407,36 @@ def test_literal_commands_and_dollar_substitution():
     assert session.seek == 0x2000
     session.run("s `? 0x1000`")
     assert session.seek == 0x1000
+
+
+def test_ie_prints_r2_program_entry_table(tmp_path):
+    import struct
+
+    from test_formats_elf import _elf64
+
+    data = bytearray(_elf64([]))
+    struct.pack_into("<Q", data, 0x18, 0x1080)
+    path = tmp_path / "entry.elf"
+    path.write_bytes(data)
+    session, _ = make_session()
+    session.info["target"] = str(path)
+    assert session.run("ie") == [
+        "paddr      vaddr      phaddr     vhaddr     type",
+        "------------------------------------------------",
+        "0x00001080 0x00001080 0x00000018 0x00000018 program",
+    ]
+    # `ie~[0]` keeps the header and separator, like r2.
+    assert session.run("ie~[0]") == [
+        "paddr",
+        "------------------------------------------------",
+        "0x00001080",
+    ]
+
+
+def test_sections_listing_has_no_header_row():
+    """r2's iS starts at section 0, so `iS~?` counts only the sections."""
+    session, _ = make_session()
+    lines = session.run("iS")
+    assert len(lines) == 2
+    assert lines[0].split()[-1] == ".text"
+    assert session.run("iS~?") == ["2"]
