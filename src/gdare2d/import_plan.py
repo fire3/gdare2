@@ -17,6 +17,9 @@ class ImportPlan:
     loader: str | None = None
     loader_args: list[tuple[str, str]] = field(default_factory=list)
     raw: bool = False
+    #: ARM/Thumb is not a separate Ghidra language: the ARM processor decodes
+    #: Thumb only when TMode is set, so the runtime has to apply this hint.
+    thumb: bool = False
     warnings: list[str] = field(default_factory=list)
 
 
@@ -43,6 +46,7 @@ def build(
         plan.language = ghidra_language
     elif arch and (raw or force_language):
         plan.language = resolve_alias(arch, bits=bits, endian=endian)
+        plan.thumb = _is_thumb(arch, bits)
     elif arch:
         plan.warnings.append("use --force-language to override a recognized format's language")
     elif raw:
@@ -199,6 +203,9 @@ _ALIASES = {
     "arm64": "AARCH64",
     "aarch64": "AARCH64",
     "aarch64be": "AARCH64",
+    # r2 spells Thumb as `-a arm -b 16`; accept the explicit names too.
+    "thumb": "THUMB",
+    "armthumb": "THUMB",
     "mips": "MIPS",
     "mipsle": "MIPS",
     "mipsbe": "MIPS",
@@ -208,6 +215,8 @@ _ALIASES = {
     "ppc": "PowerPC",
     "powerpc": "PowerPC",
     "ppc64": "PowerPC",
+    "ppcbe": "PowerPC",
+    "ppc64be": "PowerPC",
     "ppcle": "PowerPC",
     "ppc64le": "PowerPC",
     "riscv": "RISCV",
@@ -220,6 +229,20 @@ _ALIASES = {
     "sh2": "SuperH",
     "sh2a": "SuperH",
     "sh4": "SuperH4",
+    "s390": "S390",
+    "s390x": "S390",
+    "systemz": "S390",
+    # MCU-class processors: r2 passes `-b 8` for the byte-wide ones even
+    # though Ghidra models their address space as 16-bit.
+    "6502": "6502",
+    "m6502": "6502",
+    "8051": "8051",
+    "avr": "AVR",
+    "avr8": "AVR",
+    "msp430": "MSP430",
+    "msp430x": "MSP430X",
+    "TI_MSP430": "MSP430",
+    "TI_MSP430X": "MSP430X",
 }
 
 
@@ -244,8 +267,15 @@ def resolve_alias(arch: str, *, bits: str | None = None, endian: str | None = No
             return "x86:LE:16:Real Mode"
         return f"x86:LE:{width}:default"
     if family == "ARM":
-        _require_width(family, width, (32,))
-        return f"ARM:{order}:{width}:v7"
+        # r2 keeps one `arm` plugin for ARM, Thumb and AArch64; Ghidra splits
+        # them, so `-a arm -b 16|64` has to resolve to the right language.
+        if width == 64:
+            return f"AARCH64:{order}:64:v8A"
+        _require_width(family, width, (16, 32))
+        return f"ARM:{order}:32:v7"
+    if family == "THUMB":
+        _require_width(family, width, (16,))
+        return f"ARM:{order}:32:v7"
     if family == "AARCH64":
         _require_width(family, width, (64,))
         return f"AARCH64:{order}:{width}:v8A"
@@ -281,6 +311,26 @@ def resolve_alias(arch: str, *, bits: str | None = None, endian: str | None = No
             "Ghidra 12.2 has no SH-4 language; use --ghidra-language with a "
             "SuperH:BE:32:SH-* ID"
         )
+    if family == "S390":
+        raise UsageError(
+            "Ghidra 12.2 ships no S390 language; use idare2 or radare2 for "
+            "this target"
+        )
+    if family == "6502":
+        _require_width(family, width, (8, 16))
+        return "6502:LE:16:default"
+    if family == "8051":
+        _require_width(family, width, (8, 16))
+        return "8051:BE:16:default"
+    if family == "AVR":
+        _require_width(family, width, (8, 16))
+        return "avr8:LE:16:default"
+    if family == "MSP430":
+        _require_width(family, width, (8, 16))
+        return "TI_MSP430:LE:16:default"
+    if family == "MSP430X":
+        _require_width(family, width, (16, 32))
+        return "TI_MSP430X:LE:32:default"
     raise UsageError(f"unknown architecture alias {arch!r}")
 
 
@@ -290,9 +340,13 @@ def _bits(key: str, explicit: str | None) -> int:
             width = int(explicit, 0)
         except ValueError:
             raise UsageError(f"invalid bit width {explicit!r}") from None
-        if width not in (16, 32, 64):
-            raise UsageError("bit width must be 16, 32 or 64")
+        if width not in (8, 16, 32, 64):
+            raise UsageError("bit width must be 8, 16, 32 or 64")
         return width
+    if key in ("thumb", "armthumb"):
+        return 16
+    if key in ("6502", "m6502", "8051", "avr", "avr8", "msp430"):
+        return 16
     if "64" in key:
         return 64
     if "16" in key:
@@ -300,8 +354,11 @@ def _bits(key: str, explicit: str | None) -> int:
     return 32
 
 
-# radare2's bare architecture names imply these endianness defaults.
-_DEFAULT_BIG = frozenset({"MIPS", "PowerPC", "68000", "sparc", "SuperH"})
+# radare2 defaults `cfg.bigendian` to false, so a bare `-a mips`/`-a ppc`
+# decodes little-endian.  Only the ISAs Ghidra ships exclusively big-endian
+# fall back to BE here; explicit `-e arch.endian=big` (and the *be aliases)
+# remain the way to select the other order.
+_DEFAULT_BIG = frozenset({"68000", "sparc", "SuperH"})
 
 
 def _is_big(key: str, endian: str | None) -> bool:
@@ -319,3 +376,12 @@ def _require_width(family: str, width: int, allowed: tuple[int, ...]) -> None:
     if width not in allowed:
         choices = ", ".join(str(item) for item in allowed)
         raise UsageError(f"{family} supports bit width {choices}, not {width}")
+
+
+def _is_thumb(arch: str, bits: str | None) -> bool:
+    """True when r2's `-a arm -b 16` (or `-a thumb`) selects Thumb."""
+    key = arch.strip().lower()
+    family = _ALIASES.get(key)
+    if family not in ("ARM", "THUMB"):
+        return False
+    return _bits(key, bits) == 16

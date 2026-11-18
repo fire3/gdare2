@@ -1506,3 +1506,83 @@ def test_oversized_pd_count_is_clamped_not_rejected(monkeypatch):
     # The old code raised UsageError here instead of returning instructions.
     assert disasm_ops.disasm(_Ctx(), 0x1000, 999999) == [{}]
     assert disasm_ops.disasm_back(_Ctx(), 0x1000, 999999) == []
+
+
+def test_raw_pd_walks_past_a_return_like_r2(monkeypatch):
+    """`pd N` on a raw blob is a linear decode, not a flow-following one.
+
+    Ghidra's listing ends at the first `ret`; r2 keeps decoding for N
+    instructions.  The raw path must use PseudoDisassembler for the bytes the
+    listing did not cover, without writing them back into the program.
+    """
+    from types import SimpleNamespace
+
+    from gdare2d.ops import disasm as disasm_ops
+
+    class _Address:
+        def __init__(self, value: int) -> None:
+            self.value = int(value)
+
+        def add(self, amount: int) -> "_Address":
+            return _Address(self.value + amount)
+
+        def compareTo(self, other: "_Address") -> int:
+            return (self.value > other.value) - (self.value < other.value)
+
+        def getOffset(self) -> int:
+            return self.value
+
+    class _Instruction:
+        def __init__(self, ea: int, length: int = 2) -> None:
+            self.ea = ea
+            self.length = length
+
+        def getAddress(self) -> _Address:
+            return _Address(self.ea)
+
+        def getLength(self) -> int:
+            return self.length
+
+    class _Listing:
+        def getInstructionAt(self, address):
+            return _Instruction(address.value) if address.value == 0x1000 else None
+
+        def getInstructionAfter(self, address):
+            return None
+
+    class _Program:
+        def getListing(self):
+            return _Listing()
+
+        def getMaxAddress(self):
+            return _Address(0x1008)
+
+    class _Runtime:
+        plan = SimpleNamespace(raw=True)
+
+    class _Ctx:
+        program = _Program()
+        runtime = _Runtime()
+
+    monkeypatch.setattr(disasm_ops, "_first", lambda program, ea: _Instruction(0x1000))
+    monkeypatch.setattr(disasm_ops, "to_addr", lambda program, ea: ea)
+    monkeypatch.setattr(
+        disasm_ops,
+        "_pseudo_at",
+        lambda program, address: _Instruction(address.value)
+        if address.value <= 0x1008
+        else None,
+    )
+    monkeypatch.setattr(
+        disasm_ops,
+        "instruction_dict",
+        lambda instruction: {"addr": instruction.getAddress().getOffset()},
+    )
+
+    assert disasm_ops.disasm(_Ctx(), 0x1000, 5) == [
+        {"addr": 0x1000},
+        {"addr": 0x1002},
+        {"addr": 0x1004},
+        {"addr": 0x1006},
+        {"addr": 0x1008},
+    ]

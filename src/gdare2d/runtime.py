@@ -133,6 +133,10 @@ class GhidraRuntime:
                     )
                 self.state = "importing"
                 self._import()
+                if self.plan.thumb:
+                    # Must run before auto-analysis creates ARM instructions:
+                    # changing TMode afterwards conflicts with the listing.
+                    self._select_thumb_mode()
             elif self.reanalyze:
                 if self.readonly:
                     raise ReadOnlyError("read-only daemon cannot reanalyze the program")
@@ -354,6 +358,26 @@ class GhidraRuntime:
         with self._pyghidra.transaction(self.program, "gdare2 raw disassembly"):
             command.applyTo(self.program, self._pyghidra.task_monitor())
         self.program.save("gdare2 raw disassembly", self._pyghidra.task_monitor())
+
+    def _select_thumb_mode(self) -> None:
+        """Decode an ARM raw blob as Thumb, matching r2's `-b 16`.
+
+        Ghidra has one ARM language for both instruction sets.  TMode is the
+        context register that selects Thumb; setting it over the whole image
+        before the first disassembly makes the loader path behave like r2's
+        `-a arm -b 16` instead of silently decoding ARM words.
+        """
+        assert self.program is not None
+        register = self.program.getRegister("TMode")
+        if register is None:
+            return
+        from java.math import BigInteger
+
+        context = self.program.getProgramContext()
+        start = self.program.getMinAddress()
+        end = self.program.getMaxAddress()
+        with self._pyghidra.transaction(self.program, "gdare2 thumb mode"):
+            context.setValue(register, start, end, BigInteger.valueOf(1))
 
     def save(self) -> None:
         assert self.program is not None

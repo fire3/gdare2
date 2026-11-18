@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from gdare2.errors import UsageError
-from gdare2d.import_plan import is_raw_binary, resolve_alias
+from gdare2d.import_plan import build, is_raw_binary, resolve_alias
 
 
 @pytest.mark.parametrize(
@@ -13,14 +13,20 @@ from gdare2d.import_plan import is_raw_binary, resolve_alias
         ("x86_64", "x86:LE:64:default"),
         ("arm", "ARM:LE:32:v7"),
         ("armbe", "ARM:BE:32:v7"),
+        ("thumb", "ARM:LE:32:v7"),
+        ("armthumb", "ARM:LE:32:v7"),
         ("aarch64", "AARCH64:LE:64:v8A"),
         ("aarch64be", "AARCH64:BE:64:v8A"),
-        ("mips", "MIPS:BE:32:default"),
-        ("mips64", "MIPS:BE:64:default"),
+        ("mips", "MIPS:LE:32:default"),
+        ("mips64", "MIPS:LE:64:default"),
+        ("mipsbe", "MIPS:BE:32:default"),
+        ("mips64be", "MIPS:BE:64:default"),
         ("mipsle", "MIPS:LE:32:default"),
         ("mips64le", "MIPS:LE:64:default"),
-        ("ppc", "PowerPC:BE:32:default"),
-        ("ppc64", "PowerPC:BE:64:default"),
+        ("ppc", "PowerPC:LE:32:default"),
+        ("ppc64", "PowerPC:LE:64:default"),
+        ("ppcbe", "PowerPC:BE:32:default"),
+        ("ppc64be", "PowerPC:BE:64:default"),
         ("ppcle", "PowerPC:LE:32:default"),
         ("ppc64le", "PowerPC:LE:64:default"),
         ("sparc", "sparc:BE:32:default"),
@@ -31,6 +37,10 @@ from gdare2d.import_plan import is_raw_binary, resolve_alias
         ("sh1", "SuperH:BE:32:SH-1"),
         ("sh2", "SuperH:BE:32:SH-2"),
         ("sh2a", "SuperH:BE:32:SH-2A"),
+        ("6502", "6502:LE:16:default"),
+        ("8051", "8051:BE:16:default"),
+        ("avr", "avr8:LE:16:default"),
+        ("msp430", "TI_MSP430:LE:16:default"),
     ],
 )
 def test_alias_defaults(arch, expected):
@@ -41,6 +51,37 @@ def test_explicit_16_bit_x86():
     assert resolve_alias("x86", bits="16") == "x86:LE:16:Real Mode"
 
 
+def test_r2_arm_widths_resolve_to_arm_thumb_and_aarch64():
+    assert resolve_alias("arm", bits="16") == "ARM:LE:32:v7"
+    assert resolve_alias("arm", bits="32") == "ARM:LE:32:v7"
+    assert resolve_alias("arm", bits="64") == "AARCH64:LE:64:v8A"
+    assert resolve_alias("armbe", bits="64") == "AARCH64:BE:64:v8A"
+
+
+@pytest.mark.parametrize(
+    ("arch", "bits", "expected"),
+    [
+        ("6502", "8", "6502:LE:16:default"),
+        ("8051", "8", "8051:BE:16:default"),
+        ("avr", "8", "avr8:LE:16:default"),
+        ("msp430", "16", "TI_MSP430:LE:16:default"),
+    ],
+)
+def test_mcu_aliases_accept_r2_byte_widths(arch, bits, expected):
+    assert resolve_alias(arch, bits=bits) == expected
+
+
+def test_thumb_hint_is_carried_on_the_plan(tmp_path):
+    path = tmp_path / "blob.bin"
+    path.write_bytes(b"\x01\x20\x70\x47")
+    plan = build(str(path), arch="arm", bits="16")
+    assert plan.language == "ARM:LE:32:v7"
+    assert plan.thumb is True
+
+    plan = build(str(path), arch="arm", bits="32")
+    assert plan.thumb is False
+
+
 @pytest.mark.parametrize(
     ("arch", "kwargs"),
     [
@@ -48,9 +89,10 @@ def test_explicit_16_bit_x86():
         ("sparc", {"endian": "little"}),
         ("m68k", {"endian": "little"}),
         ("riscv32", {"endian": "big"}),
-        ("arm", {"bits": "16"}),
+        ("arm", {"bits": "8"}),
         ("aarch64", {"bits": "32"}),
         ("sparc", {"bits": "16"}),
+        ("6502", {"bits": "32"}),
         ("sh2a", {"endian": "little"}),
         ("sh2a", {"bits": "64"}),
     ],
@@ -63,6 +105,13 @@ def test_unsupported_combinations(arch, kwargs):
 def test_sh4_is_explicitly_unsupported():
     with pytest.raises(UsageError, match="SH-4"):
         resolve_alias("sh4")
+
+
+@pytest.mark.parametrize("arch", ["s390", "s390x", "systemz"])
+def test_s390_is_explicitly_unsupported(arch):
+    """Ghidra 12.2 has no S390 processor; say so instead of "unknown alias"."""
+    with pytest.raises(UsageError, match="S390"):
+        resolve_alias(arch)
 
 
 def test_coff_object_is_not_treated_as_a_raw_binary(tmp_path):

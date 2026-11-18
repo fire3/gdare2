@@ -6,6 +6,16 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ## [Unreleased]
 
+### Added
+
+- r2's raw-import spellings now resolve on Ghidra: `-a arm -b 64` selects
+  AArch64, `-a arm -b 16` (or `-a thumb`) selects Thumb via the ARM `TMode`
+  context register, and `6502`/`8051`/`avr`/`msp430` map to Ghidra's MCU
+  languages. `-b 8` is accepted for the byte-wide processors even though
+  Ghidra models their address space as 16-bit. Previously these failed before
+  the daemon could start (`ARM supports bit width 32` / `unknown architecture
+  alias`), so retest's MCU and AArch64 raw targets could not be opened at all.
+
 ### Changed
 
 - The default `--startup-timeout` is 600s (was 180s). A cold import is JVM
@@ -19,6 +29,18 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ### Fixed
 
+- `pd N` on a raw blob keeps decoding after a `ret`/`rts`/`blr`, like r2,
+  instead of stopping at the end of the analysed flow. The bytes the listing
+  did not cover are decoded with `PseudoDisassembler`, so the program is not
+  mutated. This made MCU/AArch64/PPC/MIPS raw disassembly stop after one or
+  two instructions.
+- `-a s390`/`s390x`/`systemz` now reports that Ghidra 12.2 ships no S390
+  language instead of `unknown architecture alias` (the daemon still cannot
+  analyse the target; this is a backend gap, not an r2 spelling problem).
+- A bare `-a mips`/`-a ppc` now decodes little-endian, matching r2's
+  `cfg.bigendian=false` default; `-e arch.endian=big` and the `*be` aliases
+  still select big-endian. Previously little-endian raw MIPS/PPC blobs could
+  not be disassembled at all ("no instruction at or after 0x0").
 - Files that Ghidra has no loader for (COFF bigobj, sBPF ELF, a fuzzed PE or
   Mach-O) now fail with one actionable line —
   `no Ghidra loader supports this file (COFF); force a raw import with

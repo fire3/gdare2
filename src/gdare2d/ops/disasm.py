@@ -24,6 +24,36 @@ def _first(program, ea: int):
     return instruction
 
 
+def _is_raw(ctx) -> bool:
+    """Raw blobs have no section/function metadata to stop a linear walk."""
+    plan = getattr(getattr(ctx, "runtime", None), "plan", None)
+    return bool(getattr(plan, "raw", False))
+
+
+def _pseudo_at(program, address):
+    """Decode one instruction without adding it to the listing.
+
+    Ghidra's flow-following disassembler stops at a `ret`/`rts`; r2's `pd N`
+    keeps decoding the following bytes.  For raw imports (where every byte is
+    potentially code) use PseudoDisassembler to continue the linear walk the
+    way r2 does, without mutating the analyzed program.
+    """
+    from ghidra.app.util import PseudoDisassembler
+
+    try:
+        disassembler = PseudoDisassembler(program)
+        disassembler.setRespectExecuteFlag(False)
+        instruction = disassembler.disassemble(address)
+    except Exception:
+        return None
+    if instruction is None:
+        return None
+    try:
+        return instruction if instruction.isValid() else None
+    except Exception:
+        return instruction
+
+
 def _at_or_containing(program, ea: int):
     listing = program.getListing()
     address = to_addr(program, ea)
@@ -42,10 +72,26 @@ def disasm(ctx, ea: int, count: int = 1) -> list[dict]:
     if instruction is None:
         raise NotFoundError(f"no instruction at or after 0x{int(ea):x}")
     listing = program.getListing()
+    raw = _is_raw(ctx)
     result: list[dict] = []
     while instruction is not None and len(result) < count:
         result.append(instruction_dict(instruction))
-        instruction = listing.getInstructionAfter(instruction.getAddress())
+        try:
+            length = int(instruction.getLength())
+        except Exception:
+            break
+        if length <= 0:
+            break
+        next_address = instruction.getAddress().add(length)
+        if raw:
+            maximum = program.getMaxAddress()
+            if maximum is not None and next_address.compareTo(maximum) > 0:
+                break
+            instruction = listing.getInstructionAt(next_address) or _pseudo_at(
+                program, next_address
+            )
+        else:
+            instruction = listing.getInstructionAfter(instruction.getAddress())
     return result
 
 
