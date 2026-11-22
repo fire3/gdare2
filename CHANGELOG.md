@@ -6,6 +6,8 @@ All notable changes to gdare2 are documented here.  The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-22
+
 ### Added
 
 - r2's raw-import spellings now resolve on Ghidra: `-a arm -b 64` selects
