@@ -1523,10 +1523,10 @@ def test_raw_pd_walks_past_a_return_like_r2(monkeypatch):
         def __init__(self, value: int) -> None:
             self.value = int(value)
 
-        def add(self, amount: int) -> "_Address":
+        def add(self, amount: int) -> _Address:
             return _Address(self.value + amount)
 
-        def compareTo(self, other: "_Address") -> int:
+        def compareTo(self, other: _Address) -> int:
             return (self.value > other.value) - (self.value < other.value)
 
         def getOffset(self) -> int:
